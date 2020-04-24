@@ -1,0 +1,2110 @@
+---
+title: "End of Life"
+author: '[T. Jemmett](mailto:thomas.jemmett@nhs.net)'
+date: "25/11/2019"
+output:
+  StrategyUnitTheme::su_document:
+    toc: yes
+  word_document:
+    reference_docx: su_template.docx
+    #toc: true
+  html_document:
+    fig_caption: true
+    toc: true
+    toc_float: true
+params:
+  stp: "E54000016"
+---
+
+```{r setup, include=FALSE}
+# all setup should happen in setup.R that could be shared logic between files
+local({
+  source("setup.R")
+  load_data(params$stp)
+})
+```
+
+This report is about the people in `r stp_name` STP who died between April 2018
+and March 2019 and were 18 years or older at their date of death.
+
+Comparisons are made between this STP and the others `r nrow(region)`
+in the `r region_name`.
+
+```{r map of selected area}
+# calculate the bounding box for the region: this is how we will crop all maps
+# from now on. uses a anonymous closure that is immediately executed and returns
+# a function that can be added to any ggplot object we need
+coord_stp <- (function() {
+  bbox <- st_bbox(filter(stp_geo, is_region_stp))
+  function() {
+    coord_sf(datum = NA,
+             xlim = bbox[c("xmin","xmax")]+c(-1,1)*10000,
+             ylim = bbox[c("ymin","ymax")]+c(-1,1)*10000)
+  }
+})()
+
+stp_geo %>%
+  mutate(fill = case_when(
+    is_stp ~ "orange",
+    is_region_stp ~ "yellow",
+    TRUE ~ "light_yellow"
+  )) %>%
+  ggplot() +
+  geom_sf(data = countries,
+          fill = su_theme_cols("light_white"),
+          colour = NA) +
+  geom_sf(aes(fill = fill)) +
+  coord_stp() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  scale_fill_manual(values = su_theme_cols()) +
+  theme(panel.background = element_rect(fill = su_theme_cols("light_blue"),
+                                        colour = NA),
+        legend.position = "none")
+  
+```
+
+# About People
+
+## Number of Decedents
+
+```{r create basic stats, include=FALSE}
+basic_stats <- pmap(list(
+  mpi = list(stp = mpi, region = mpi_region, england = mpi_all),
+  pop = list(stp = pop_raw, region = pop_raw_region, england = pop_raw_all),
+  area = list(stp = stp_name, region = region_name, england = "England")
+), function(mpi, pop, area) {
+  x <- nrow(mpi)
+  y <- sum(filter(pop, age >= 18)$count)
+  
+  mean_age <- mean(mpi$age, na.rm = TRUE)
+  ages <- table(mpi$age_band)/x
+  
+  r <- BinomCI(x, y, conf.level = 0.99) * 1000
+  
+  c(deaths = comma(x),
+    population = comma(y),
+    map_chr(r[1,], number, accuracy = 0.1),
+    mean_age = number(mean_age, accuracy = 0.1),
+    map_chr(ages, percent))
+  
+  c(deaths = x,
+    population = y,
+    r[1,],
+    mean_age = mean_age,
+    ages)
+})
+
+basic_stats
+
+# create a formatted matrix of the basic stats that we can easily use in the
+# text above
+basic_stats.fmt <- as.matrix(bind_rows(basic_stats))
+rownames(basic_stats.fmt) <- names(basic_stats$stp)
+
+basic_stats.fmt <- c(
+  comma(basic_stats.fmt["deaths",]),
+  comma(basic_stats.fmt["population",]),
+  number(basic_stats.fmt["est",], accuracy = 0.1),
+  number(basic_stats.fmt["lwr.ci",], accuracy = 0.1),
+  number(basic_stats.fmt["upr.ci",], accuracy = 0.1),
+  number(basic_stats.fmt["mean_age",], accuracy = 0.1),
+  percent(basic_stats.fmt["0-17",], accuracy = 0.1),
+  percent(basic_stats.fmt["18-64",], accuracy = 0.1),
+  percent(basic_stats.fmt["65-74",], accuracy = 0.1),
+  percent(basic_stats.fmt["75-84",], accuracy = 0.1),
+  percent(basic_stats.fmt["85+",], accuracy = 0.1)
+) %>%
+  matrix(ncol = ncol(basic_stats.fmt),
+         byrow = TRUE,
+         dimnames = dimnames(basic_stats.fmt))
+
+basic_stats.fmt
+```
+
+In the 12 months starting 1^st^ April 2018, there were
+`r basic_stats.fmt["deaths", "stp"]` decedents in `r stp_name` STP.
+The estimated population size is `r basic_stats.fmt["population", "stp"]`,
+giving a rate of `r basic_stats.fmt["est", "stp"]` deaths per 1000 population
+(`r basic_stats.fmt["lwr.ci", "stp"]`-`r basic_stats.fmt["upr.ci", "stp"]`).
+
+```{r map of death rates}
+stp_geo %>%
+  inner_join(mpi_region %>%
+               count(stp, name = "deaths") %>%
+               mutate_at(vars(stp), as.character),
+             by = c("stp18cd" = "stp")) %>%
+  inner_join(pop_raw_region %>%
+               filter(age >= 18) %>%
+               group_by(stp18cd) %>%
+               summarise_at(vars(count), sum),
+             by = "stp18cd") %>%
+  mutate(rate = deaths / count * 1000) %>%
+  ggplot() +
+  geom_sf(data = countries,
+          fill = su_theme_cols("light_white"),
+          colour = NA) +
+  geom_sf(data = stp_geo, fill = NA) +
+  geom_sf(aes(fill = rate), colour = "black", na.rm = TRUE) +
+  geom_sf(data = filter(stp_geo, is_stp),
+          lwd = 1.5,
+          fill = NA,
+          colour = "black") +
+  geom_shadowtext(aes(label = number(rate, accuracy = 0.1),
+                      x = bng_e,
+                      y = bng_n),
+                  size = 2.5) +
+  coord_stp() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  scale_fill_viridis_c() +
+  theme(panel.background = element_rect(fill = su_theme_cols("light_blue"),
+                                        colour = NA),
+        legend.position = "right") +
+  labs(x = "", y = "")
+  
+```
+
+```{r death rates by stps chart}
+inner_join(
+  mpi_all %>%
+    mutate_at(vars(stp), as.character) %>%
+    count(stp, is_stp, is_region_stp, name = "deaths"),
+  pop_raw_all %>%
+    filter(age >= 18) %>%
+    group_by(stp18cd) %>%
+    summarise_at(vars(count), sum),
+  by = c("stp" = "stp18cd")
+) %>%
+  mutate(ci = map2(deaths,
+                   count,
+                   ~BinomCI(.x, .y, conf.level = .99) %>%
+                     as_tibble() %>%
+                     mutate_all(`*`, 1000))) %>%
+  unnest(cols = c(ci)) %>%
+  mutate(colour = case_when(
+    is_stp ~ "orange",
+    is_region_stp ~ "charcoal",
+    TRUE ~ "grey"
+  )) %>%
+  mutate_at(vars(stp), fct_reorder, quo(-est)) %>%
+  ggplot(aes(stp, est, colour = colour)) +
+  geom_hline(yintercept = basic_stats$england[["est"]],
+             linetype = "dotted",
+             colour = su_theme_cols("grey")) +
+  geom_point() +
+  geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci),
+                width = 0.5) +
+  scale_colour_manual(values = su_theme_cols()) +
+  theme(legend.position = "none",
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) +
+  labs(x = "", y = "Deaths per 1000 pop. (over 18)")
+```
+
+`r stp_name` STP is highlighted in orange, the remaining `r region_name` STP's
+are shown in dark grey, while the rest of the STP's in England are shown in
+light grey. The dotted grey line is the overall rate for England. Confidence
+intervals are 99% Binomial Confidence intervals.
+
+## Age of Decedents
+
+```{r by age}
+inner_join(
+  count(mpi, age_band, name = "stp"),
+  count(mpi_region, age_band, name = "region"),
+  by = "age_band"
+) %>%
+  mutate(stp_n = glue("n = {comma(stp)}")) %>%
+  mutate_if(is.numeric, ~.x / sum(.x)) %>%
+  ggplot(aes(age_band, stp)) +
+  geom_col(fill = su_theme_cols("orange"),
+           colour = su_theme_cols("charcoal"),
+           alpha = 0.4,
+           width = 0.75) +
+  geom_text(aes(y = 0.005, label = stp_n),
+            size = 3,
+            vjust = "bottom") +
+  geom_point(aes(y = region),
+             size = 2,
+             shape = "circle filled",
+             stroke = 1.5,
+             colour = su_theme_cols("charcoal")[[1]],
+             fill = su_theme_cols("red")[[1]]) +
+  scale_y_continuous(labels = percent,
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(x = "",
+       y = "Percentage of Decedents by Age Band")
+```
+
+Bars represent `r stp_name` STP, dots show how this STP compares to the whole
+of the `r region_name` STP's.
+
+```{r mean age plots}
+age_count_fn <- function(data) {
+  tibble(age = lift(seq)(range(mpi_all$age)),
+       male = 0,
+       female = 0) %>%
+  bind_rows(data %>%
+              count(age, sex) %>% 
+              drop_na() %>%
+              pivot_wider(names_from = "sex",
+                          values_from = "n") %>%
+              replace_na(list(male = 0,
+                              female = 0))) %>%
+  group_by(age) %>%
+  summarise_all(max)
+}
+
+max_age <- 100
+age_cut <- partial(
+  cut,
+  breaks = c(18, seq(20, max_age, 5), Inf),
+  labels = c("18-19", seq(20, max_age-1, 5) %>% paste0(.,"-",.+4), "100+"),
+  right = FALSE
+)
+
+bind_rows(
+  mpi %>%
+    age_count_fn() %>%
+    mutate(type = "stp"),
+  mpi_region %>%
+    age_count_fn() %>%
+    mutate(type = "region")
+) %>%
+  group_by(type) %>%
+  mutate_at(vars(male, female), ~.x/sum(.x)) %>%
+  mutate_at(vars(male), ~-.x) %>%
+  ungroup() %>%
+  pivot_longer(c(male, female), names_to = "sex", values_to = "decedents") %>%
+  pivot_wider(names_from = type, values_from = decedents) %>%
+  filter(age >= 18) %>%
+  mutate_at(vars(age), age_cut) %>%
+  group_by(age, sex) %>%
+  summarise_if(is.numeric, sum) %>%
+  # Plot
+  ggplot(aes(age, stp)) +
+  geom_col(aes(fill = sex)) +
+  geom_errorbar(aes(ymin = region, ymax = region, colour = sex),
+                show.legend = FALSE) +
+  coord_flip() +
+  scale_colour_manual(values = c("male" = su_theme_cols("dark_blue")[[1]],
+                                 "female" = su_theme_cols("dark_red")[[1]])) +
+  scale_fill_manual(values = c("male" = su_theme_cols("light_blue")[[1]],
+                               "female" = su_theme_cols("light_red")[[1]])) +
+  scale_y_continuous(labels = percent) +
+  labs(x = "% of decedents",
+       y = "Age of Decedant",
+       fill = "") +
+  theme(legend.position = c(1, 0.01),
+        legend.justification = c(1, 0))
+```
+
+Lines and bars show the percentage of the decedents for each age, with Males
+shown on the left (in blue) and Females shown on the right (in red).
+
+
+```{r mean age density plots}
+ggplot() +
+  # stp male
+  geom_density(data = filter(mpi, sex == "male"),
+               aes(age, -..density..),
+               colour = su_theme_cols("dark_blue")[[1]],
+               fill = su_theme_cols("light_blue")[[1]]) +
+  # region male
+  geom_density(data = filter(mpi_region, sex == "male"),
+               aes(age, -..density..),
+               linetype = "dotted") +
+  # stp female
+  geom_density(data = filter(mpi, sex == "female"),
+               aes(age,  ..density..),
+               colour = su_theme_cols("dark_red")[[1]],
+               fill = su_theme_cols("light_red")[[1]]) +
+  # region female
+  geom_density(data = filter(mpi_region, sex == "female"),
+               aes(age,  ..density..),
+               linetype = "dotted") +
+  coord_flip() +
+  scale_x_continuous(breaks = seq(20,110,5)) +
+  theme(axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        panel.grid.major.y = element_line(colour = "grey")) +
+  labs(x = "age", y= "")
+```
+
+The `r stp_name` STP is shown as the bars, and the black lines represent the
+overall value for the region (`r region_name`).
+
+The average (mean) age for the `r stp_name` STP is
+`r basic_stats.fmt["mean_age", "stp"]`, compared to
+`r basic_stats.fmt["mean_age", "region"]` for the `r region_name`.
+
+The following map shows the mean age for each of the STP's in the `r region_name`.
+
+```{r age map}
+
+stp_geo %>%
+  inner_join(mpi_region %>%
+               mutate_at(vars(stp), as.character) %>%
+               group_by(stp) %>%
+               summarise_at(vars(age), mean),
+             by = c("stp18cd" = "stp")) %>%
+  ggplot() +
+  geom_sf(data = countries,
+          fill = su_theme_cols("light_white"),
+          colour = NA) +
+  geom_sf(data = stp_geo, fill = NA) +
+  geom_sf(aes(fill = age), colour = "black", na.rm = TRUE) +
+  geom_sf(data = filter(stp_geo, is_stp),
+          lwd = 1.5,
+          fill = NA,
+          colour = "black") +
+  geom_shadowtext(aes(label = number(age, accuracy = 0.1),
+                      x = bng_e,
+                      y = bng_n),
+                  size = 2.5) +
+  coord_stp() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  scale_fill_viridis_c() +
+  theme(panel.background = element_rect(fill = su_theme_cols("light_blue"),
+                                        colour = NA),
+        legend.position = "right") +
+  labs(x = "", y = "")
+  
+```
+
+## Deprivation
+
+```{r deprivation quintile bar plot}
+
+inner_join(
+  count(mpi, imd_quintile, name = "stp"),
+  count(mpi_region, imd_quintile, name = "region"),
+  by = "imd_quintile"
+) %>%
+  drop_na() %>%
+  mutate(stp_n = glue("n = {comma(stp)}")) %>%
+  mutate_at(vars(stp, region), ~.x / sum(.x)) %>%
+  ggplot(aes(imd_quintile, stp)) +
+  geom_col(fill = su_theme_cols("orange"),
+           colour = su_theme_cols("charcoal"),
+           alpha = 0.4,
+           width = 0.5) +
+  geom_text(aes(y = 0.0025, label = stp_n),
+            size = 3,
+            vjust = "bottom") +
+  #geom_errorbar(aes(ymin = region, ymax = region)) +
+  geom_point(aes(y = region),
+             size = 2,
+             shape = "circle filled",
+             stroke = 1.5,
+             colour = su_theme_cols("charcoal")[[1]],
+             fill = su_theme_cols("red")[[1]]) +
+  scale_imd(quintiles = TRUE) +
+  scale_y_continuous(labels = percent,
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(x = "",
+       y = "Percentage of Decedents by Age Band")
+```
+
+## Ethnicity
+
+```{r ethnicity percentage bar plot}
+local({
+  ethnic_count <- function(data) {
+    data %>%
+      #mutate_at(vars(ethnic_group), fct_rev) %>%
+      count(ethnic_group) %>%
+      mutate_at(vars(n), ~.x/sum(.x))  
+  }
+  
+  ethnic_count(mpi) %>%
+    ggplot(aes(ethnic_group, n)) +
+    geom_col(colour = su_theme_cols("charcoal"),
+             fill = su_theme_cols("orange"),
+             alpha = 0.4,
+             width = 0.5) +
+    geom_point(aes(y = n),
+               data = ethnic_count(mpi_region),
+               size = 2,
+               shape = "circle filled",
+               stroke = 1.5,
+               colour = su_theme_cols("charcoal")[[1]],
+               fill = su_theme_cols("red")[[1]]) +
+    scale_y_continuous(expand = expansion(c(0, 0.05)),
+                       labels = percent) +
+    #coord_flip() +
+    theme(axis.text.x = element_text(angle = 15, hjust = 1)) +
+    labs(x = "", y = "")
+})
+```
+
+```{r ethnicity percentage diff bar plot}
+local({
+  ethnic_count <- function(data) {
+    data %>%
+      #mutate_at(vars(ethnic_group), fct_rev) %>%
+      count(ethnic_group) %>%
+      mutate_at(vars(n), ~.x/sum(.x))  
+  }
+  
+  full_join(
+    ethnic_count(mpi) %>%
+      rename(stp = n),
+    ethnic_count(mpi_region) %>%
+      rename(region = n),
+    by = "ethnic_group"
+  ) %>%
+    mutate(diff = stp - region) %>%
+    ggplot(aes(ethnic_group, diff)) +
+    geom_hline(yintercept = 0) +
+    geom_col(colour = su_theme_cols("charcoal"),
+             fill = su_theme_cols("orange"),
+             alpha = 0.4,
+             width = 0.5) +
+    scale_y_continuous(labels = percent) +
+    #coord_flip() +
+    theme(axis.text.x = element_text(angle = 15, hjust = 1)) +
+    labs(x = "", y = "% difference from region average")
+})
+```
+
+```{r ethnicity by imd}
+if (all(mpi$ethnic_group == "Unknown")) {
+  warning("Cannot produce plot: ethnicity has not been applied to MPI.") 
+} else {
+  mpi %>%
+    count(imd_quintile, ethnic_group) %>%
+    drop_na() %>%
+    filter(!ethnic_group %in% c("Unknown", "Not stated")) %>%
+    group_by(imd_quintile) %>%
+    mutate_at(vars(n), ~.x/sum(.x)) %>%
+    ggplot(aes(imd_quintile, n, fill = fct_rev(ethnic_group))) +
+    geom_col(position = "stack", col = su_theme_cols("charcoal")) +
+    coord_flip() +
+    scale_imd(quintiles = TRUE) +
+    scale_y_continuous(labels = percent,
+                       expand = expansion()) +
+    scale_fill_su(palette = "oj_coal", discrete = TRUE, rev = TRUE) +
+    labs(x = "% of decedents by ethnicity",
+         y = "Deprivation Quintile",
+         fill = "")
+}
+```
+
+```{r ethnicity treemap}
+mpi %>%
+  filter(!ethnic_group %in% c("Not stated", "Unknown")) %>%
+  count(ethnic_group) %>%
+  drop_na() %>%
+  ggplot(aes(area = n, label = ethnic_group, fill = ethnic_group)) +
+  geom_treemap(alpha = 0.4) +
+  geom_treemap_text() +
+  theme(legend.position = "none")
+```
+
+# Place of death
+
+```{r place of death by age mekko}
+
+place_of_death_fill <- function(reverse = FALSE) {
+  su_theme_cols("charcoal", "red", "blue", "orange", "grey") %>%
+    set_names(rev(levels(mpi$location_type))) %>%
+    scale_fill_manual(values = .,
+                      guide = guide_legend(reverse = reverse))
+}
+
+mpi %>%
+  filter(location_type != "Unknown") %>%
+  mutate_at(vars(age),
+            ~case_when(age < 65 ~ "18-64",
+                       age < 75 ~ "65-74",
+                       age < 85 ~ "75-84",
+                       TRUE    ~ "85+")) %>%
+  mekko_chart(age, location_type) +
+  place_of_death_fill()
+```
+
+```{r place of death by cause of death mekko}
+mpi %>%
+  filter(location_type != "Unknown",
+         group != "(Missing)") %>%
+  mutate_at(vars(group),
+            compose(fct_rev, fct_recode),
+            "Sudden\nDeath" = "Sudden Death",
+            "OTI" = "Other Terminal Illness") %>%
+  mekko_chart(group, location_type) +
+  place_of_death_fill() 
+#+
+  #theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
+OTI = Other Terminal Illness
+
+```{r place of death by deprivation mekko}
+mpi %>%
+  filter(location_type != "Unknown",
+         !is.na(imd_quintile)) %>%
+  mutate_at("imd_quintile",
+            compose(.dir = "forward",
+              as.factor,
+              partial(fct_recode,
+                      "Most Deprived" = "1",
+                      # we still need unique labels, so let's just increase the
+                      # number of spaces each time
+                      " " = "2", 
+                      "  " = "3",
+                      "   " = "4",
+                      "Least Deprived" = "5")
+              )) %>%
+  mekko_chart(imd_quintile, location_type) +
+  place_of_death_fill()
+```
+
+#### lived alone
+
+```{r lives alone mekko}
+mpi %>%
+  filter(age_band == "85+") %>%
+  drop_na(lives_alone) %>%
+  #mutate_at("lives_alone", replace_na, 0) %>%
+  mutate_at("lives_alone",
+            ifelse,
+            "Lived Alone", "Did Not Live Alone") %>%
+  mekko_chart(lives_alone, location_type) +
+  place_of_death_fill()
+```
+
+```{r ethnicity place of death, message=FALSE, warning=FALSE}
+local({
+  data <- mpi %>%
+    filter(ethnic_group != "Unknown")
+  
+  if (nrow(data) > 0) {
+    data %>%
+      count(ethnic_group, location_type, age_band) %>%
+      filter(location_type != "Unknown") %>%
+      group_by(ethnic_group, age_band) %>%
+      mutate_at("n", ~.x/sum(.x)) %>%
+      ggplot(aes(ethnic_group, n)) +
+      geom_col(aes(fill = location_type),
+               alpha = 0.4,
+               colour = "white") +
+      scale_y_continuous(labels = percent) +
+      place_of_death_fill(reverse = TRUE) +
+      facet_wrap(vars(age_band)) +
+      coord_flip() +
+      theme(legend.position = "bottom") +
+      labs(x = "", y = "", fill = "")
+  } else {
+    warning("Ethnicity is missing: plot not run")  
+  }
+})
+```
+
+# About Peoples' Healthcare
+
+```{r activity summary plots, echo = FALSE, message = FALSE, results = "none"}
+activity %>%
+  # can't calculate these for the Bed Days
+  filter(!pod_type %in% c("Bed", "Critical Care Bed Day")) %>%
+  group_nest(pod_type) %>%
+  pmap(function(pod_type, data) {
+    data %>%
+      # could remove pod_summary_group
+      group_by(pod_summary_group, su_pat_id) %>%
+      #group_by(su_pat_id) %>%
+      #mutate(n_act = cut(n(), c(0,1,5,Inf), c("1","2-5","6+"))) %>%
+      mutate(n_act = cut(n(), c(0,5,10,Inf), c("1-5","6-10","11+"))) %>%
+      group_by(pod_summary_group, n_act) %>%
+      count(proximity_to_death) %>%
+      mutate(p = n/sum(n)) %>%
+      ggplot(aes(proximity_to_death, p, colour = n_act)) +
+      #geom_line() +
+      geom_smooth(fill = NA,
+                  method = "loess",
+                  formula = y ~ x,
+                  span = 0.4) +
+      geom_point(aes(fill = after_scale(alpha(colour, 0.4))),
+                 shape = "circle filled") +
+      scale_x_continuous(trans = reverse_trans(),
+                         breaks = seq(0, 24, 3)) +
+      scale_y_continuous(labels = percent) +
+      facet_wrap(vars(pod_summary_group)) +
+      labs(title = pod_type,
+           x = "Proximity to death (months)",
+           y = "Percentage of all activity",
+           colour = "Number of activities patient had") +
+      theme(legend.position = "bottom")
+  }) %>%
+  walk(plot)
+  
+```
+
+## Activity types per person
+
+```{r activity pcnt}
+bind_rows(
+  mutate(activity, type = "stp"),
+  mutate(activity_region, type = "region")
+) %>%
+  mutate_at("pod_type",
+            ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                    "Critical Care Bed Day",
+                    as.character(.x))) %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
+  group_by(type, pod_type, su_pat_id) %>%
+  summarise(n = sign(n())) %>%
+  summarise_at("n", sum) %>%
+  inner_join(
+    bind_rows(
+      mpi %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "stp"),
+      
+      mpi_region %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "region"),
+    ),
+    by = c("type")
+  ) %>%
+  mutate_at("n", ~.x / patients) %>%
+  select(-patients) %>%
+  pivot_wider(names_from = "type", values_from = "n") %>%
+  #filter(!pod_type %in% c("Bed")) %>% 
+  ungroup() %>%
+  ggplot(aes(pod_type, stp)) +
+  geom_col(aes(colour = pod_type,
+               fill = after_scale(alpha(colour, 0.4)))) +
+  geom_point(aes(y = region,
+                 colour = pod_type,
+                 fill = after_scale(alpha(colour, 0.4))),
+             show.legend = FALSE,
+             size = 2,
+             shape = "circle filled",
+             stroke = 1.5) +
+  scale_y_continuous(labels = percent,
+                     expand = expansion(c(0, 0.05))) +
+  expand_limits(y = c(0, 1)) +
+  labs(x = "", y = "", colour = "", fill = "")  +
+  theme(legend.position = "none",
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())
+```
+
+```{r activity pcnt pod summary group}
+bind_rows(
+  mutate(activity, type = "stp"),
+  mutate(activity_region, type = "region")
+) %>%
+  mutate_at("pod_type",
+            ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                    "Critical Care Bed Day",
+                    as.character(.x))) %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
+  group_by(type, pod_type, pod_summary_group, su_pat_id) %>%
+  summarise(n = sign(n())) %>%
+  summarise_at("n", sum) %>%
+  inner_join(
+    bind_rows(
+      mpi %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "stp"),
+      
+      mpi_region %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "region"),
+    ),
+    by = c("type")
+  ) %>%
+  mutate_at("n", ~.x / patients) %>%
+  select(-patients) %>%
+  pivot_wider(names_from = "type", values_from = "n") %>%
+  #filter(!pod_type %in% c("Bed")) %>% 
+  ungroup() %>%
+  ggplot(aes(pod_summary_group, stp)) +
+  geom_col(aes(colour = pod_type,
+               fill = after_scale(alpha(colour, 0.4)))) +
+  geom_point(aes(y = region,
+                 colour = pod_type,
+                 fill = after_scale(alpha(colour, 0.4))),
+             show.legend = FALSE,
+             size = 2,
+             shape = "circle filled",
+             stroke = 1.5) +
+  #scale_x_discrete(guide = guide_axis(n.dodge = 3)) +
+  scale_x_discrete(labels = partial(str_wrap, width = 10)) +
+  scale_y_continuous(labels = percent,
+                     expand = expansion(c(0, 0.05))) +
+  expand_limits(y = c(0, 1)) +
+  labs(x = "", y = "", colour = "", fill = "")  +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 30, hjust = 1),
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())
+```
+
+```{r activity pcnt cod}
+bind_rows(
+  mutate(activity, type = "stp"),
+  mutate(activity_region, type = "region")
+) %>%
+  mutate_at("pod_type",
+            ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                    "Critical Care Bed Day",
+                    as.character(.x))) %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
+  inner_join(mpi_region, by = "su_pat_id") %>%
+  group_by(type, pod_type, group, su_pat_id) %>%
+  summarise(n = sign(n())) %>%
+  summarise_at("n", sum) %>%
+  inner_join(
+    bind_rows(
+      mpi %>%
+        group_by(group) %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "stp"),
+      
+      mpi_region %>%
+        group_by(group) %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "region"),
+    ),
+    by = c("type", "group")
+  ) %>%
+  mutate_at("n", ~.x / patients) %>%
+  select(-patients) %>%
+  pivot_wider(names_from = "type", values_from = "n") %>%
+  filter(group != "(Missing)") %>% #,
+         #pod_type != "Bed") %>%
+  mutate_at("group",
+            fct_recode,
+            "OTI" = "Other Terminal Illness") %>%
+  ungroup() %>%
+  ggplot(aes(pod_type, stp)) +
+  geom_col(aes(colour = group,
+               fill = after_scale(alpha(colour, 0.4))),
+           position = position_dodge(width = 0.8),
+           width = 0.8) +
+  geom_point(aes(y = region,
+                 colour = group,
+                 fill = after_scale(alpha(colour, 0.4))),
+             show.legend = FALSE,
+             shape = "circle filled",
+             size = 2,
+             stroke = 1.5,
+             position = position_dodge(width = .8)) +
+  scale_y_continuous(labels = percent,
+                     expand = expansion(c(0, 0.05))) +
+  expand_limits(y = c(0, 1)) +
+  labs(x = "", y = "", colour = "", fill = "") +
+  theme(legend.position = "bottom",
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())
+```
+
+#### Percentage of decedants who had a bed day
+
+Bottom filled section shows those who also had a critical care bed day.
+
+```{r pcnt people by bed usage}
+bind_rows(
+  mutate(activity, type = "stp"),
+  mutate(activity_region, type = "region")
+) %>%
+  mutate_at("pod_type",
+            ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                    "Critical Care Bed Day",
+                    as.character(.x))) %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
+  inner_join(mpi_region, by = "su_pat_id") %>%
+  group_by(type, pod_type, group, su_pat_id) %>%
+  summarise(n = sign(n())) %>%
+  summarise_at("n", sum) %>%
+  inner_join(
+    bind_rows(
+      mpi %>%
+        group_by(group) %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "stp"),
+      
+      mpi_region %>%
+        group_by(group) %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "region"),
+    ),
+    by = c("type", "group")
+  ) %>%
+  mutate_at("n", ~.x / patients) %>%
+  select(-patients) %>%
+  #pivot_wider(names_from = "type", values_from = "n") %>%
+  filter(group != "(Missing)",
+         pod_type %in% c("Bed", "Critical Care Bed Day")) %>%
+  pivot_wider(names_from = "pod_type", values_from = "n") %>%
+  
+  filter(type == "stp") %>%
+  
+  mutate_at("group",
+            fct_recode,
+            "OTI" = "Other Terminal Illness") %>%
+  ungroup() %>%
+  janitor::clean_names() %>%
+  ggplot(aes(group, bed)) +
+  geom_col(aes(colour = group,
+               fill = after_scale(alpha(colour, 0.4))),
+           position = "dodge") +
+  geom_col(aes(y = critical_care_bed_day,
+               colour = group,
+               fill = after_scale(alpha(colour, 0.4))),
+           position = "dodge") +
+  scale_y_continuous(labels = percent,
+                     expand = expansion(c(0, 0.05))) +
+  expand_limits(y = c(0, 1)) +
+  labs(x = "", y = "", colour = "", fill = "")  +
+  theme(legend.position = "none",
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())
+```
+
+# Forecast Activity
+
+```{r forecast deaths}
+forecast_deaths %>%
+  mutate(age = age_group) %>%
+  mutate_at("age_group",
+            cut,
+            breaks = c(0,65,75,85,Inf),
+            labels = c("18-64","65-74","75-85","85+"),
+            right = FALSE) %>%
+  arrange(age_group, year) %>%
+  group_by(age_group, year) %>%
+  filter(year >= 2020) %>%
+  summarise_at("est_deaths", sum) %>%
+  mutate(first_year = ifelse(year == min(year), comma(est_deaths, accuracy = 1), NA),
+         last_year  = ifelse(year == max(year),
+                             paste(comma(est_deaths, accuracy = 1),
+                                   percent(est_deaths / first(est_deaths) - 1,
+                                           accuracy = 1),
+                                   sep = "\n"),
+                             NA)) %>%
+  ungroup() %>%
+  ggplot(aes(year, est_deaths, colour = age_group)) +
+  geom_line(linetype = "dashed") +
+  geom_point() +
+  #scale_x_continuous(expand = expansion(c(0.05, 0.15))) +
+  geom_text_repel(aes(year-1, est_deaths, label = first_year),
+                  na.rm = TRUE,
+                  direction = "y",
+                  hjust = 1,
+                  segment.colour = NA,
+                  point.padding = NA,
+                  show.legend = FALSE) +
+  geom_text_repel(aes(year+1, est_deaths, label = last_year),
+                  na.rm = TRUE,
+                  direction = "y",
+                  hjust = 0,
+                  segment.colour = NA,
+                  point.padding = NA,
+                  show.legend = FALSE) +
+  labs(colour = "",
+       x = "",
+       y = "") +
+  scale_x_continuous(breaks = seq(2020, 2040, 5)) +
+  theme(legend.position = "bottom",
+        axis.line.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.text.y = element_blank())
+``` 
+
+```{r forecast activity 5 year bars, echo=FALSE, message=FALSE, results='hide'}
+forecast_activity %>%
+  mutate_at("pod_type",
+            ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                    "Critical Care Bed Day",
+                    as.character(.x))) %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
+  filter(year %% 5 == 0) %>%
+  group_by(age_band, year, pod_type) %>%
+  summarise_at(vars(est_deaths, activity), sum) %>%
+  ungroup() %>%
+  group_nest(pod_type) %>%
+  pwalk(function(pod_type, data) {
+    p <- data %>%
+      ggplot(aes(year, activity)) +
+      geom_col(aes(fill = fct_rev(age_band)),
+               alpha = 0.4,
+               colour = "white",
+               position = "stack") +
+      stat_summary(aes(label = scales::comma(..y..,
+                                             accuracy = 1)),
+                   vjust = -.3,
+                   fun   = sum,
+                   geom  = "text") +
+      scale_y_continuous(labels = scales::comma_format(scale = .001),
+                         expand = expansion(c(0, 0.15))) +
+      scale_fill_discrete(guide = guide_legend(reverse = TRUE)) +
+      labs(fill = "",
+           y = "Activity (1,000's)",
+           title = pod_type) +
+      theme(legend.position = "bottom")
+    plot(p)
+  })
+```
+
+```{r forecast activity lines, echo = FALSE, message=FALSE, results='hide'}
+forecast_activity %>%
+  mutate_at("pod_type",
+            ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                    "Critical Care Bed Day",
+                    as.character(.x))) %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
+  filter(year >= 2020) %>%
+  group_by(age_band, pod_type, year) %>%
+  summarise_at(vars(est_deaths, activity), sum) %>%
+  arrange(year) %>%
+  mutate(pcnt_diff = ifelse(year == last(year),
+                            activity / first(activity) - 1,
+                            NA)) %>%
+  ungroup() %>%
+  group_nest(pod_type) %>%
+  pmap(function(pod_type, data) {
+    data %>%
+      ggplot(aes(year, activity, colour = fct_rev(age_band))) +
+      geom_line(linetype = "dashed") +
+      geom_point() +
+      #expand_limits(y = 0) +
+      geom_text_repel(aes(label = percent(pcnt_diff)),
+                      show.legend = FALSE,
+                      min.segment.length = Inf,
+                      segment.colour = NA,
+                      na.rm = TRUE,
+                      hjust = -.3) +
+      scale_x_continuous(expand = expansion(c(0.05,0.20))) +
+      scale_y_continuous(labels = scales::comma_format(scale = .001)) +
+      scale_colour_discrete(guide = guide_legend(reverse = TRUE)) +
+      labs(colour = "",
+           y = "Activity (1,000's)",
+           title = pod_type) +
+      theme(legend.position = "bottom")
+  }) %>%
+  walk(plot)
+```
+
+# Death Comparison Charts
+
+```{r pcnt_dot_comparison_plot}
+pcnt_dot_comparison_plot <- function(mpi, mpi_region, category, value, reorder = TRUE) {
+  data <- bind_rows(
+    mutate(mpi, type = stp_name),
+    mutate(mpi_region, type = region_name)
+  ) %>%
+    filter({{category}} != "(Missing)",
+           !is.na({{category}})) %>%
+    mutate_at(vars({{value}}), replace_na, 0) %>%
+    group_by({{category}}, type) %>%
+    summarise(numerator = sum({{value}}),
+              denominator = n()) %>%
+    ungroup() %>%
+    arrange(type == region_name) %>%
+    mutate_at(vars(type), fct_relevel, stp_name, region_name) %>%
+    mutate(x = map2(numerator, denominator,
+                    compose(as_tibble, BinomCI))) %>%
+    unnest(cols = c(x)) %>%
+    rename({{value}} := est) %>%
+    mutate_at(vars(lwr.ci, upr.ci), ~ifelse(type == region_name, NA, .x))
+  
+  if (reorder) {
+    data <- mutate_at(data,
+                      vars({{category}}),
+                      fct_reorder,
+                      quo({{value}}))
+  }
+  
+  ggplot(data, aes({{category}}, {{value}}, fill = type)) +
+    #geom_segment(aes(xend = {{category}}, yend = 0)) +
+    geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci),
+                  na.rm = TRUE,
+                  width = 0.2) +
+    geom_point(aes(size = type), shape = "circle filled") +
+    coord_flip() +
+    scale_size_manual(values = c(5, 2)) +
+    scale_fill_manual(values = su_theme_cols()[c("orange", "slate")] %>%
+                        unname()) +
+    scale_y_continuous(labels = percent_format(accuracy = 1),
+                       expand = expansion(mult = c(0, 0.05))) +
+    expand_limits(y = 0) +
+    theme(axis.line = element_blank(),
+          axis.ticks.y = element_blank(),
+          panel.grid.major.x = element_line(colour = "grey",
+                                            linetype = "dotted"),
+          legend.position = c(1, 0),
+          legend.justification = c(1, 0),
+          legend.direction = "horizontal") +
+    labs(x = "", y = "", fill = "", size = "")
+}
+```
+
+```{r died in critical care - group}
+pcnt_dot_comparison_plot(mpi, mpi_region, group, died_in_critical_care) +
+  ylab("% who died in critical care")
+```
+
+```{r died in critical care - age}
+pcnt_dot_comparison_plot(mpi, mpi_region, age_band, died_in_critical_care) +
+  ylab("% who died in critical care")
+```
+
+```{r died in critical care - imd}
+local({
+  mpi <- mpi %>%
+    mutate_at("imd_quintile", factor, levels = as.character(5:1))
+  
+  mpi_region <- mpi_region %>%
+    mutate_at("imd_quintile", factor, levels = as.character(5:1))
+  
+  pcnt_dot_comparison_plot(mpi, mpi_region, imd_quintile, died_in_critical_care, FALSE) +
+    ylab("% who died in critical care") +
+    scale_x_discrete(labels = c("Least Deprived","","","","Most Deprived")) +
+    theme(legend.position = c(0.001, 0),
+          legend.justification = c(0, 0))
+})
+```
+
+```{r had critical care - group}
+local({
+  mpi <- mpi %>%
+    mutate(had_critical_care = as.numeric(!is.na(died_in_critical_care)))
+                
+  mpi_region <- mpi_region %>%
+    mutate(had_critical_care = as.numeric(!is.na(died_in_critical_care)))
+                
+  pcnt_dot_comparison_plot(mpi, mpi_region, group, had_critical_care) +
+    ylab("% who had critical care")
+})
+```
+
+```{r had critical care - age}
+local({
+  mpi <- mpi %>%
+    mutate(had_critical_care = as.numeric(!is.na(died_in_critical_care)))
+                
+  mpi_region <- mpi_region %>%
+    mutate(had_critical_care = as.numeric(!is.na(died_in_critical_care)))
+                
+  pcnt_dot_comparison_plot(mpi, mpi_region, age_band, had_critical_care) +
+    ylab("% who had critical care")
+})
+```
+
+```{r percentage lives alone}
+pcnt_dot_comparison_plot(drop_na(mpi, lives_alone),
+                         drop_na(mpi_region, lives_alone),
+                         group,
+                         lives_alone) +
+  ylab("% who lived alone")
+```
+
+```{r percentage carer support}
+pcnt_dot_comparison_plot(mpi %>%
+                           mutate_at("carer_support", ~.x == "01"),
+                         mpi_region %>%
+                           mutate_at("carer_support", ~.x == "01"),
+                         group, carer_support) +
+  ylab("% who had carer support")
+```
+
+```{r historic and forecast deaths}
+ggplot(mapping = aes(year, deaths, colour = sex)) +
+  geom_point(data = historical_deaths) +
+  geom_line(data = historical_deaths) +
+  geom_line(data = forecast_deaths %>%
+              group_by(year, sex) %>%
+              summarise_at("est_deaths", sum) %>%
+              rename(deaths = est_deaths) %>%
+              filter(year > .2019),
+            linetype = "dashed") +
+  scale_y_continuous(labels = comma_format(accuracy = 1)) +
+  labs(colour = "gender", x = "", y = "") +
+  theme(legend.position = c(1, 0),
+        legend.justification = c(1, 0))
+```
+
+
+# Activity "Theographs"
+
+```{r ridgeplot activity type, echo=FALSE, message=FALSE, results='hide'}
+activity %>%
+  # mutate_at("pod_summary_group",
+  #           ~ifelse(pod_type == "Critical Care Bed Day",
+  #                   "CC",
+  #                   as.character(.x))) %>%
+  # mutate_at("pod_type", fct_recode, "Bed" = "Critical Care Bed Day") %>%
+  group_nest(pod_type) %>%
+  pmap(function(pod_type, data) {
+    data %>%
+      ggplot(aes(proximity_to_death_days, pod_summary_group)) +
+      geom_density_ridges(alpha = 0.2) + #stat="binline", binwidth = 1) +
+      scale_x_proximity_to_death_days() +
+      labs(x = "Number of months before death",
+           y = "",
+           title = pod_type)
+  }) %>%
+  walk(quietly(plot))
+```
+
+```{r ridgeplot activity type by cod group, echo=FALSE, message=FALSE, results='hide'}
+activity %>%
+  inner_join(mpi %>%
+               select(su_pat_id, group),
+             by = "su_pat_id") %>%
+  filter(group != "(Missing)") %>%
+  group_nest(pod_type, pod_summary_group) %>%
+  pmap(function(pod_type, pod_summary_group, data) {
+    data %>%
+      ggplot(aes(proximity_to_death_days, group)) +
+      geom_density_ridges(aes(colour = group,
+                              fill = after_scale(alpha(colour, 0.4)))) +
+      scale_x_proximity_to_death_days() +
+      labs(x = "Number of months before death",
+           y = "",
+           title = pod_type,
+           subtitle = pod_summary_group) +
+      theme(legend.position = "none")
+  }) %>%
+  walk(quietly(plot))
+```
+
+```{r ridge plot by cod, echo=FALSE, message=FALSE, results='hide'}
+activity %>%
+  inner_join(mpi %>%
+             select(su_pat_id, group),
+           by = "su_pat_id") %>%
+  filter(group != "(Missing)") %>%
+  group_nest(pod_type) %>%
+  pmap(function(pod_type, data) {
+    data %>%
+      ggplot(aes(proximity_to_death_days, group)) +
+      geom_density_ridges(aes(colour = group,
+                              fill = after_scale(alpha(colour, 0.4)))) +
+      scale_x_proximity_to_death_days() +
+      labs(x = "Number of months before death",
+           y = "",
+           title = pod_type) +
+      theme(legend.position = "none")
+  }) %>%
+  walk(quietly(plot))
+```
+
+# Inpatient Bed Days
+
+```{r ipbd data}
+ipbd <- local({
+  tdf <- filter(activity, activity_type == "IPBDDAYS")
+
+  cross_df(list(
+    pod_summary_group = unique(tdf$pod_summary_group),
+    proximity_to_death_days = range(tdf$proximity_to_death_days) %>%
+      as.list() %>%
+      do.call(seq, .)
+  )) %>%
+    left_join(tdf %>%
+                group_by(pod_summary_group, proximity_to_death_days) %>%
+                distinct(su_pat_id) %>%
+                count(),
+              by = c("pod_summary_group", "proximity_to_death_days")) %>%
+    replace_na(list(n = 0)) %>%
+    mutate_at("pod_summary_group", as.character)
+}) %>%
+  inner_join(activity %>%
+               filter(activity_type == "IP") %>% 
+               mutate_at("pod_summary_group", paste, "Bed Day") %>%
+               group_by(pod_summary_group) %>%
+               summarise(n_avg = n_distinct(su_pat_id)),
+             by = "pod_summary_group") %>%
+  mutate_at("n_avg", ~n / .x) %>%
+  mutate_at("pod_summary_group",
+            fct_relevel,
+            "Emergency Admission Bed Day",
+            "Elective Admission Bed Day")
+```
+
+## Inpatient Bed Days by Proximity to Death
+
+```{r Inpatient Bed Days by Proximity to Death}
+ipbd %>%
+  ggplot(aes(proximity_to_death_days, n, fill = pod_summary_group)) +
+  geom_col(width = 1, alpha = 0.5) +
+  scale_x_proximity_to_death_days(expand = expansion(c(0, 0.01))) +
+  scale_y_continuous(expand = expansion(c(0, 0.05))) +
+  facet_wrap(vars(pod_summary_group), ncol = 1, scales = "free") +
+  theme(legend.position = "none") +
+  labs(x = "Proximity to Death (Months)",
+       y = "Inpatient Bed Days")
+```
+
+### cumulative bed days
+
+as per previous chart, but showing a cumulative line.
+
+```{r Inpatient Bed Days by Proximity to Death cumulative}
+ipbd %>%
+  arrange(desc(proximity_to_death_days)) %>%
+  group_by(pod_summary_group) %>%
+  mutate_at("n_avg", cumsum) %>%
+  ggplot(aes(proximity_to_death_days, n_avg, fill = pod_summary_group)) +
+  geom_line() +
+  scale_x_proximity_to_death_days(expand = expansion(c(0, 0.01))) +
+  scale_y_continuous(expand = expansion(c(0, 0.05)),
+                     labels = scales::comma) +
+  facet_wrap(vars(pod_summary_group), ncol = 1, scales = "free") +
+  theme(legend.position = "none") +
+  labs(x = "Proximity to Death (Months)",
+       y = "Cumulative Inpatient Bed Days (per decedant)")
+```
+
+```{r inpatient bed days (daily)}
+activity %>%
+  inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
+  filter(activity_type == "IP",
+         group != "(Missing)",
+         pod_summary_group %in% c("Elective Admission", "Emergency Admission"),
+         admission_date < discharge_date) %>%
+  mutate(days = as.numeric(discharge_date - admission_date, units = "days")+1) %>%
+  
+  # try to clean the data
+  filter(days < 60) %>%
+  
+  # adjust proximity to death days to be at discharge date rather than admission
+  mutate_at("proximity_to_death_days", ~floor(.x - days)) %>%
+  group_by(pod_summary_group, proximity_to_death_days) %>%
+  summarise(n = n(),
+            s = sum(days),
+            mean = mean(days, trim = 0.05)) %>% 
+  
+  # mutate_at(vars(n, s, mean),
+  #           zoo::rollapply, FUN = mean, width = 14,
+  #           align = "left", fill = NA) %>%
+
+  mutate_at(vars(n, s),
+            zoo::rollapply,
+            FUN = sum, width = 7, align = "left", fill = NA) %>%
+  
+  mutate(mean = s/n) %>%
+  
+  # filter(pod_summary_group %in% c("EL","EM")) %>%
+  filter(proximity_to_death_days < 1.5*365) %>%
+  ggplot(aes(proximity_to_death_days, mean)) +
+  #  geom_col(width = 1) +
+  geom_point(size = 1, alpha = 0.2) +
+  geom_smooth(span = 0.3, fill = NA, method = "loess", formula = y ~ x) +
+  scale_x_proximity_to_death_days() +
+  expand_limits(y = 0) +
+  facet_wrap(vars(pod_summary_group), ncol = 1, scales = "free") +
+  theme(legend.position = "none") +
+  labs(x = "Proximity to Death (Months) at discharge: Individual days",
+       y = "Inpatient Bed Days")
+```
+
+```{r inpatient bed days (weekly)}
+activity %>%
+  inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
+  filter(activity_type == "IP",
+         group != "(Missing)",
+         pod_summary_group %in% c("Elective Admission", "Emergency Admission"),
+         admission_date < discharge_date) %>%
+  mutate(days = as.numeric(discharge_date - admission_date, units = "days")+1) %>%
+  
+  # adjust proximity to death days to be at discharge date rather than admission
+  mutate_at("proximity_to_death_days", ~floor(.x - days)) %>%
+  mutate(proximity_to_death_weeks = floor(proximity_to_death_days/7)) %>%
+  
+  group_by(pod_summary_group, proximity_to_death_weeks) %>%
+  summarise(n = n(),
+            s = sum(days),
+            mean = mean(days, trim = 0.05)) %>% 
+  
+  # mutate_at(vars(n, s, mean),
+  #           zoo::rollapply, FUN = mean, width = 14,
+  #           align = "left", fill = NA) %>%
+
+  # mutate_at(vars(n, s),
+  #           zoo::rollapply,
+  #           FUN = sum, width = 7, align = "left", fill = NA) %>%
+  # 
+  # mutate(mean = s/n) %>%
+  
+  filter(proximity_to_death_weeks < 78) %>%
+  ggplot(aes(proximity_to_death_weeks, mean)) +
+  #  geom_col(width = 1) +
+  geom_point(size = 1, alpha = 0.2) +
+  geom_smooth(span = 0.3, fill = NA, method = "loess", formula = y ~ x) +
+  # different transformation: this is weeks not days
+  scale_x_continuous(trans = "reverse",
+                     breaks = seq(0, 18, 3) * 77/18,
+                     labels = function(x) floor(x/(77/18))) +
+  expand_limits(y = 0) +
+  facet_wrap(vars(pod_summary_group), ncol = 1, scales = "free") +
+  theme(legend.position = "none") +
+  labs(x = "Proximity to Death (Months) at discharge: Weekly activity",
+       y = "Inpatient Bed Days")
+```
+
+```{r inpatient bed days (monthly)}
+bind_rows(
+  mutate(activity, type = "stp"),
+  mutate(activity_region, type = "region")
+) %>%
+  inner_join(select(mpi_region, su_pat_id, group), by = "su_pat_id") %>%
+  filter(activity_type == "IP",
+         group != "(Missing)",
+         pod_summary_group %in% c("Elective Admission", "Emergency Admission"),
+         admission_date < discharge_date) %>%
+  mutate(days = as.numeric(discharge_date - admission_date, units = "days")+1) %>%
+  # adjust proximity to death days to be at discharge date rather than admission
+  mutate_at("proximity_to_death_days", ~floor(.x - days + 1)) %>%
+  mutate(proximity_to_death_weeks = floor(proximity_to_death_days/28)) %>%
+  
+  group_by(type, pod_summary_group, proximity_to_death_weeks) %>%
+  summarise_at("days", mean, trim = 0.05) %>% 
+  
+  filter(pod_summary_group %in% c("Emergency Admission",
+                                  "Elective Admission")) %>%
+  filter(proximity_to_death_weeks < 18) %>%
+  pivot_wider(names_from = type, values_from = days) %>%
+  
+  ggplot(aes(proximity_to_death_weeks, stp)) +
+  #  geom_col(width = 1) +
+  geom_smooth(fill = NA,
+              colour = after_scale(alpha(su_theme_cols()[["orange"]], 0.4)),
+              #span = 0.3,
+              method = "loess", formula = y ~ x) +
+  geom_smooth(aes(y = region),
+              linetype = "dotted",
+              fill = NA,
+              colour = after_scale(alpha(su_theme_cols()[["charcoal"]], 0.4)),
+              #span = 0.3,
+              method = "loess", formula = y ~ x) +
+  geom_point(colour = su_theme_cols()[["orange"]],
+             fill = after_scale(alpha(su_theme_cols()[["orange"]], 0.4)),
+             shape = "circle filled") +
+  # different transformation: this is months not days
+  scale_x_continuous(trans = "reverse",
+                     breaks = seq(0, 18, 3)) +
+  expand_limits(y = 0) +
+  facet_wrap(vars(pod_summary_group), ncol = 1, scales = "free") +
+  theme(legend.position = "none") +
+  labs(x = "Proximity to Death (Months) at discharge",
+       y = "Inpatient Bed Days")
+```
+
+## Admissions vs Discharges
+
+Positive values are more admissions than discharges, negative values are more
+discharges than admissions.
+
+```{r admissions vs discharges}
+local({
+  activity_tmp <- filter(activity, activity_type == "IP")
+  
+  inner_join(
+    count(activity_tmp,
+          pod_summary_group,
+          proximity_to_death_days,
+          name = "admissions"),
+    activity_tmp %>%
+      mutate_at("proximity_to_death_days",
+                ~.x - as.numeric(discharge_date-admission_date,
+                                 units = "days")+1) %>%
+      count(pod_summary_group, proximity_to_death_days, name = "discharges"),
+    by = c("pod_summary_group", "proximity_to_death_days")
+  ) %>%
+    filter(proximity_to_death_days > 1) %>%
+    group_by(pod_summary_group) %>%
+    mutate(diff = admissions - discharges) %>%
+    filter(pod_summary_group %in% c("Emergency Admission",
+                                    "Elective Admission")) %>% 
+    arrange(pod_summary_group, proximity_to_death_days) %>% 
+    ggplot(aes(proximity_to_death_days, diff)) +
+    geom_hline(yintercept = 0) +
+    geom_col() +
+    scale_x_proximity_to_death_days() +
+    expand_limits(y = 0) +
+    facet_wrap(vars(pod_summary_group), ncol = 1, scales = "free") +
+    theme(legend.position = "none") +
+    labs(x = "Proximity to Death (Months)",
+         y = "Admissions vs Discharges")
+
+})
+```
+
+# Utilisation
+
+```{r utilisation curve, message=FALSE,  echo=FALSE, results = "none"}
+utilisation_curve_plot <- function(pod_type, data, loess_span = 0.15) {
+  data %>%
+    ggplot(aes(proximity_to_death_days, stp)) +
+    geom_smooth(span = loess_span,
+                formula = y ~ x,
+                method = "loess",
+                fill = NA,
+                colour = after_scale(alpha(su_theme_cols()[["orange"]], 0.4))) +
+    geom_smooth(aes(y = region),
+                linetype = "dotted",
+                span = loess_span,
+                formula = y ~ x,
+                method = "loess",
+                fill = NA,
+                colour = after_scale(alpha(su_theme_cols()[["charcoal"]], 0.4))) +
+    geom_point(size = 0.2,
+               shape = "circle filled",
+               colour = su_theme_cols()[["orange"]],
+               fill = after_scale(alpha(su_theme_cols()[["orange"]], 0.4))) +
+    
+    geom_vline(xintercept = 3*365/12,
+               linetype = "dashed",
+               colour = su_theme_cols()[["dark_charcoal"]]) +
+    scale_x_proximity_to_death_days() +
+    scale_y_continuous(sec.axis = dup_axis(labels = comma_format(scale = 1000),
+                                           name = "Activity per 1,000 Decedants")) +
+    theme(panel.grid.major = element_line(colour = "grey",
+                                          size = 0.25,
+                                          linetype = "dotted"),
+          axis.text.y.left = element_blank(),
+          axis.ticks.y.left = element_blank(),
+          legend.position = "bottom") +
+    labs(title = pod_type, x = "Proximity to Death (Months)", y = "", colour = "") +
+    annotate("text",
+             x = 3*365/12+10,
+             y = max(c(data$stp, data$region)),
+             label = "3 months prior to death",
+             hjust = 1,
+             size = 3)
+}
+
+bind_rows(
+  mutate(activity, type = "stp"),
+  mutate(activity_region, type = "region")
+) %>%
+  mutate_at("pod_type",
+            ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                    "Critical Care Bed Day",
+                    as.character(.x))) %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
+  count(type, pod_type, proximity_to_death_days) %>%
+  inner_join(tribble(~type, ~p,
+                     "stp", nrow(mpi),
+                     "region", nrow(mpi_region)),
+             by = "type") %>%
+  mutate_at("n", ~n / p) %>%
+  select(-p) %>%
+  pivot_wider(names_from = type, values_from = n) %>%
+  modify_at(vars(region, stp), replace_na, 0) %>%
+  group_nest(pod_type) %>%
+  pmap(utilisation_curve_plot) %>%
+  walk(plot)
+```
+
+
+```{r utilisation curve grouped, message=FALSE,  echo=FALSE, results = "none"}
+utilisation_curve_plot_grouped <- function(pod_type, data, loess_span = 0.15) {
+  data %>%
+    ggplot(aes(proximity_to_death_days, n, colour = group)) +
+    geom_smooth(span = loess_span,
+                formula = y ~ x,
+                method = "loess",
+                fill = NA) +
+    # geom_point(size = 0.2, alpha = 0.2) +
+    geom_vline(xintercept = 3*365/12,
+               linetype = "dashed",
+               colour = su_theme_cols()[["dark_charcoal"]]) +
+    scale_x_proximity_to_death_days() +
+    scale_y_continuous(sec.axis = dup_axis(labels = comma_format(scale = 1000),
+                                           name = "Activity per 1,000 Decedants")) +
+    theme(panel.grid.major = element_line(colour = "grey",
+                                          size = 0.25,
+                                          linetype = "dotted"),
+          axis.text.y.left = element_blank(),
+          axis.ticks.y.left = element_blank(),
+          legend.position = "bottom") +
+    labs(title = pod_type, x = "Proximity to Death (Months)", y = "", colour = "") +
+    annotate("text",
+             x = 3*365/12+10,
+             y = max(data$n),
+             label = "3 months prior to death",
+             hjust = 1,
+             size = 3)
+}
+
+activity %>%
+  mutate_at("pod_type",
+            ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                    "Critical Care Bed Day",
+                    as.character(.x))) %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
+  inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
+  filter(group != "(Missing)") %>%
+  count(pod_type, group, proximity_to_death_days) %>%
+
+  inner_join(count(mpi, group, name = "p"), by = "group") %>%
+  mutate_at("n", ~n/p) %>%
+  
+  group_nest(pod_type) %>%
+  pmap(utilisation_curve_plot_grouped) %>%
+  walk(plot)
+```
+
+```{r utilisation curve location, message=FALSE,  echo=FALSE, results = "none"}
+activity %>%
+  mutate_at("pod_type",
+            ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                    "Critical Care Bed Day",
+                    as.character(.x))) %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c(levels(activity$pod_type), "Critical Care Bed Day")) %>% 
+  inner_join(select(mpi, su_pat_id, group = location_type),
+             by = "su_pat_id") %>%
+  filter(group != "Unknown") %>%
+  count(pod_type, group, proximity_to_death_days) %>%
+  
+  inner_join(count(mpi, group = location_type, name = "p"), by = "group") %>%
+  mutate_at("n", ~n/p) %>%
+  
+  group_nest(pod_type) %>%
+  pmap(utilisation_curve_plot_grouped) %>%
+  walk(plot)
+```
+
+### Utilisation Rates
+
+```{r utilisation rates, message=FALSE,  echo=FALSE, results = "none"}
+local({
+  activity_counts <- activity %>%
+    # mutate_at("pod_summary_group",
+    #           ~ifelse(pod_type == "Critical Care Bed Day", "CC", as.character(.x))) %>%
+    # mutate_at("pod_type", fct_recode, "Bed" = "Critical Care Bed Day") %>%
+    inner_join(select(mpi, su_pat_id, age),
+               by = "su_pat_id") %>%
+    mutate(activity_year = as.numeric(proximity_to_death_days >= 365)) %>%
+    mutate_at("age", ~case_when(.x > 90 ~ 90,
+                                .x < 50 ~ 50,
+                                TRUE ~ .x)) %>%
+    mutate_if(is.factor, as.character) %>%
+    count(pod_type, pod_summary_group, activity_year, age,
+          name = "activity")
+  
+  death_counts <- mpi %>%
+      mutate_at("age", ~case_when(.x > 90 ~ 90,
+                                  .x < 50 ~ 50,
+                                  TRUE ~ .x)) %>%
+      count(age, name = "deaths")
+  
+  activity_column_combinations <- list(type = activity_counts %>%
+                                         distinct(pod_type, pod_summary_group) %>%
+                                         pmap(paste, sep = "|"),
+                                       activity_year = c(0, 1),
+                                       age = 50:90) %>%
+    cross_df() %>%
+    separate(type, c("pod_type", "pod_summary_group"), sep = "\\|")
+  
+  activity_column_combinations %>%
+    left_join(inner_join(activity_counts, death_counts, by = c("age")) %>%
+                mutate(utilisation = activity/deaths),
+              by = colnames(activity_column_combinations)) %>%
+    replace_na(list(utilisation = 0,
+                    activity = 0,
+                    deaths = 0)) %>%
+    group_by(age, pod_type, pod_summary_group, activity_year) %>%
+    summarise_at(vars(activity, deaths), sum) %>%
+    mutate(utilisation = activity/deaths) %>%
+    ungroup() %>%
+    group_nest(pod_type) %>%
+    pmap(function(pod_type, data) {
+      data %>%
+        mutate_at("pod_summary_group",
+                  ~fct_reorder(.x, activity, .fun = sum)) %>%
+        mutate_at("activity_year",
+                  ifelse,
+                  "Year before death",
+                  "Year of death") %>%
+        ggplot(aes(age, utilisation, colour = activity_year)) +
+        geom_point(na.rm = TRUE) +
+        geom_smooth(fill = NA, method = "loess", formula = y ~ x, na.rm = TRUE) +
+        expand_limits(y = 0) +
+        facet_wrap(vars(pod_summary_group), scales = "free") +
+        theme(legend.position = "bottom") +
+        labs(title = pod_type, colour = "")
+    }) %>%
+    walk(plot)
+})
+```
+
+# Critical Care LoS
+
+```{r critical care LoS boxplot cod}
+activity %>%
+  inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
+  filter(pod_summary_group == "Critical Care Bed Day",
+         group != "(Missing)") %>%
+  group_by(group) %>%
+  count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
+  mutate(n = n()) %>%
+  select(-bb5008_pseudo_apcs_ident_pseudo) %>%
+  # ggplot(aes(cc_los)) +
+  # geom_density() +
+  # facet_wrap(vars(group))
+  ggplot(aes(group, cc_los)) +
+  geom_boxplot(aes(colour = group,
+                   fill = after_scale(alpha(colour, 0.4))),
+               outlier.shape = NA) +
+  geom_text(aes(y = 0, label = paste("n =", n))) +
+  coord_cartesian(ylim = c(0, 21)) +
+  theme(legend.position = "none")
+```
+
+```{r critical care LoS boxplot age}
+activity %>%
+  inner_join(select(mpi, su_pat_id, age_band), by = "su_pat_id") %>%
+  filter(pod_summary_group == "Critical Care Bed Day") %>%
+  group_by(age_band) %>%
+  count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
+  mutate(n = n()) %>%
+  select(-bb5008_pseudo_apcs_ident_pseudo) %>%
+  # ggplot(aes(cc_los)) +
+  # geom_density() +
+  # facet_wrap(vars(group))
+  ggplot(aes(age_band, cc_los)) +
+  geom_boxplot(aes(colour = age_band,
+                   fill = after_scale(alpha(colour, 0.4))),
+               outlier.shape = NA) +
+  geom_text(aes(y = 0, label = paste("n =", n))) +
+  coord_cartesian(ylim = c(0, 21)) +
+  theme(legend.position = "none")
+```
+
+```{r critical care LoS boxplot died}
+activity %>%
+  filter(pod_summary_group == "Critical Care Bed Day") %>%
+  mutate_at("died_in_critical_care", ~ifelse(.x, "Yes", "No")) %>%
+  group_by(group = died_in_critical_care) %>%
+  count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
+  mutate(n = n()) %>%
+  select(-bb5008_pseudo_apcs_ident_pseudo) %>%
+  # ggplot(aes(cc_los)) +
+  # geom_density() +
+  # facet_wrap(vars(group))
+  ggplot(aes(group, cc_los)) +
+  geom_boxplot(aes(colour = group,
+                   fill = after_scale(alpha(colour, 0.4))),
+               outlier.shape = NA) +
+  geom_text(aes(y = 0, label = paste("n =", n))) +
+  coord_cartesian(ylim = c(0, 21)) +
+  theme(legend.position = "none")
+```
+
+```{r critical care LoS boxplot died cod}
+activity %>%
+  inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
+  filter(pod_summary_group == "Critical Care Bed Day",
+         group != "(Missing)") %>%
+  mutate_at("died_in_critical_care", ~ifelse(.x, "Yes", "No")) %>%
+  group_by(group, died_in_critical_care) %>%
+  count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
+  mutate(n = n()) %>%
+  select(-bb5008_pseudo_apcs_ident_pseudo) %>%
+  # ggplot(aes(cc_los)) +
+  # geom_density() +
+  # facet_wrap(vars(group))
+  ggplot(aes(died_in_critical_care, cc_los)) +
+  geom_boxplot(aes(colour = group,
+                   fill = after_scale(alpha(colour, 0.4))),
+               outlier.shape = NA) +
+  geom_text(aes(y = 0, label = paste("n =", n))) +
+  coord_cartesian(ylim = c(0, 21)) +
+  theme(legend.position = "none") +
+  facet_wrap(vars(group))
+```
+
+
+```{r critical care LoS boxplot admission type}
+activity %>%
+  filter(pod_summary_group == "Critical Care Bed Day") %>%
+  group_by(group = cc_pod_summary_group) %>%
+  count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
+  mutate(n = n()) %>%
+  select(-bb5008_pseudo_apcs_ident_pseudo) %>%
+  # ggplot(aes(cc_los)) +
+  # geom_density() +
+  # facet_wrap(vars(group))
+  ggplot(aes(group, cc_los)) +
+  geom_boxplot(aes(colour = group,
+                   fill = after_scale(alpha(colour, 0.4))),
+               outlier.shape = NA) +
+  geom_text(aes(y = 0, label = paste("n =", n))) +
+  coord_cartesian(ylim = c(0, 21)) +
+  theme(legend.position = "none")
+```
+
+```{r critical care LoS boxplot age line}
+activity %>%
+  inner_join(select(mpi, su_pat_id, age), by = "su_pat_id") %>%
+  filter(pod_summary_group == "Critical Care Bed Day") %>%
+
+  mutate_at("age",
+            cut,
+            c(18, seq(50, 90, 5), Inf),
+            c("18-49",
+              seq(50,85,5) %>% paste0(.,"-",.+4),
+              "90+"),
+            right = FALSE) %>%
+  group_by(age) %>%
+  count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
+  summarise_at("cc_los", list) %>%
+  mutate(ci = map(cc_los, ~MeanCI(.x) %>% as.list() %>% as_tibble())) %>%
+  
+  mutate_at("cc_los", map, ~tibble(s = sum(.x), n = length(.x))) %>%
+  unnest(cols = c(cc_los, ci)) %>%
+  mutate(overall_mean = sum(s)/sum(n)) %>%
+  ggplot(aes(age, mean)) +
+  geom_hline(aes(yintercept = overall_mean),
+             linetype = "dashed") +
+  geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci)) +
+  geom_point() +
+  labs(x = "", y = "Mean Length of Stay in Critical Care")
+```
+
+```{r critical care LoS boxplot age line by cod, message = FALSE, echo = FALSE, results = "none"}
+activity %>%
+  inner_join(select(mpi, su_pat_id, age, group), by = "su_pat_id") %>%
+  filter(pod_summary_group == "Critical Care Bed Day",
+         group != "(Missing)") %>%
+  mutate_at("age",
+            cut,
+            c(18, seq(50, 90, 5), Inf),
+            c("18-49",
+              seq(50,85,5) %>% paste0(.,"-",.+4),
+              "90+"),
+            right = FALSE) %>%
+  group_by(group, age) %>%
+  count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
+  summarise_at("cc_los", list) %>%
+  filter(map(cc_los, length) > 3) %>%
+  mutate(ci = map(cc_los, ~MeanCI(.x) %>% as.list() %>% as_tibble())) %>%
+  
+  mutate_at("cc_los", map, ~tibble(s = sum(.x), n = length(.x))) %>%
+  unnest(cols = c(cc_los, ci)) %>%
+  mutate(overall_mean = sum(s)/sum(n)) %>%
+  group_nest() %>%
+  filter(group != "(Missing)") %>%
+  pmap(function(group, data) {
+    data %>%
+      ggplot(aes(age, mean)) +
+      geom_hline(aes(yintercept = overall_mean),
+                 linetype = "dashed") +
+      geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci), na.rm = TRUE) +
+      geom_point(na.rm = TRUE) +
+      labs(title = group, x = "", y = "Mean Length of Stay in Critical Care") +
+      theme(legend.position = "none")
+  }) %>%
+  walk(plot)
+```
+
+```{r critical care LoS boxplot group admission type}
+activity %>%
+  inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
+  filter(pod_summary_group == "Critical Care Bed Day",
+         group != "(Missing)") %>%
+  group_by(group, cc_pod_summary_group) %>%
+  count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
+  mutate(n = n()) %>%
+  select(-bb5008_pseudo_apcs_ident_pseudo) %>%
+  # ggplot(aes(cc_los)) +
+  # geom_density() +
+  # facet_wrap(vars(group))
+  ggplot(aes(cc_pod_summary_group, cc_los)) +
+  geom_boxplot(aes(colour = group,
+                   fill = after_scale(alpha(colour, 0.4))),
+               outlier.shape = NA) +
+  geom_text(aes(y = 0, label = paste("n =", n))) +
+  scale_x_discrete(labels = partial(str_replace,
+                                    pattern = " ",
+                                    replacement = "\n")) +
+  coord_cartesian(ylim = c(0, 21)) +
+  theme(legend.position = "none") +
+  facet_wrap(vars(group))
+```
+
+### Critical Care stay "Theographs"
+
+Each "row" of data is a patient, with bars showing when that patient stayed on
+critical care. Black bars are elective admissions, yellow bars are emergency
+admissions.
+
+Data is ordered so patients who died in critical care are at the top. The data
+is then further ordered within the "died" and "did not die" in CC groups by how
+long the patient spent in critical care in total, so those who had more CC days
+are at the top.
+
+```{r critical care stay theographs, echo = FALSE, message = FALSE, results = "none"}
+activity %>%
+  inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
+  filter(pod_summary_group == "Critical Care Bed Day",
+         group != "(Missing)") %>%
+  group_nest(group) %>%
+  pmap(function(group, data) {
+    data %>%
+      mutate_at("su_pat_id", as.character) %>%
+      group_by(su_pat_id) %>%
+      mutate(order = any(died_in_critical_care)*10000 + n()) %>%
+      ungroup() %>%
+      mutate_at("su_pat_id", fct_reorder, quo(order)) %>%
+      ggplot(aes(proximity_to_death_days, su_pat_id)) +
+      geom_tile(aes(fill = cc_pod_summary_group)) +
+      scale_x_proximity_to_death_days(expand = expansion(c(0.02, 0.001))) +
+      expand_limits(xlim = c(-0, 730)) +
+      scale_fill_manual(values = c("Elective Admission" = su_theme_cols()[["charcoal"]],
+                                   "Emergency Admission" = su_theme_cols()[["orange"]])) +
+      theme(axis.text.y = element_blank(),
+            axis.line.y = element_blank(),
+            axis.ticks.y = element_blank(),
+            legend.position = "none") +
+      labs(title = group, x = "", y = "", fill = "")
+  }) %>%
+  walk(plot)
+```
+
+* Cancer and Frailty look very similar, a lot of elective, but short admissions
+throughout the 24 months.
+* Organ Failure has more emergency admissions scattered throughout where the
+patient stays longer. Many more patients die in critical care.
+* Sudden Death sees the largest percentage of deaths in critical care, and very
+little activity other than in the 6 months before death.
+* Other Terminal Illness is similar to Organ Failure, but with shorter stays
+
+# Pathways charts
+
+```{r pathways}
+activity %>%
+  inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
+  filter(group != "(Missing)") %>%
+  group_nest(group) %>%
+  pmap(function(group, data) {
+    data %>%
+      mutate_at("su_pat_id", as.character) %>%
+      filter(proximity_to_death_days < 365) %>%
+      group_by(su_pat_id) %>%
+        group_nest() %>%
+        sample_n(25) %>%
+        unnest(cols = c(data)) %>%
+      # mutate(order = n()) %>%
+      ungroup() %>%
+      # mutate_at("su_pat_id", fct_reorder, quo(-order)) %>%
+      ggplot(aes(proximity_to_death_days, su_pat_id, fill = pod_type)) +
+      geom_tile() +
+      #scale_fill_su(reverse = TRUE) +
+      scale_fill_manual(values = c(
+        "Bed" = su_theme_cols()[["orange"]],
+        "Planned Contact" = su_theme_cols()[["blue"]],
+        "Planned Admission" = su_theme_cols()[["red"]],
+        "Urgent Service Event" = su_theme_cols()[["charcoal"]]
+      )) +
+      scale_y_discrete(expand = expansion()) +
+      scale_x_proximity_to_death_days(expand = expansion(c(0.02, 0.001))) +
+      theme(axis.text.y = element_blank(),
+            axis.line.y = element_blank(),
+            axis.ticks.y = element_blank(),
+            axis.title = element_blank(),
+            panel.border = element_blank(),
+            panel.spacing = unit(0, "cm"),
+            plot.margin = margin(0, 0, 0, 0, "cm")) +
+      labs(title = group, x = "", y = "", fill = "")
+  }) %>%
+  reduce(`+`) +
+  guide_area() +
+  plot_layout(guides = "collect") +
+  theme(legend.direction = "vertical") -> pathways_plots
+
+# ggsave(tf <- tempfile(fileext = ".png"),
+#        pathways_plots,
+#        units = "cm",
+#        height = 21,
+#        width = 29.7,
+#        dpi = "retina",
+#        type = "cairo"); clipr::write_clip(tf)
+
+pathways_plots
+```
+
+# Chemotherapy
+
+Number of patients who have chemo in last month of life
+
+```{r chemo last month}
+activity %>%
+  filter(chemotherapy_indicator == 1) %>%
+  group_by(su_pat_id) %>%
+  mutate(last_month = any(proximity_to_death_days <= 28)) %>%
+  mutate_at("last_month",
+            ~ifelse(.x == 1,
+                    "Had chemo in last 4 weeks of life",
+                    "Had chemo, but not in last 4 weeks of life")) %>%
+  group_by(last_month) %>%
+  summarise(nd = n_distinct(su_pat_id)) %>%
+  mutate(p = nd/sum(nd)) %>%
+  ggplot(aes(last_month, p)) +
+  geom_col(colour = su_theme_cols()[["orange"]],
+           fill = after_scale(alpha(su_theme_cols()[["orange"]], 0.4))) +
+  geom_label(aes(y = 0, label = comma(nd)),
+             vjust = -0.5) +
+  scale_y_continuous(expand = expansion(c(0, 0.05))) +
+  labs(title = "Who had chemotherapy in their last 4 weeks of life",
+       x = "",
+       y = "")
+```
+
+```{r chemo activity}
+cross_df(
+  list(proximity_to_death_days = activity %>%
+         pull(proximity_to_death_days) %>%
+         range() %>%
+         (lift_dv(seq)),
+       last_month = c(TRUE, FALSE)
+  )
+) %>%
+  filter(last_month | proximity_to_death_days > 28) %>%
+  left_join(activity %>%
+              filter(chemotherapy_indicator == 1) %>%
+              group_by(su_pat_id) %>%
+              mutate(last_month = any(proximity_to_death_days <= 28)) %>%
+              group_by(last_month) %>%
+              mutate(nd = n_distinct(su_pat_id)) %>%
+              count(proximity_to_death_days, nd) %>%
+              mutate_at("nd", ~n / nd),
+            by = c("proximity_to_death_days", "last_month")) %>%
+  modify_at(vars(nd, n), replace_na, 0) %>%
+  rename("Number" = n,
+         "Rate per 1,000 decedents" = nd) %>%
+  pivot_longer(cols = -c("proximity_to_death_days", "last_month")) %>%
+  group_nest(name) %>%
+  pmap(function(name, data) {
+    s <- ifelse(str_detect(name, "[Rr]ate"), 1000, 1)
+    
+    data %>%
+      mutate_at("last_month", ifelse, "Yes", "No") %>%
+      ggplot(aes(proximity_to_death_days, value, colour = last_month)) +
+      geom_smooth(fill = NA,
+                  method = "loess",
+                  formula = y ~ x) +
+      geom_vline(xintercept = 28, linetype = "dotted") +
+      scale_x_proximity_to_death_days() +
+      scale_y_continuous(labels = comma_format(scale = s)) +
+      theme(legend.position = "bottom") +
+      labs(x = "Proximity to death (Months)",
+           y = name,
+           colour = "Had chemo in last 4 weeks of life?")
+  }) %>%
+  walk(plot)
+```
+
+```{r chemo when do people have first chemo}
+tibble(proximity_to_death_days = activity %>%
+         pull(proximity_to_death_days) %>%
+         range() %>%
+         (lift_dv(seq))) %>%
+  left_join(activity %>%
+              filter(chemotherapy_indicator == 1) %>%
+              group_by(su_pat_id) %>%
+              summarise_at("proximity_to_death_days", max) %>%
+              ungroup() %>%
+              count(proximity_to_death_days),
+            by = "proximity_to_death_days") %>%
+  mutate_at("n", replace_na, 0) %>%
+  arrange(desc(proximity_to_death_days)) %>%
+  mutate_at("n", cumsum) %>%
+  mutate(p = n / nrow(mpi)) %>%
+  ggplot(aes(proximity_to_death_days, p)) +
+  geom_point(colour = su_theme_cols()[["orange"]],
+             alpha = 0.4,
+             shape = "circle filled") +
+  scale_y_continuous(labels = percent) +
+  scale_x_proximity_to_death_days() +
+  labs(x = "Proximity to death (Months)",
+       y = "Percentage of decedents who had chemo (by earliest chemo date)")
+```
+
+```{r chemo utilisation}
+mpi %>%
+  left_join(activity %>%
+              group_by(su_pat_id) %>%
+              summarise_at("chemotherapy_indicator",  any),
+            by = "su_pat_id") %>%
+  modify_at("chemotherapy_indicator", replace_na, FALSE) %>%
+  group_by(age_band) %>%
+  summarise_at("chemotherapy_indicator", mean) %>%
+  ggplot(aes(age_band, chemotherapy_indicator, colour = age_band)) +
+  geom_col(aes(fill = after_scale(alpha(colour, 0.4)))) +
+  scale_y_continuous(labels = percent,
+                     expand = expansion(c(0, 0.05))) +
+  labs(x = "",
+       y = "Percentage of decedents who had chemo") +
+  theme(legend.position = "none")
+
+bind_rows(
+  mpi %>%
+    left_join(activity %>%
+                group_by(su_pat_id) %>%
+                summarise_at("chemotherapy_indicator",  any),
+              by = "su_pat_id") %>%
+    mutate(type = "stp"),
+  
+  mpi_region %>%
+    left_join(activity_region %>%
+                group_by(su_pat_id) %>%
+                summarise_at("chemotherapy_indicator",  any),
+              by = "su_pat_id") %>%
+    mutate(type = "region")
+) %>%
+  modify_at("chemotherapy_indicator", replace_na, FALSE) %>%
+  # mutate_at("age", ~case_when(.x < 50 ~ 50,
+  #                             .x < 90 ~ .x,
+  #                             TRUE ~ 90)) %>%
+  group_by(type, age) %>%
+  summarise_at("chemotherapy_indicator", mean) %>%
+  pivot_wider(names_from = type, values_from = chemotherapy_indicator) %>%
+  modify_at("stp", replace_na, 0) %>%
+  ggplot(aes(age, stp)) +
+  geom_point(colour = su_theme_cols("orange"),
+             fill = after_scale(alpha(su_theme_cols("orange"), 0.4)),
+             shape = "circle filled") +
+  geom_smooth(method = "loess",
+              formula = y ~ x,
+              fill = NA,
+              colour = su_theme_cols("orange")) +
+  geom_smooth(aes(y = region),
+              linetype = "dotted",
+              method = "loess",
+              formula = y ~ x,
+              fill = NA,
+              colour = su_theme_cols("charcoal")) +
+  scale_y_continuous(labels = percent) +
+  labs(x = "Age",
+       y = "Percentage of decedents who had chemo") +
+  theme(legend.position = "none")
+```
