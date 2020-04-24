@@ -50,3 +50,6 @@ docs/
 data/sensitive/
 *.fst
 *.rda
+
+# temporary folder
+/tmp/

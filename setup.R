@@ -81,4 +81,8 @@ setup_env$theme_report <- theme_get() +
 
 theme_set(setup_env$theme_report)
 
+# load additional files
+source("load_data.R")
+source("mekko_chart.R")
+
 attach(setup_env)
