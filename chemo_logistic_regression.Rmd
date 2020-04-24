@@ -1,0 +1,251 @@
+---
+title: "chemo_activity"
+author: '[Tom Jemmett](mailto:thomas.jemmett@nhs.net)'
+date: "23/04/2020"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source("setup.R")
+load_data("E54000016")
+
+library(broom)
+library(shiny)
+library(ROCR)
+
+chemo <- activity_region %>%
+  filter(chemotherapy_indicator == 1) %>%
+  mutate(last_month = any(proximity_to_death_days <= 28)) %>%
+  ungroup()
+
+mpi <- semi_join(mpi_region, chemo, by = "su_pat_id")
+```
+
+```{r}
+activity_summary_a <- activity %>%
+  count(pod_summary_group) %>%
+  pivot_wider(names_from = pod_summary_group, values_from = n)
+
+activity_summary_b <- activity %>%
+  summarise("Earliest Activity" = max(proximity_to_death_days),
+            "First Chemo" = max(ifelse(chemotherapy_indicator == 1,
+                                       proximity_to_death_days,
+                                       NA), na.rm = TRUE))
+
+activity_summary_c <- activity %>%
+  count(proximity_to_death) %>%
+  mutate_at("proximity_to_death", ~paste0("Chemo Month ", str_pad(.x, 2))) %>%
+  pivot_wider(names_from = proximity_to_death, values_from = n)
+
+activity_summary <- activity_summary_a %>%
+  full_join(activity_summary_b, by = "su_pat_id") %>%
+  full_join(activity_summary_c, by = "su_pat_id") %>%
+  modify_if(is.integer, replace_na, 0)
+
+activity_summary
+```
+
+```{r}
+chemo_summary <- chemo %>%
+  count(su_pat_id, last_month, name = "n_chemo") %>%
+  inner_join(mpi, by = "su_pat_id") %>%
+  select(-PID, -ccg, -lsoa, -dod, -primary_cod, -ethnic_code, -carer_support,
+         -died_in_critical_care, -ethnic_desc, -imd_quintile, -stp, -age_band) %>%
+  mutate_at("group", ~as.numeric(.x == "Cancer")) %>%
+  mutate_at("ethnic_group", ~case_when(.x == "White" ~ FALSE,
+                                       .x == "Not stated" ~ FALSE,
+                                       .x == "Unknown" ~ FALSE,
+                                       TRUE ~ TRUE)) %>%
+  
+  rename("group_is_cancer" = "group",
+         "is_bame" = "ethnic_group") %>%
+  replace_na(list(imd_decile = 5,
+                  lives_alone = FALSE))
+
+
+stopifnot(!any(is.na(chemo_summary)))
+
+set.seed(13124)
+indx <- sample(1:nrow(chemo_summary), nrow(chemo_summary)*.7)
+
+x_train <- chemo_summary[indx,] %>%
+  select(-su_pat_id) %>%
+  mutate_if(is.logical, as.numeric)
+
+x_test <- chemo_summary[-indx,] %>%
+  select(-su_pat_id) %>%
+  mutate_if(is.logical, as.numeric)
+
+x_train
+```
+
+# glm
+
+```{r}
+glm <- glm(last_month ~ ., data = x_train, family = "binomial")
+
+#summary(glm)
+
+glm_y <- predict(glm, x_test %>% select(-last_month)) %>% rescale()
+glm_pred <- prediction(glm_y, x_test$last_month)
+glm_perf <- performance(glm_pred, "tpr", "fpr")
+
+glm_auc <- performance(glm_pred, measure = "auc")@y.values[[1]]
+
+plot(glm_perf,
+     avg = "threshold",
+     colorize = TRUE,
+     lwd = 1,
+     main = paste("ROC Curve w/ Thresholds: auc =", glm_auc),
+     print.cutoffs.at = seq(0, 1, by = 0.05),
+     text.adj = c(-0.5, 0.5),
+     text.cex = 0.5)
+grid(col="lightgray")
+axis(1, at=seq(0, 1, by=0.1))
+axis(2, at=seq(0, 1, by=0.1))
+abline(v=c(0.1, 0.3, 0.5, 0.7, 0.9), col="lightgray", lty="dotted")
+abline(h=c(0.1, 0.3, 0.5, 0.7, 0.9), col="lightgray", lty="dotted")
+lines(x=c(0, 1), y=c(0, 1), col="black", lty="dotted")
+```
+
+```{r}
+glm_pred %>%
+  performance("acc") %>%
+  plot()
+```
+
+# coefficients
+
+```{r}
+glm$coefficients[-1] %>% {
+  tibble(column = names(.), value = .)
+} %>%
+  mutate_at("column", fct_reorder, quo(value)) %>%
+  ggplot(aes(value, column)) +
+  geom_col()
+```
+
+# confusion matrix
+
+```{r}
+sliderInput("cutoff", "Prediction Cutoff:", min = 0, max = 1, value = 0.5, step = 0.01)
+
+renderPlot({
+  tibble(truth = c(0, 0, 1, 1), pred = c(0, 1, 0, 1)) %>%
+    left_join(
+      tibble(truth = x_test$last_month,
+             pred = as.numeric(glm_y > input$cutoff)) %>%
+        count(truth, pred)
+    ) %>%
+    mutate_at("n", replace_na, 0) %>%
+    ggplot(aes(pred, truth)) +
+    geom_tile(aes(fill = n)) +
+    geom_label(aes(label = n)) +
+    scale_x_continuous(breaks = c(0, 1)) +
+    scale_y_continuous(breaks = c(0, 1),
+                       trans = "reverse")
+})
+```
+
+# new test
+
+```{r}
+new_chemo_summary <- chemo %>%
+  distinct(su_pat_id, last_month) %>%
+  inner_join(mpi, by = "su_pat_id") %>%
+  select(-PID, -ccg, -lsoa, -dod, -primary_cod, -ethnic_code, -carer_support,
+         -died_in_critical_care, -ethnic_desc, -imd_quintile, -stp, -age_band) %>%
+  mutate_at("group", ~as.numeric(.x == "Cancer")) %>%
+  mutate_at("ethnic_group", ~case_when(.x == "White" ~ FALSE,
+                                       .x == "Not stated" ~ FALSE,
+                                       .x == "Unknown" ~ FALSE,
+                                       TRUE ~ TRUE)) %>%
+  
+  rename("group_is_cancer" = "group",
+         "is_bame" = "ethnic_group") %>%
+  replace_na(list(imd_decile = 5)) %>%
+  inner_join(activity_summary, by = "su_pat_id")
+
+set.seed(13124)
+indx <- sample(1:nrow(new_chemo_summary), nrow(new_chemo_summary)*.7)
+
+x_train <- new_chemo_summary[indx,] %>%
+  select(-su_pat_id) %>%
+  mutate_if(is.logical, as.numeric)
+
+x_test <- new_chemo_summary[-indx,] %>%
+  select(-su_pat_id) %>%
+  mutate_if(is.logical, as.numeric)
+
+x_train
+```
+
+# new glm
+
+```{r}
+new_glm <- glm(last_month ~ ., data = x_train, family = "binomial")
+
+#summary(glm)
+
+new_glm_y <- predict(new_glm, x_test %>% select(-last_month)) %>% rescale()
+new_glm_pred <- prediction(new_glm_y, x_test$last_month)
+new_glm_perf <- performance(new_glm_pred, "tpr", "fpr")
+
+new_glm_auc <- performance(new_glm_pred, measure = "auc")@y.values[[1]]
+
+plot(new_glm_perf,
+     avg = "threshold",
+     colorize = TRUE,
+     lwd = 1,
+     main = paste("ROC Curve w/ Thresholds: auc =", new_glm_auc),
+     print.cutoffs.at = seq(0, 1, by = 0.05),
+     text.adj = c(-0.5, 0.5),
+     text.cex = 0.5)
+grid(col="lightgray")
+axis(1, at=seq(0, 1, by=0.1))
+axis(2, at=seq(0, 1, by=0.1))
+abline(v=c(0.1, 0.3, 0.5, 0.7, 0.9), col="lightgray", lty="dotted")
+abline(h=c(0.1, 0.3, 0.5, 0.7, 0.9), col="lightgray", lty="dotted")
+lines(x=c(0, 1), y=c(0, 1), col="black", lty="dotted")
+```
+
+```{r}
+new_glm_pred %>%
+  performance("acc") %>%
+  plot()
+```
+
+# coefficients
+
+```{r}
+new_glm$coefficients[-1] %>% {
+  tibble(column = names(.), value = .)
+} %>%
+  mutate_at("column", fct_reorder, quo(value)) %>%
+  ggplot(aes(value, column)) +
+  geom_col()
+```
+
+# confusion matrix
+
+```{r}
+sliderInput("new_cutoff", "Prediction Cutoff:", min = 0, max = 1, value = 0.5, step = 0.01)
+
+renderPlot({
+  tibble(truth = c(0, 0, 1, 1), pred = c(0, 1, 0, 1)) %>%
+    left_join(
+      tibble(truth = x_test$last_month,
+             pred = as.numeric(new_glm_y > input$new_cutoff)) %>%
+        count(truth, pred)
+    ) %>%
+    mutate_at("n", replace_na, 0) %>%
+    ggplot(aes(pred, truth)) +
+    geom_tile(aes(fill = n)) +
+    geom_label(aes(label = n)) +
+    scale_x_continuous(breaks = c(0, 1)) +
+    scale_y_continuous(breaks = c(0, 1),
+                       trans = "reverse")
+})
+```
