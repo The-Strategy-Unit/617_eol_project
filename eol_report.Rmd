@@ -314,32 +314,48 @@ shown on the left (in blue) and Females shown on the right (in red).
 
 
 ```{r mean age density plots}
-ggplot() +
-  # stp male
-  geom_density(data = filter(mpi, sex == "male"),
-               aes(age, -..density..),
-               colour = su_theme_cols("dark_blue")[[1]],
-               fill = su_theme_cols("light_blue")[[1]]) +
-  # region male
-  geom_density(data = filter(mpi_region, sex == "male"),
-               aes(age, -..density..),
-               linetype = "dotted") +
-  # stp female
-  geom_density(data = filter(mpi, sex == "female"),
-               aes(age,  ..density..),
-               colour = su_theme_cols("dark_red")[[1]],
-               fill = su_theme_cols("light_red")[[1]]) +
-  # region female
-  geom_density(data = filter(mpi_region, sex == "female"),
-               aes(age,  ..density..),
-               linetype = "dotted") +
+bind_rows(
+  mutate(mpi, type = "stp"),
+  mutate(mpi_region, type = "region")
+) %>%
+  group_by(sex, type) %>%
+  summarise(density = list(density(age, from = 18, to = 110, cut = 1))) %>%
+  mutate(age = map(density, "x"),
+         val = map(density, "y")) %>%
+  select(-density) %>%
+  unnest(cols = c(age, val)) %>%
+  mutate_at(vars(val), rescale) %>%
+  mutate_at(vars(val), ~ifelse(sex == "male", -.x, .x)) %>%
+  pivot_wider(names_from = type, values_from = val) %>%
+  ggplot(aes(age, stp, group = sex)) +
+  geom_density(aes(colour = sex,
+                   fill = after_scale(alpha(colour, 0.2))),
+               stat = "identity") +
+  geom_density(aes(age, region),
+               stat = "identity",
+               colour = su_theme_cols()[["charcoal"]],
+               fill = NA,
+               linetype = "dashed") +
   coord_flip() +
+  scale_colour_manual(values = c("male" = su_theme_cols()[["dark_blue"]],
+                                 "female" = su_theme_cols()[["dark_red"]])) +
   scale_x_continuous(breaks = seq(20,110,5)) +
   theme(axis.text.x = element_blank(),
         axis.ticks = element_blank(),
         axis.line = element_blank(),
-        panel.grid.major.y = element_line(colour = "grey")) +
-  labs(x = "age", y= "")
+        panel.grid.major.y = element_line(colour = "grey"),
+        legend.title = element_blank(),
+        legend.background = element_rect(fill = "white", colour = "black"),
+        legend.direction = "horizontal",
+        legend.position = c(0.95, 0.05),
+        legend.justification = c(1, 0)) +
+  labs(x = "age", y = "", colour = "") +
+  annotate("label", 107.5, -1.0, label = "Males", hjust = 0,
+           colour = su_theme_cols()[["dark_blue"]],
+           fill = after_scale(alpha(su_theme_cols()[["dark_blue"]], 0.4))) +
+  annotate("label", 107.5,  1.0, label = "Females", hjust = 1,
+           colour = su_theme_cols()[["dark_red"]],
+           fill = after_scale(alpha(su_theme_cols()[["dark_red"]], 0.4)))
 ```
 
 The `r stp_name` STP is shown as the bars, and the black lines represent the
