@@ -17,11 +17,20 @@ params:
 ---
 
 ```{r setup, include=FALSE}
+library(knitr)
+# knitr options ----
+opts_chunk$set(echo = FALSE, eval.after = "fig.cap")
+
+if (!knitr::is_latex_output()) {
+  opts_chunk$set(dpi = 300,
+                 dev.args = list(type = "cairo"))
+}
+
 # all setup should happen in setup.R that could be shared logic between files
-local({
+invisible(local({
   source("setup.R")
   load_data(params$stp)
-})
+}))
 ```
 
 This report is about the people in `r stp_name` STP who died between April 2018

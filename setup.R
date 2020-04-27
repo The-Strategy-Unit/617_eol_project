@@ -8,7 +8,6 @@ library(tidyverse)
 library(scales)
 library(DescTools)
 library(Cairo) # not needed to be library'd, but needed for rendering
-library(knitr)
 library(sf)
 library(glue)
 library(shadowtext)
@@ -18,14 +17,6 @@ library(ggrepel)
 library(patchwork)
 library(rlang)
 library(ggridges)
-
-# knitr options ----
-opts_chunk$set(echo = FALSE, eval.after = "fig.cap")
-
-if (!knitr::is_latex_output()) {
-  knitr::opts_chunk$set(dpi = 300,
-                        dev.args = list(type = "cairo"))
-}
 
 # load fonts ----
 loadfonts(device = "win", quiet = TRUE)
