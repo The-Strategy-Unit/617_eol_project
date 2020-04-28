@@ -19,14 +19,10 @@ library(rlang)
 library(ggridges)
 
 # load fonts ----
-loadfonts(device = "win", quiet = TRUE)
-
-if (length(fonts()) == 0) {
-  stop("no fonts loaded, run font_install.R")
-}
+#loadfonts(device = "win", quiet = TRUE)
 
 if (!"Segoe UI" %in% fonts()) {
-  stop("Segoe UI font not installed!")
+  extrafont::font_import(prompt = FALSE, pattern = "(?i).*segoe.*")
 }
 
 # Set up Strategy Unit Theme ----
