@@ -1,0 +1,156 @@
+---
+title: "Trends and Forecast"
+author: "[The Strategy Unit][su_web]"
+output:
+  StrategyUnitTheme::su_document:
+    toc: true
+  html_document:
+    toc: true
+params:
+  stp: "E54000016"
+---
+
+```{r setup, include = FALSE}
+
+library(knitr)
+
+# set default options
+opts_chunk$set(echo = FALSE,
+               dpi = 300,
+               dev.args = list(type = "cairo"))
+
+# all setup should happen in setup.R that could be shared logic between files
+invisible(local({
+  source("setup.R")
+  load_data(params$stp)
+}))
+```
+
+# Recent trends and future deaths
+
+How have the number of deaths changed over time and how do we believe they will
+change in the future? These would always be  extremely important questions but 
+with the arrival  of COVID-19 they take on an increasingly extraordinary aspect. 
+
+At the same time never has so much remained uncertain as both the full 
+short-term and long-term mortality effects of COVID-19, both direct and 
+indirect, continues to be understood and evaluated for some time to come.
+
+Within this context there is considerable value in understanding the ‘baseline
+forecast’ in a pre-COVID-19 world whilst recognising that this will change
+significantly.
+
+In this chapter we look at trends in historical deaths and the forecast baseline
+for your STP linking these to our think-piece on important changes in life
+expectancy.
+
+We will begin by looking at deaths by gender before moving on to deaths by age
+group….
+
+## Historical and future deaths by gender
+
+Over the last decade, Historical numbers show a year on year increase in deaths
+for most years in the last decade. In recent years there has also been a move
+towards more deaths for males than females.   
+
+In the forecast, represented by dashed lines, this shift continues in future
+decades with increasing divergence between genders. <link to SW life expectancy>
+
+The forecast figures are projections produced by the Office of National
+Statistics every two years[^1]. The most recent are used here, based on
+information up to and including 2018.  
+
+Historically there have been years with a spike in the number of deaths. For
+example, the high number of deaths in 2015 in relation to the failure of the flu
+vaccine is well documented[^2].
+
+#### historical and future deaths, all ages, by gender
+
+```{r historic and forecast deaths, fig.height=2.0}
+ggplot(mapping = aes(year, deaths, colour = sex)) +
+  geom_point(data = historical_deaths) +
+  geom_line(data = historical_deaths) +
+  geom_line(data = forecast_deaths %>%
+              group_by(year, sex) %>%
+              summarise_at("est_deaths", sum) %>%
+              rename(deaths = est_deaths) %>%
+              filter(year > 2019),
+            linetype = "dashed") +
+  scale_y_continuous(labels = comma_format(accuracy = 1)) +
+  labs(colour = "gender", x = "", y = "") +
+  theme(axis.title = element_blank(),
+        legend.position = c(1, 0),
+        legend.justification = c(1, 0),
+        legend.background = element_blank())
+```
+
+## Future deaths by age groups
+
+The forecast deaths split by age group show that growth in deaths over future
+decades is driven by the oldest age group, 85 and older. 
+
+The specific needs of this older population as they near end of life will 
+therefore have largest impact on demand for services. In later chapters we look
+at utilisation of services, including age specific utilisation.
+
+However, where there are gaps where we have not been able to access data for
+services such as social care or primary care, yet these are key components when
+caring for the oldest in our population.   
+
+#### future deaths, all ages, by gender
+
+```{r forecast deaths, fig.height=3.5}
+forecast_deaths %>%
+  mutate(age = age_group) %>%
+  mutate_at("age_group",
+            cut,
+            breaks = c(0,65,75,85,Inf),
+            labels = c("18-64","65-74","75-85","85+"),
+            right = FALSE) %>%
+  arrange(age_group, year) %>%
+  group_by(age_group, year) %>%
+  filter(year >= 2020) %>%
+  summarise_at("est_deaths", sum) %>%
+  mutate(first_year = ifelse(year == min(year), comma(est_deaths, accuracy = 1), NA),
+         last_year  = ifelse(year == max(year),
+                             paste(comma(est_deaths, accuracy = 1),
+                                   percent(est_deaths / first(est_deaths) - 1,
+                                           accuracy = 1),
+                                   sep = "\n"),
+                             NA)) %>%
+  ungroup() %>%
+  ggplot(aes(year, est_deaths, colour = age_group)) +
+  geom_line(linetype = "dashed") +
+  geom_text_repel(aes(year-1, est_deaths, label = first_year),
+                  na.rm = TRUE,
+                  direction = "y",
+                  hjust = 1,
+                  segment.colour = NA,
+                  point.padding = NA,
+                  show.legend = FALSE) +
+  geom_text_repel(aes(year+1, est_deaths, label = last_year),
+                  na.rm = TRUE,
+                  direction = "y",
+                  hjust = 0,
+                  segment.colour = NA,
+                  point.padding = NA,
+                  show.legend = FALSE) +
+  labs(colour = "",
+       x = "",
+       y = "") +
+  scale_x_continuous(breaks = seq(2020, 2040, 5)) +
+  theme(axis.title = element_blank(),
+        axis.line.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.text.y = element_blank(),
+        legend.position = "bottom",
+        legend.background = element_blank())
+```
+
+[//]: <> (URL's / Footnotes ---------------------------------------------------)
+[su_email]: mailto:Strategy.Unit@nhs.net
+[su_web]: https://www.strategyunitwm.nhs.uk/
+
+[^1]: [Methodology used to produce the 2018-based subnational population projections for England (ONS)](https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationprojections/methodologies/methodologyusedtoproducethe2018basedsubnationalpopulationprojectionsforengland)
+
+[^2]: [Provisional analysis of death registrations: 2015 (ONS)](https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/deaths/articles/provisionalanalysisofdeathregistrations/2015)
