@@ -350,7 +350,7 @@ local({
                      yend = 0),
                  data = median_age) +
     coord_flip() +
-    scale_colour_manual(values = c("male" = su_theme_cols()[["dark_blue"]],
+    scale_colour_manual(values = c("male" = su_theme_cols()[["orange"]],
                                    "female" = su_theme_cols()[["dark_red"]])) +
     scale_x_continuous(breaks = seq(20,110,5),
                        sec.axis = dup_axis(name = "")) +
@@ -359,6 +359,7 @@ local({
     theme(axis.text.x = element_blank(),
           axis.ticks = element_blank(),
           axis.line = element_blank(),
+          axis.text.y.right = element_text(hjust = 1), 
           panel.grid.major.y = element_line(colour = "grey"),
           panel.grid.major.x = element_line(colour = "lightgrey",
                                             linetype = "dotted"),
@@ -367,13 +368,7 @@ local({
           legend.direction = "horizontal",
           legend.position = c(0.95, 0.05),
           legend.justification = c(1, 0)) +
-    labs(x = "age", y = "", colour = "") +
-    annotate("label", 107.5, -1.0, label = "Males", hjust = 0,
-             colour = su_theme_cols()[["dark_blue"]],
-             fill = after_scale(alpha(su_theme_cols()[["dark_blue"]], 0.4))) +
-    annotate("label", 107.5,  1.0, label = "Females", hjust = 1,
-             colour = su_theme_cols()[["dark_red"]],
-             fill = after_scale(alpha(su_theme_cols()[["dark_red"]], 0.4))) +
+    labs(x = "", y = "", colour = "") +
     geom_text(data = median_age %>%
                 mutate(h = as.numeric(sex == "male"),
                        x = 0.025 * ifelse(h, -1, 1)),
