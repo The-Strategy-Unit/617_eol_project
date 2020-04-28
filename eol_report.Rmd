@@ -314,12 +314,13 @@ shown on the left (in blue) and Females shown on the right (in red).
 
 
 ```{r mean age density plots}
-bind_rows(
+local({
+densities <- bind_rows(
   mutate(mpi, type = "stp"),
   mutate(mpi_region, type = "region")
 ) %>%
   group_by(sex, type) %>%
-  summarise(density = list(density(age, from = 18, to = 110, cut = 1))) %>%
+  summarise(density = list(density(age, from = 18, to = 110))) %>%
   mutate(age = map(density, "x"),
          val = map(density, "y")) %>%
   select(-density) %>%
@@ -327,8 +328,16 @@ bind_rows(
   ungroup() %>%
   mutate_at(vars(val), rescale) %>%
   mutate_at(vars(val), ~ifelse(sex == "male", -.x, .x)) %>%
-  pivot_wider(names_from = type, values_from = val) %>%
-  ggplot(aes(age, stp, group = sex)) +
+  pivot_wider(names_from = type, values_from = val)
+
+median_age <- mpi %>%
+  group_by(sex) %>%
+  summarise_at("age", median) %>%
+  mutate_at("age", round, 1) %>%
+  inner_join(mutate_at(densities, "age", round, 1),
+             by = c("sex", "age"))
+
+ggplot(densities, aes(age, stp, group = sex)) +
   geom_density(aes(colour = sex,
                    fill = after_scale(alpha(colour, 0.2))),
                stat = "identity") +
@@ -337,10 +346,14 @@ bind_rows(
                colour = su_theme_cols()[["charcoal"]],
                fill = NA,
                linetype = "dashed") +
+  geom_segment(aes(xend = age,
+                   yend = 0),
+               data = median_age) +
   coord_flip() +
   scale_colour_manual(values = c("male" = su_theme_cols()[["dark_blue"]],
                                  "female" = su_theme_cols()[["dark_red"]])) +
-  scale_x_continuous(breaks = seq(20,110,5)) +
+  scale_x_continuous(breaks = seq(20,110,5),
+                     sec.axis = dup_axis(name = "")) +
   scale_y_continuous(breaks = seq(-1,1,0.2)) +
   expand_limits(ylim = c(-1, 1)) +
   theme(axis.text.x = element_blank(),
@@ -360,7 +373,17 @@ bind_rows(
            fill = after_scale(alpha(su_theme_cols()[["dark_blue"]], 0.4))) +
   annotate("label", 107.5,  1.0, label = "Females", hjust = 1,
            colour = su_theme_cols()[["dark_red"]],
-           fill = after_scale(alpha(su_theme_cols()[["dark_red"]], 0.4)))
+           fill = after_scale(alpha(su_theme_cols()[["dark_red"]], 0.4))) +
+  geom_text(data = median_age %>%
+              mutate(h = as.numeric(sex == "male"),
+                     x = 0.025 * ifelse(h, -1, 1)),
+            aes(age, x,
+                label = paste("Median:", age),
+                hjust = h),
+            vjust = 0,
+            nudge_x = 1,
+            size = 3.2)
+})
 ```
 
 The `r stp_name` STP is shown as the bars, and the black lines represent the
