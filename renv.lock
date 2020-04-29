@@ -91,12 +91,12 @@
       "Version": "0.1.6",
       "Source": "GitHub",
       "RemoteType": "github",
-      "RemoteHost": "api.github.com",
       "RemoteUsername": "The-Strategy-Unit",
       "RemoteRepo": "StrategyUnitTheme",
       "RemoteRef": "master",
-      "RemoteSha": "def7c54733ea253a1eb7a8583312243142e45685",
-      "Hash": "63ccc08376204c670fb3a4b8dce933ba"
+      "RemoteSha": "17d255c4dbf4dda0a936bdcd8d3a9e5bfe8c8c36",
+      "RemoteHost": "api.github.com",
+      "Hash": "20a503a12c6eac24441655d2bfe84932"
     },
     "askpass": {
       "Package": "askpass",
@@ -125,6 +125,27 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "543776ae6848fde2f48ff3816d0628bc"
+    },
+    "bit": {
+      "Package": "bit",
+      "Version": "1.1-15.2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "eb6c52d8cc44463085a4cde1c63df163"
+    },
+    "bit64": {
+      "Package": "bit64",
+      "Version": "0.9-7",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "3338d4a9b1352f5a613e2bdcefe784ea"
+    },
+    "blob": {
+      "Package": "blob",
+      "Version": "1.2.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "9addc7e2c5954eca5719928131fed98c"
     },
     "boot": {
       "Package": "boot",
@@ -524,6 +545,13 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "dd4a1423f1472a2a8e05dd2c8945c3af"
+    },
+    "odbc": {
+      "Package": "odbc",
+      "Version": "1.2.2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "e76003d15ae8638ccde579dc69bb76e1"
     },
     "openssl": {
       "Package": "openssl",
