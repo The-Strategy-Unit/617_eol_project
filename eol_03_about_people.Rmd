@@ -1,5 +1,5 @@
 ---
-title: "About People"
+title: "EOL Report"
 author: "[The Strategy Unit][su_web]"
 output:
   StrategyUnitTheme::su_document:
@@ -24,6 +24,7 @@ invisible(local({
   load_data(params$stp)
 }))
 ```
+
 # About people
 
 ## Population analysis of deceased adults
