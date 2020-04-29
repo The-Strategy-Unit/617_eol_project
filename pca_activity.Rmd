@@ -3,6 +3,7 @@ title: "PCA of Activity"
 author: '[Tom Jemmett](mailto:thomas.jemmett@nhs.net)'
 date: "22/04/2020"
 output: html_document
+runtime: shiny
 params:
   stp: "E54000015"
 ---
@@ -13,7 +14,6 @@ load_data(params$stp)
 
 library(broom)
 library(shiny)
-library(ROCR)
 
 knitr::opts_chunk$set(echo = TRUE)
 
@@ -72,7 +72,7 @@ ggplot(pca_var, aes(PC)) +
 ```
 
 ```{r}
-activity_region %>%
+pc_data <- activity_region %>%
   distinct(pod_type, pod_summary_group) %>%
   mutate_all(as.character) %>%
   right_join(suppressWarnings(
@@ -83,43 +83,36 @@ activity_region %>%
   group_nest(PC) %>%
   mutate_at("PC", fct_relevel, levels(pca_var$PC)) %>%
   inner_join(pca_var, by = "PC") %>%
-  arrange(PC) %>%
-  pmap(function(PC, var, data, ...) {
-    data %>%
-      mutate_at("pod_summary_group", fct_reorder, quo(value)) %>%
-      ggplot(aes(value, pod_summary_group, colour = pod_type)) +
-      geom_col(aes(fill = after_scale(alpha(colour, 0.4)))) +
-      labs(x = "",
-           y = "",
-           colour = "",
-           title = glue("{PC}: var={percent(var)}")) +
-      theme(axis.line = element_blank(),
-            axis.ticks = element_blank(),
-            axis.text.x = element_blank(),
-            axis.text.y = element_text(size = 8),
-            plot.background = element_rect(colour = "grey", fill = NA),
-            plot.title = element_text(size = 9, margin = margin(2, 0, 0, 2)),
-            plot.title.position = "plot",
-            plot.margin = margin())
-  }) %>%
-  reduce(`+`) +
-  guide_area() +
-  plot_layout(guides = "collect")
-```
+  arrange(PC)
 
+selectInput("pc_choice", label = "Principle Components:",
+            choices = pc_data$PC,
+            selected = pc_data$PC[[1]])
 
-```{r}
-kmc <- kmeans(activity_pca$x[,1:3], 3)
-
-tibble(su_pat_id = as.numeric(names(kmc$cluster)),
-       cluster = kmc$cluster) %>% 
-  inner_join(activity_summary, by = "su_pat_id") %>%
-  group_by(cluster) %>%
-  summarise_all(median, na.rm = TRUE) %>%
-  select(-su_pat_id) %>%
-  mutate_at(vars(-cluster), number, accuracy = 1) %>%
-  pivot_longer(-cluster) %>%
-  pivot_wider(names_from = cluster, values_from = value)
+renderPlot({
+  pcf <- filter(pc_data, PC == input$pc_choice)
   
+  data <- pcf$data[[1]]
+  PC <- input$pc_choice
+  var <- pcf$var[[1]]
+  
+  data %>%
+    mutate_at("pod_summary_group", fct_reorder, quo(value)) %>%
+    ggplot(aes(value, pod_summary_group, colour = pod_type)) +
+    geom_col(aes(fill = after_scale(alpha(colour, 0.4)))) +
+    labs(x = "",
+         y = "",
+         colour = "",
+         title = glue("{PC}: var={percent(var)}")) +
+    theme(axis.line = element_blank(),
+          axis.ticks = element_blank(),
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(size = 8),
+          plot.background = element_rect(colour = "grey", fill = NA),
+          plot.title = element_text(size = 9, margin = margin(2, 0, 0, 2)),
+          plot.title.position = "plot",
+          plot.margin = margin(),
+          legend.position = "none")
+})
 ```
 
