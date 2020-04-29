@@ -2,10 +2,8 @@
 title: "Trends and Forecast"
 author: "[The Strategy Unit][su_web]"
 output:
-  StrategyUnitTheme::su_document:
-    toc: true
-  html_document:
-    toc: true
+  StrategyUnitTheme::su_document: default
+  html_document: default
 params:
   stp: "E54000016"
 ---
@@ -56,13 +54,6 @@ towards more deaths for males than females.
 In the forecast, represented by dashed lines, this shift continues in future
 decades with increasing divergence between genders. <link to SW life expectancy>
 
-The forecast figures are projections produced by the Office of National
-Statistics every two years[^1]. The most recent are used here, based on
-information up to and including 2018.  
-
-Historically there have been years with a spike in the number of deaths. For
-example, the high number of deaths in 2015 in relation to the failure of the flu
-vaccine is well documented[^2].
 
 #### historical and future deaths, all ages, by gender
 
@@ -77,12 +68,21 @@ ggplot(mapping = aes(year, deaths, colour = sex)) +
               filter(year > 2019),
             linetype = "dashed") +
   scale_y_continuous(labels = comma_format(accuracy = 1)) +
+  scale_colour_discrete(guide = guide_legend(reverse = TRUE)) +
   labs(colour = "gender", x = "", y = "") +
   theme(axis.title = element_blank(),
         legend.position = c(1, 0),
         legend.justification = c(1, 0),
         legend.background = element_blank())
 ```
+
+The forecast figures are projections produced by the Office of National
+Statistics every two years[^1]. The most recent are used here, based on
+information up to and including 2018.  
+
+Historically there have been years with a spike in the number of deaths. For
+example, the high number of deaths in 2015 in relation to the failure of the flu
+vaccine is well documented[^2].
 
 ## Future deaths by age groups
 
