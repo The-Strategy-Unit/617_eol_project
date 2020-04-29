@@ -2,8 +2,8 @@
 title: "Trends and Forecast"
 author: "[The Strategy Unit][su_web]"
 output:
-  StrategyUnitTheme::su_document: default
-  html_document: default
+  StrategyUnitTheme::su_document:
+    use_numbered_headings: true
 params:
   stp: "E54000016"
 ---
