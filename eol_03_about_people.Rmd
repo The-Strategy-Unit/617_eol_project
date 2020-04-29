@@ -1,0 +1,286 @@
+---
+title: "About People"
+author: "[The Strategy Unit][su_web]"
+output:
+  StrategyUnitTheme::su_document:
+    use_numbered_headings: true
+params:
+  stp: "E54000016"
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+# knitr options ----
+opts_chunk$set(echo = FALSE, eval.after = "fig.cap")
+
+if (!knitr::is_latex_output()) {
+  opts_chunk$set(dpi = 300,
+                 dev.args = list(type = "cairo"))
+}
+
+# all setup should happen in setup.R that could be shared logic between files
+invisible(local({
+  source("setup.R")
+  load_data(params$stp)
+}))
+```
+# About people
+
+## Population analysis of deceased adults
+
+Deceased adults in your STP are the population under consideration throughout
+this report. Here we look at the characteristics of this population, from
+demographic information about a person to the numbers estimated to be
+experiencing unrelieved pain at the end of life in our think-piece based on
+research by the Office of Health Economics and applied to your STP.
+
+Much of the demographic information is likely to be intuitively understood
+already, for example deaths increasing with age. However, an exploration of end
+of life care should be considered from a population’s perspective, meaning a
+review of their characteristics forms an important component of this report.
+
+### The age at which people die
+
+Age is obviously one of the key factors in how likely a person is to die.
+Therefore, as would be expected, the largest number of deaths occur in those
+patients who are older. The largest single group within the population are those
+aged 85 and over.
+
+Broken down further by gender there are more females than males in the older
+ages categories, particularly in the very old (those aged 90 and older), linking
+back to the longer life expectancy we see for females. 
+
+#### percentage of decedents in each age group
+
+*Bars represent the percentage for your STP, dots the percentage for the
+Midlands as a whole*
+
+```{r by age, fig.height = 3.5}
+inner_join(
+  count(mpi, age_band, name = "stp"),
+  count(mpi_region, age_band, name = "region"),
+  by = "age_band"
+) %>%
+  mutate(stp_n = glue("n = {comma(stp)}")) %>%
+  mutate_if(is.numeric, ~.x / sum(.x)) %>%
+  ggplot(aes(age_band, stp)) +
+  geom_col(fill = su_theme_cols("orange"),
+           colour = su_theme_cols("charcoal"),
+           alpha = 0.4,
+           width = 0.75) +
+  geom_text(aes(y = 0.005, label = stp_n),
+            size = 3,
+            vjust = "bottom") +
+  geom_point(aes(y = region),
+             size = 2,
+             shape = "circle filled",
+             stroke = 1.5,
+             colour = su_theme_cols("charcoal")[[1]],
+             fill = su_theme_cols("red")[[1]]) +
+  scale_y_continuous(labels = percent,
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(x = "",
+       y = "Percentage of Decedents by Age Band")
+```
+
+#### number of decedents by age, split by male and female
+
+*Shaded areas represent the percentage for your STP, dashed outline the number
+for the Midlands as a whole*
+
+```{r mean age density plots, fig.height = 3.5}
+local({
+  densities <- bind_rows(
+    mutate(mpi, type = "stp"),
+    mutate(mpi_region, type = "region")
+  ) %>%
+    group_by(sex, type) %>%
+    summarise(density = list(density(age, from = 18, to = 110))) %>%
+    mutate(age = map(density, "x"),
+           val = map(density, "y")) %>%
+    select(-density) %>%
+    unnest(cols = c(age, val)) %>%
+    ungroup() %>%
+    mutate_at(vars(val), rescale) %>%
+    mutate_at(vars(val), ~ifelse(sex == "male", -.x, .x)) %>%
+    pivot_wider(names_from = type, values_from = val)
+  
+  median_age <- mpi %>%
+    group_by(sex) %>%
+    summarise_at("age", median) %>%
+    mutate_at("age", round, 1) %>%
+    inner_join(mutate_at(densities, "age", round, 1),
+               by = c("sex", "age"))
+  
+  ggplot(densities, aes(age, stp, group = sex)) +
+    geom_density(aes(colour = sex,
+                     fill = after_scale(alpha(colour, 0.2))),
+                 stat = "identity") +
+    geom_density(aes(age, region),
+                 stat = "identity",
+                 colour = su_theme_cols()[["charcoal"]],
+                 fill = NA,
+                 linetype = "dashed") +
+    geom_segment(aes(xend = age,
+                     yend = 0),
+                 data = median_age) +
+    coord_flip() +
+    scale_colour_manual(values = c("male" = su_theme_cols()[["orange"]],
+                                   "female" = su_theme_cols()[["dark_red"]])) +
+    scale_x_continuous(breaks = seq(20,110,5),
+                       sec.axis = dup_axis(name = "")) +
+    scale_y_continuous(breaks = seq(-1,1,0.2)) +
+    expand_limits(ylim = c(-1, 1)) +
+    theme(axis.text.x = element_blank(),
+          axis.ticks = element_blank(),
+          axis.line = element_blank(),
+          axis.text.y.right = element_text(hjust = 1), 
+          panel.grid.major.y = element_line(colour = "grey"),
+          panel.grid.major.x = element_line(colour = "lightgrey",
+                                            linetype = "dotted"),
+          legend.title = element_blank(),
+          legend.background = element_rect(fill = "white", colour = "black"),
+          legend.direction = "horizontal",
+          legend.position = c(0.95, 0.05),
+          legend.justification = c(1, 0)) +
+    labs(x = "", y = "", colour = "") +
+    geom_text(data = median_age %>%
+                mutate(h = as.numeric(sex == "male"),
+                       x = 0.025 * ifelse(h, -1, 1)),
+              aes(age, x,
+                  label = paste("Median:", age),
+                  hjust = h),
+              vjust = 0,
+              nudge_x = 1,
+              size = 3.2)
+})
+```
+
+### The level of deprivation experienced by people who die
+
+Here we use the Index of Multiple Deprivation (IMD)[^1] which ranks every small
+area or neighbourhood in England from most deprived to least deprived. The list
+of ranked areas in England is then split into quintiles (each containing 20 per
+cent of areas). The most deprived areas are in the first quintile and the least
+deprived areas in the fifth quintile.
+
+Each person is linked to one of the five England deprivation quintiles based on
+where they live. For your STP we show the numbers from your population by
+quintile and how this compares to the Midlands as a whole.
+
+#### percentage of decedents in each quintile of deprivation
+
+*Bars represent the percentage for your STP, dots the percentage for the
+Midlands as a whole*
+
+
+```{r deprivation quintile bar plot, fig.height = 3.5}
+inner_join(
+  count(mpi, imd_quintile, name = "stp"),
+  count(mpi_region, imd_quintile, name = "region"),
+  by = "imd_quintile"
+) %>%
+  drop_na() %>%
+  mutate(stp_n = glue("n = {comma(stp)}")) %>%
+  mutate_at(vars(stp, region), ~.x / sum(.x)) %>%
+  ggplot(aes(imd_quintile, stp)) +
+  geom_col(fill = su_theme_cols("orange"),
+           colour = su_theme_cols("charcoal"),
+           alpha = 0.4,
+           width = 0.5) +
+  geom_text(aes(y = 0.0025, label = stp_n),
+            size = 3,
+            vjust = "bottom") +
+  geom_point(aes(y = region),
+             size = 2,
+             shape = "circle filled",
+             stroke = 1.5,
+             colour = su_theme_cols("charcoal")[[1]],
+             fill = su_theme_cols("red")[[1]]) +
+  scale_imd(quintiles = TRUE) +
+  scale_y_continuous(labels = percent,
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(x = "",
+       y = "Percentage of Decedents by Age Band")
+```
+
+### The ethnicity of people who die
+
+The ethnicity population breakdown is shown for your STP and also a comparator
+chart showing how this compares to the Midlands as a whole. 
+
+If the comparator bar is negative i.e. below the axis, then that ethnic
+population is a lower proportion for your STP than it is for the Midlands. If
+the comparator bar is positive i.e. above the axis, then that ethnic population
+is a higher proportion for your STP than it is for the Midlands.
+
+#### difference in percentage of population for your STP from the Midlands percentage
+
+```{r ethnicity percentage diff bar plot, fig.height = 3.5}
+local({
+  ethnic_count <- function(data) {
+    data %>%
+      count(ethnic_group) %>%
+      mutate_at(vars(n), ~.x/sum(.x))  
+  }
+  
+  full_join(
+    ethnic_count(mpi) %>%
+      rename(stp = n),
+    ethnic_count(mpi_region) %>%
+      rename(region = n),
+    by = "ethnic_group"
+  ) %>%
+    mutate(diff = stp - region) %>%
+    ggplot(aes(ethnic_group, diff)) +
+    geom_hline(yintercept = 0) +
+    geom_col(colour = su_theme_cols("charcoal"),
+             fill = su_theme_cols("orange"),
+             alpha = 0.4,
+             width = 0.5) +
+    scale_y_continuous(labels = percent) +
+    theme(axis.text.x = element_text(angle = 15, hjust = 1)) +
+    labs(x = "", y = "% difference from region average")
+})
+```
+
+## Think-piece: The experience of pain at end of life
+
+The Office of Health Economics (OHE) published in 2019 a report investigating
+levels of unrelieved pain in palliative care in England[^2]. This report
+estimated that 378,427 people receive palliative care each year and 125,971 of
+those patients receiving, or in need of, palliative care suffered from some
+level of unrelieved pain. 16,130 of these patients experienced no relief from
+pain at all. 
+
+Estimates of the palliative population who suffer from unrelieved pain were
+calculated using an extrapolation method. The steps in this method were: from
+all deaths estimate the sub-population of palliative patients[^3]; estimate the
+rates of unrelieved pain by death setting; apply these rates to the palliative
+care population.
+
+There are many sources estimating rates of unrelieved pain in palliative care
+and these are discussed in further detail in the OHE report. The estimates
+actually used are from National Survey of Bereaved People (VOICES) survey[^4]
+which collected information on bereaved people’s view of the level of pain
+experienced (e.g. no pain relief at all, partial pain relief etc.) by their
+friend or relative on a setting by setting basis.
+
+From these estimates rates of unrelieved pain for are highest for those patients
+who die at home. They are lowest for those who die in a hospice setting. This
+presents an opportunity for STP's to explore what can be done to support people
+dying in their own home and reducing the likelihood of them experiencing pain at
+the end of their life.
+
+#### extrapolation method applied to your STPs palliative care deaths population to estimate the number of people whose pain is not relieved or only partially relieved at the end of life
+
+TODO: insert table
+
+[//]: <> (URL's / Footnotes ---------------------------------------------------)
+[su_email]: mailto:Strategy.Unit@nhs.net
+[su_web]: https://www.strategyunitwm.nhs.uk/
+
+[^1]: **TODO**: MISSING FOOTNOTE
+[^2]: Zamora, B., Cookson, G. and Garau, M., 2019. [Unrelieved Pain in Palliative Care in England. OHE Consulting Report, London: Office of Health Economics](https://www.ohe.org/publications/unrelieved-pain-palliative-care-england)
+[^3]: (Etkind et al, 2017)
+[^4]: [Office of National Statistics, 2016. National Survey of Bereaved People (VOICES) : England, 2015](https://www.ons.gov.uk/peoplepopulationandcommunity/healthandsocialcare/healthcaresystem/bulletins/nationalsurve yofbereavedpeoplevoices/england2015)
