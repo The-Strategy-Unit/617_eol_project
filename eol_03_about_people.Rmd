@@ -23,6 +23,9 @@ invisible(local({
   source("setup.R")
   load_data(params$stp)
 }))
+
+library(flextable)
+library(officer)
 ```
 
 # About people
@@ -275,7 +278,89 @@ the end of their life.
 
 #### extrapolation method applied to your STPs palliative care deaths population to estimate the number of people whose pain is not relieved or only partially relieved at the end of life
 
-TODO: insert table
+```{r pain not relieved table}
+ohe <- file.path("data", "reference", "ohe_pain_not_relieved.csv") %>%
+  read_csv(col_types = "ccddd") %>%
+  mutate_at("location_type", fct_inorder)
+
+# I faff with the names of the columns here specifically for the table output:
+# this involves naming the columns very specifically so they appear in the
+# correct order.
+tbl <- mpi %>%
+  count(location_type, name = "deaths") %>%
+  mutate_at("location_type",
+            fct_relevel,
+            levels(ohe$location_type)) %>%
+  arrange(location_type) %>%
+  left_join(ohe, by = "location_type") %>%
+  mutate_at("type",
+            fct_recode,
+            a = "PainNoRelieved",
+            b = "PartiallyRelieved") %>%
+  rename(a = LCL,
+         b = Central,
+         c = UCL) %>%
+  pivot_longer(cols = c(a:c), values_to = "p") %>% 
+  mutate(q = round(deaths * p),
+         p = round(p * 100, 1)) %>%
+  pivot_longer(cols = c(p:q), names_to = "c") %>%
+  mutate_at("type", ~paste0(type, c, name)) %>%
+  select(-name, -c) %>%
+  arrange(type) %>%
+  pivot_wider(names_from = type, values_from = value)
+
+tbl %>%
+  bind_rows(summarise_at(tbl, vars(deaths, matches(".q.")), sum)) %>%
+  flextable() %>%
+  set_header_labels(
+    location_type = "",
+    deaths = "No. of Palliative Care Deaths",
+    apa = "LCL",
+    apb = "Central Est.",
+    apc = "UCL",
+    aqa = "LCL",
+    aqb = "Central Est.",
+    aqc = "UCL",
+    bpa = "LCL",
+    bpb = "Central Est.",
+    bpc = "UCL",
+    bqa = "LCL",
+    bqb = "Central Est.",
+    bqc = "UCL"
+  ) %>%
+  add_header_row(values = c("",
+                            "No. of Palliative Care Deaths",
+                            rep("Pain Not Relieved",6),
+                            rep("Pain Partially Relieved",6))) %>%
+  add_header_row(values = c("",
+                            "No. of Palliative Care Deaths",
+                            rep("%",3),
+                            rep("No. of People", 3),
+                            rep("%",3),
+                            rep("No. of People", 3))) %>%
+  merge_h(part = "header") %>%
+  merge_v(part = "header") %>%
+  align(align = "center", part = "header") %>%
+  font(fontname = "Segoe UI", part = "all") %>%
+  fontsize(size = 8, part = "all") %>%
+  border_remove() %>%
+  border_outer(part = "all", border = fp_border(color = "gray")) %>%
+  border_inner_h(part = "all", border = fp_border(color = "gray")) %>%
+  border_inner_v(part = "all", border = fp_border(color = "gray")) %>%
+  border(part = "header", i = 1:3, j = 1,
+         border.top = fp_border(color = "white"),
+         border.left = fp_border(color = "white")) %>%
+  border(part = "body", i = nrow(tbl)+1, j = 1,
+         border.bottom = fp_border(color = "white"),
+         border.left = fp_border(color = "white")) %>%
+  bg(bg = "#EEEEEE", part = "header", j = 2:14) %>%
+  bg(bg = "#EEEEEE", part = "body", j = c(3:5, 9:11)) %>%
+  width(c(3,5,6,8,9,11,12,14), 0.405) %>%
+  width(c(4,7,10,13), 0.54) %>%
+  width(1, 0.71) %>%
+  width(2, 0.59) %>%
+  colformat_num(j = c(3:5, 9:11), na_str = "", digits = 1)
+```
 
 [//]: <> (URL's / Footnotes ---------------------------------------------------)
 [su_email]: mailto:Strategy.Unit@nhs.net
