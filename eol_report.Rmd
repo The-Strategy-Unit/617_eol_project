@@ -1959,13 +1959,13 @@ activity %>%
       filter(proximity_to_death_days < 365) %>%
       group_by(su_pat_id) %>%
         group_nest() %>%
-        sample_n(25) %>%
+        sample_n(10) %>%
         unnest(cols = c(data)) %>%
       # mutate(order = n()) %>%
       ungroup() %>%
       # mutate_at("su_pat_id", fct_reorder, quo(-order)) %>%
       ggplot(aes(proximity_to_death_days, su_pat_id, fill = pod_type)) +
-      geom_tile() +
+      geom_tile(height = 0.5) +
       #scale_fill_su(reverse = TRUE) +
       scale_fill_manual(values = c(
         "Bed" = su_theme_cols()[["orange"]],
@@ -1981,7 +1981,7 @@ activity %>%
             axis.title = element_blank(),
             panel.border = element_blank(),
             panel.spacing = unit(0, "cm"),
-            plot.margin = margin(0, 0, 0, 0, "cm")) +
+            plot.margin = margin(0, 0.1, 0, 0.1, "cm")) +
       labs(title = group, x = "", y = "", fill = "")
   }) %>%
   reduce(`+`) +
