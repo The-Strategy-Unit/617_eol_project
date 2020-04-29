@@ -1,5 +1,5 @@
 ---
-title: "Trends and Forecast"
+title: "EOL Report"
 author: "[The Strategy Unit][su_web]"
 output:
   StrategyUnitTheme::su_document:
@@ -24,7 +24,9 @@ invisible(local({
 }))
 ```
 
-# Recent trends and future deaths
+# Trends and Forecast
+
+## Recent trends and future deaths
 
 How have the number of deaths changed over time and how do we believe they will
 change in the future? These would always be  extremely important questions but 
@@ -45,7 +47,7 @@ expectancy.
 We will begin by looking at deaths by gender before moving on to deaths by age
 group….
 
-## Historical and future deaths by gender
+### Historical and future deaths by gender
 
 Over the last decade, Historical numbers show a year on year increase in deaths
 for most years in the last decade. In recent years there has also been a move
@@ -84,7 +86,7 @@ Historically there have been years with a spike in the number of deaths. For
 example, the high number of deaths in 2015 in relation to the failure of the flu
 vaccine is well documented[^2].
 
-## Future deaths by age groups
+### Future deaths by age groups
 
 The forecast deaths split by age group show that growth in deaths over future
 decades is driven by the oldest age group, 85 and older. 
