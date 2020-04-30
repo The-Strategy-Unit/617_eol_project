@@ -113,8 +113,11 @@ local({
     group_by(sex) %>%
     summarise_at("age", median) %>%
     mutate_at("age", round, 1) %>%
-    inner_join(mutate_at(densities, "age", round, 1),
-               by = c("sex", "age"))
+    rename(age_label = age) %>%
+    inner_join(densities, by = c("sex")) %>%
+    group_by(sex) %>%
+    # select only the closest row for each sex
+    top_n(1, -abs(age - age_label))
   
   ggplot(densities, aes(age, stp, group = sex)) +
     geom_density(aes(colour = sex,
@@ -152,7 +155,7 @@ local({
                 mutate(h = as.numeric(sex == "male"),
                        x = 0.025 * ifelse(h, -1, 1)),
               aes(age, x,
-                  label = paste("Median:", age),
+                  label = paste("Median:", age_label),
                   hjust = h),
               vjust = 0,
               nudge_x = 1,
