@@ -1987,7 +1987,10 @@ activity %>%
             axis.title = element_blank(),
             panel.border = element_blank(),
             panel.spacing = unit(0, "cm"),
-            plot.margin = margin(0, 0.1, 0, 0.1, "cm")) +
+            plot.margin = margin(0, 0.1, 0, 0.1, "cm"),
+            legend.position = ifelse(group == "Frailty",
+                                     "right",
+                                     "none")) +
       labs(title = group, x = "", y = "", fill = "")
   }) %>%
   reduce(`+`) +
