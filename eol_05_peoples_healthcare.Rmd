@@ -1,0 +1,161 @@
+---
+title: "End of Life"
+author: '[T. Jemmett](mailto:thomas.jemmett@nhs.net)'
+date: "25/11/2019"
+output:
+  StrategyUnitTheme::su_document: default
+params:
+  stp: "E54000016"
+---
+
+
+```{r setup, include = FALSE}
+library(knitr)
+# knitr options ----
+opts_chunk$set(echo = FALSE, eval.after = "fig.cap")
+
+if (!knitr::is_latex_output()) {
+  opts_chunk$set(dpi = 300,
+                 dev.args = list(type = "cairo"))
+}
+
+# all setup should happen in setup.R that could be shared logic between files
+invisible(local({
+  source("setup.R")
+  load_data(params$stp)
+}))
+
+library(flextable)
+library(officer)
+```
+
+# Peoples’ healthcare
+## How we care for people in the two years before death
+
+In this chapter we consider who access healthcare, which services they utilise,
+how utilisation of services changes over time and the level of resource
+consumed. We also calculate future demand based on current utilisation rates and
+extrapolate these forward using the future forecast deaths.
+
+We do this for the services which have patient level data available. This
+includes….
+
+### Healthcare activities, classification and service sub-groups
+
+From the datasets used in this report services have been grouped into four
+different healthcare activity types, comprised of the following service groups:
+
+```{r}
+activity %>%
+  distinct(pod_type, pod_summary_group) %>%
+  arrange(pod_type, pod_summary_group) %>%
+  mutate(o = rep(1:3, 4)) %>%
+  pivot_wider(names_from = pod_type, values_from = pod_summary_group) %>%
+  mutate_at("o", ~"Service Group") %>%
+  flextable() %>%
+  add_header_row(values = c("",rep("Activity Type", 4))) %>%
+  merge_h(part = "header") %>%
+  merge_v(j = 1) %>%
+  width(1, .7) %>%
+  width(2:5, 1.5) %>%
+  border_remove() %>%
+  border(1:3, 1:5,
+         border.left = fp_border(),
+         border.right = fp_border()) %>%
+  border(1, border.top = fp_border()) %>%
+  border(3, border.bottom = fp_border()) %>%
+  border(1, 1, border.bottom = fp_border()) %>%
+  border(1, 2:5,
+         border.top = fp_border(),
+         border.left = fp_border(),
+         border.right = fp_border(),
+         part = "header") %>%
+  border(2, 2:5,
+         border.left = fp_border(),
+         border.right = fp_border(),
+         part = "header") %>%
+  set_header_labels("o" = "") %>%
+  align(align = "center", part = "all") %>%
+  bg(1, 1, bg = "#EEEEEE") %>%
+  bg(1:2, 2:5, bg = "#EEEEEE", part = "header") %>%
+  font(fontname = "Segoe UI Semilight", part = "all") %>%
+  fontsize(size = 9, part = "all")
+```
+
+###	Who accesses which activity type?
+
+```{r}
+stp_deaths <- nrow(mpi)
+stp_activty <- percent((activity %>%
+                          filter(pod_type == "Urgent service event") %>%
+                          unique(su_pat_id) %>%
+                          nrow())/stp_deaths,
+                       accuracy = 1)
+```
+
+Of the `r comma(stp_deaths)` people who died in in your STP nearly all of them
+(`r stp_activity`) had at least one type of urgent service event in the period
+before death. This is also true also for planned contacts. The level of access
+is much lower for planned admissions and critical care beds.
+
+Although access gives a sense of who is in contact with healthcare services it
+does not consider the volume or pattern of activity. These are considered in
+later sections of this chapter.
+
+#### percentage of all decedents who access healthcare activity types
+
+
+```{r activity pcnt}
+bind_rows(
+  mutate(activity, type = "stp"),
+  mutate(activity_region, type = "region")
+) %>%
+  mutate_at("pod_type",
+            ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                    "Critical Care Bed Day",
+                    as.character(.x))) %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
+  group_by(type, pod_type, su_pat_id) %>%
+  summarise(n = sign(n())) %>%
+  summarise_at("n", sum) %>%
+  inner_join(
+    bind_rows(
+      mpi %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "stp"),
+      
+      mpi_region %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "region"),
+    ),
+    by = c("type")
+  ) %>%
+  mutate_at("n", ~.x / patients) %>%
+  select(-patients) %>%
+  pivot_wider(names_from = "type", values_from = "n") %>%
+  #filter(!pod_type %in% c("Bed")) %>% 
+  ungroup() %>%
+  ggplot(aes(pod_type, stp)) +
+  geom_col(aes(colour = pod_type,
+               fill = after_scale(alpha(colour, 0.4)))) +
+  geom_point(aes(y = region,
+                 colour = pod_type,
+                 fill = after_scale(alpha(colour, 0.4))),
+             show.legend = FALSE,
+             size = 2,
+             shape = "circle filled",
+             stroke = 1.5) +
+  scale_y_continuous(labels = percent,
+                     expand = expansion(c(0, 0.05))) +
+  expand_limits(y = c(0, 1)) +
+  labs(x = "", y = "", colour = "", fill = "")  +
+  theme(legend.position = "none",
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())
+```
+
+[//]: <> (URL's / References --------------------------------------------------)
+[su_email]: mailto:Strategy.Unit@nhs.net
+[su_web]: https://www.strategyunitwm.nhs.uk/
