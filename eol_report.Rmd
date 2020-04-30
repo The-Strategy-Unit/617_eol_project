@@ -1959,9 +1959,6 @@ activity %>%
       mutate_at("su_pat_id", as.character) %>%
       filter(proximity_to_death_days < 365) %>%
       group_by(su_pat_id) %>%
-        group_nest() %>%
-        sample_n(10) %>%
-        unnest(cols = c(data)) %>%
       # keep only those people who's activity is within 1.5 of the IQR
       mutate(n_act = sum(pod_type != "Bed")) %>%
       filter(abs(median(n_act)-n_act) <= IQR(n_act)*1.5) %>%
