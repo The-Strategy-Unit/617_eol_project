@@ -225,27 +225,17 @@ intervals are 99% Binomial Confidence intervals.
 ## Age of Decedents
 
 ```{r by age}
-inner_join(
-  count(mpi, age_band, name = "stp"),
-  count(mpi_region, age_band, name = "region"),
-  by = "age_band"
-) %>%
-  mutate(stp_n = glue("n = {comma(stp)}")) %>%
+mpi %>%
+  count(age_band) %>%
+  mutate(label_n = glue("n = {comma(n)}")) %>%
   mutate_if(is.numeric, ~.x / sum(.x)) %>%
-  ggplot(aes(age_band, stp)) +
-  geom_col(fill = su_theme_cols("orange"),
+  ggplot(aes(age_band, n)) +
+  geom_col(fill = after_scale(alpha(su_theme_cols("orange"), 0.4)),
            colour = su_theme_cols("charcoal"),
-           alpha = 0.4,
            width = 0.75) +
-  geom_text(aes(y = 0.005, label = stp_n),
+  geom_text(aes(y = 0.005, label = label_n),
             size = 3,
             vjust = "bottom") +
-  geom_point(aes(y = region),
-             size = 2,
-             shape = "circle filled",
-             stroke = 1.5,
-             colour = su_theme_cols("charcoal")[[1]],
-             fill = su_theme_cols("red")[[1]]) +
   scale_y_continuous(labels = percent,
                      expand = expansion(mult = c(0, 0.05))) +
   labs(x = "",
