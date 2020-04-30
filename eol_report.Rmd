@@ -14,6 +14,7 @@ output:
     toc_float: true
 params:
   stp: "E54000016"
+  region_report: false
 ---
 
 ```{r setup, include=FALSE}
@@ -31,6 +32,11 @@ invisible(local({
   source("setup.R")
   load_data(params$stp)
 }))
+
+if (params$region_report == TRUE) {
+  mpi <- mpi_region
+  activity <- activity_region
+}
 ```
 
 This report is about the people in `r stp_name` STP who died between April 2018
@@ -219,27 +225,17 @@ intervals are 99% Binomial Confidence intervals.
 ## Age of Decedents
 
 ```{r by age}
-inner_join(
-  count(mpi, age_band, name = "stp"),
-  count(mpi_region, age_band, name = "region"),
-  by = "age_band"
-) %>%
-  mutate(stp_n = glue("n = {comma(stp)}")) %>%
+mpi %>%
+  count(age_band) %>%
+  mutate(label_n = glue("n = {comma(n)}")) %>%
   mutate_if(is.numeric, ~.x / sum(.x)) %>%
-  ggplot(aes(age_band, stp)) +
-  geom_col(fill = su_theme_cols("orange"),
+  ggplot(aes(age_band, n)) +
+  geom_col(fill = after_scale(alpha(su_theme_cols("orange"), 0.4)),
            colour = su_theme_cols("charcoal"),
-           alpha = 0.4,
            width = 0.75) +
-  geom_text(aes(y = 0.005, label = stp_n),
+  geom_text(aes(y = 0.005, label = label_n),
             size = 3,
             vjust = "bottom") +
-  geom_point(aes(y = region),
-             size = 2,
-             shape = "circle filled",
-             stroke = 1.5,
-             colour = su_theme_cols("charcoal")[[1]],
-             fill = su_theme_cols("red")[[1]]) +
   scale_y_continuous(labels = percent,
                      expand = expansion(mult = c(0, 0.05))) +
   labs(x = "",
@@ -334,8 +330,11 @@ local({
     group_by(sex) %>%
     summarise_at("age", median) %>%
     mutate_at("age", round, 1) %>%
-    inner_join(mutate_at(densities, "age", round, 1),
-               by = c("sex", "age"))
+    rename(age_label = age) %>%
+    inner_join(densities, by = c("sex")) %>%
+    group_by(sex) %>%
+    # select only the closest row for each sex
+    top_n(1, -abs(age - age_label))
   
   ggplot(densities, aes(age, stp, group = sex)) +
     geom_density(aes(colour = sex,
@@ -1948,7 +1947,12 @@ little activity other than in the 6 months before death.
 
 # Pathways charts
 
-```{r pathways}
+`r ifelse(params$region_report, "skipping section", "")`
+
+```{r pathways, eval = !params$region_report}
+# ensure repeatability of this chart
+set.seed(234523)
+
 activity %>%
   inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
   filter(group != "(Missing)") %>%
@@ -1958,21 +1962,29 @@ activity %>%
       mutate_at("su_pat_id", as.character) %>%
       filter(proximity_to_death_days < 365) %>%
       group_by(su_pat_id) %>%
-        group_nest() %>%
-        sample_n(10) %>%
-        unnest(cols = c(data)) %>%
-      # mutate(order = n()) %>%
+      # keep only those people who's activity is within 1.5 of the IQR
+      mutate(n_act = sum(pod_type != "Bed")) %>%
+      filter(abs(median(n_act)-n_act) <= IQR(n_act)*1.5) %>%
+      select(-n_act) %>%
+      # randomly sample the patients
+      group_nest() %>%
+      sample_n(10) %>%
+      unnest(cols = c(data)) %>%
       ungroup() %>%
-      # mutate_at("su_pat_id", fct_reorder, quo(-order)) %>%
+      filter(!pod_summary_group %in% c("Emergency Admission",
+                                       "Elective Admission",
+                                       "Critical Care Bed Day")) %>%
+      mutate_at("pod_type",
+                ~case_when(pod_summary_group == "Emergency Admission Bed Day" ~
+                             "Urgent Service Event",
+                           pod_summary_group == "Elective Admission Bed Day" ~
+                             "Planned Admission",
+                           TRUE ~ as.character(.x))) %>%
       ggplot(aes(proximity_to_death_days, su_pat_id, fill = pod_type)) +
-      geom_tile(height = 0.5) +
-      #scale_fill_su(reverse = TRUE) +
-      scale_fill_manual(values = c(
-        "Bed" = su_theme_cols()[["orange"]],
-        "Planned Contact" = su_theme_cols()[["blue"]],
-        "Planned Admission" = su_theme_cols()[["red"]],
-        "Urgent Service Event" = su_theme_cols()[["charcoal"]]
-      )) +
+      geom_tile(aes(height = ifelse(str_detect(pod_summary_group, "Bed Day"),
+                                    0.25,
+                                    0.75))) +
+      scale_fill_su(reverse = TRUE) +
       scale_y_discrete(expand = expansion()) +
       scale_x_proximity_to_death_days(expand = expansion(c(0.02, 0.001))) +
       theme(axis.text.y = element_blank(),
@@ -1981,23 +1993,16 @@ activity %>%
             axis.title = element_blank(),
             panel.border = element_blank(),
             panel.spacing = unit(0, "cm"),
-            plot.margin = margin(0, 0.1, 0, 0.1, "cm")) +
+            plot.margin = margin(0, 0.1, 0, 0.1, "cm"),
+            legend.position = ifelse(group == "Frailty",
+                                     "right",
+                                     "none")) +
       labs(title = group, x = "", y = "", fill = "")
   }) %>%
   reduce(`+`) +
   guide_area() +
   plot_layout(guides = "collect") +
-  theme(legend.direction = "vertical") -> pathways_plots
-
-# ggsave(tf <- tempfile(fileext = ".png"),
-#        pathways_plots,
-#        units = "cm",
-#        height = 21,
-#        width = 29.7,
-#        dpi = "retina",
-#        type = "cairo"); clipr::write_clip(tf)
-
-pathways_plots
+  theme(legend.direction = "vertical")
 ```
 
 # Chemotherapy
@@ -2040,13 +2045,15 @@ tibble(proximity_to_death_days = activity %>%
             by = c("proximity_to_death_days")) %>%
   modify_at(vars(nd, n), replace_na, 0) %>%
   ggplot(aes(proximity_to_death_days, nd)) +
+  geom_jitter(alpha = 0.15,
+              colour = su_theme_cols("orange")) +
   geom_smooth(fill = NA,
               colour = su_theme_cols("orange"),
               method = "loess",
               formula = y ~ x) +
-  geom_vline(xintercept = 28, linetype = "dotted") +
   scale_x_proximity_to_death_days() +
   scale_y_continuous(labels = comma_format(scale = 1000)) +
+  expand_limits(y = 0) +
   theme(legend.position = "bottom") +
   labs(x = "Proximity to death (Months)",
        y = "Rate per 1,000 decedents",
@@ -2144,6 +2151,9 @@ cross_df(
   arrange(desc(proximity_to_death_days)) %>%
   mutate_at("n", cumsum) %>%
   mutate(p = n / max(n)) %>%
+  # there is a slight dip in the first couple of days of data - this "cleans"
+  # the chart up a little
+  filter(proximity_to_death_days < 365*1.95) %>%
   ggplot(aes(proximity_to_death_days, p, colour = last_month)) +
   geom_step() +
   geom_vline(xintercept = 28, linetype = "dotted") +
@@ -2218,31 +2228,64 @@ bind_rows(
 
 ```{r chemo utilisation split by years}
 
-mpi %>%
-  transmute(su_pat_id,
-            age,
-            year = list(c("Year of death", "Year prior to death"))) %>%
-  filter(age <= 90) %>%
-  unnest(year) %>%
-  left_join(activity %>% 
-              filter(chemotherapy_indicator == 1) %>%
-              mutate(year = ifelse(proximity_to_death_days <= 365,
-                                   "Year of death",
-                                   "Year prior to death")) %>%
-              distinct(su_pat_id, year) %>%
-              mutate(value = TRUE),
-            by = c("su_pat_id", "year")) %>%
-  modify_at("value", replace_na, FALSE) %>%
-  group_by(year, age) %>%
-  summarise_at("value", mean) %>%
-  ggplot(aes(age, value, colour = year)) +
-  geom_smooth(aes(fill = after_scale(alpha(colour, 0.4))),
-              method = "loess",
-              span = 0.4,
-              formula = y ~ x) +
-  scale_y_continuous(labels = percent) +
+activity %>%
+  inner_join(mpi, by = "su_pat_id") %>%
+  mutate_at("age", ~case_when(.x < 50 ~ 50,
+                              .x < 90 ~ .x,
+                              TRUE ~ 90)) %>%
+  filter(chemotherapy_indicator == 1) %>%
+  mutate(year = ifelse(proximity_to_death_days <= 365,
+                       "Year of death",
+                       "Year prior to death")) %>%
+  count(age, year, name = "activity") %>%
+  inner_join(mpi %>%
+               semi_join(activity %>%
+                           filter(chemotherapy_indicator == 1),
+                         by = "su_pat_id") %>%
+               mutate_at("age", ~case_when(.x < 50 ~ 50,
+                                           .x < 90 ~ .x,
+                                           TRUE ~ 90)) %>%
+               count(age, name = "nd"),
+             by = "age") %>%
+  mutate(utilisation = activity / nd) %>%
+  ggplot(aes(age, utilisation, colour = year)) +
+  geom_point() +
+  geom_smooth(fill = NA) +
   labs(x = "Age",
-       y = "Percentage of decedents who had chemo",
+       y = "Chemo Usage per decedent who had chemo",
+       colour = "") +
+  theme(legend.position = c(0, 0),
+        legend.justification = c(0, 0),
+        legend.background = element_blank())
+```
+
+```{r chemo utilisation split by years by decedent}
+
+activity %>%
+  inner_join(mpi, by = "su_pat_id") %>%
+  mutate_at("age", ~case_when(.x < 50 ~ 50,
+                              .x < 90 ~ .x,
+                              TRUE ~ 90)) %>%
+  filter(chemotherapy_indicator == 1) %>%
+  mutate(year = ifelse(proximity_to_death_days <= 365,
+                       "Year of death",
+                       "Year prior to death")) %>%
+  count(age, year, name = "activity") %>%
+  inner_join(mpi %>%
+               semi_join(activity %>%
+                           filter(chemotherapy_indicator == 1),
+                         by = "su_pat_id") %>%
+               mutate_at("age", ~case_when(.x < 50 ~ 50,
+                                           .x < 90 ~ .x,
+                                           TRUE ~ 90)) %>%
+               count(age, name = "nd"),
+             by = "age") %>%
+  mutate(utilisation = activity / nd) %>%
+  ggplot(aes(age, utilisation, colour = year)) +
+  geom_point() +
+  geom_smooth(fill = NA) +
+  labs(x = "Age",
+       y = "Chemo Usage per decedent",
        colour = "") +
   theme(legend.position = c(0, 0),
         legend.justification = c(0, 0),
