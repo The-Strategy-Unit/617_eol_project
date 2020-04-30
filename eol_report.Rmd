@@ -1947,6 +1947,9 @@ little activity other than in the 6 months before death.
 `r ifelse(params$region_report, "skipping section", "")`
 
 ```{r pathways, eval = !params$region_report}
+# ensure repeatability of this chart
+set.seed(234523)
+
 activity %>%
   inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
   filter(group != "(Missing)") %>%
@@ -1959,6 +1962,14 @@ activity %>%
         group_nest() %>%
         sample_n(10) %>%
         unnest(cols = c(data)) %>%
+      # keep only those people who's activity is within 1.5 of the IQR
+      mutate(n_act = sum(pod_type != "Bed")) %>%
+      filter(abs(median(n_act)-n_act) <= IQR(n_act)*1.5) %>%
+      select(-n_act) %>%
+      # randomly sample the patients
+      group_nest() %>%
+      sample_n(10) %>%
+      unnest(cols = c(data)) %>%
       # mutate(order = n()) %>%
       ungroup() %>%
       # mutate_at("su_pat_id", fct_reorder, quo(-order)) %>%
