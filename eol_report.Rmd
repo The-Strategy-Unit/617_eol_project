@@ -14,7 +14,7 @@ output:
     toc_float: true
 params:
   stp: "E54000016"
-  region_report: true
+  region_report: false
 ---
 
 ```{r setup, include=FALSE}
