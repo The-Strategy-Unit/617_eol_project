@@ -18,10 +18,10 @@ render_report <- function(stp18cd, stp18nm) {
   capture.output({
     filename <- paste0(stp18cd, "_", stp18nm)
 
-    file.copy("eol_report.Rmd", paste0(filename, ".Rmd"))
+    file.copy("eol_report.Rmd", paste0("tmp/", filename, ".Rmd"))
 
     tryCatch({
-      render(paste0(filename, ".Rmd"),
+      render(paste0("tmp/", filename, ".Rmd"),
              "StrategyUnitTheme::su_document",
              paste0("output/", filename, ".docx"),
              params = list(stp = stp18cd))
