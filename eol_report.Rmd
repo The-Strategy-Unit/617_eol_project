@@ -2048,13 +2048,15 @@ tibble(proximity_to_death_days = activity %>%
             by = c("proximity_to_death_days")) %>%
   modify_at(vars(nd, n), replace_na, 0) %>%
   ggplot(aes(proximity_to_death_days, nd)) +
+  geom_jitter(alpha = 0.15,
+              colour = su_theme_cols("orange")) +
   geom_smooth(fill = NA,
               colour = su_theme_cols("orange"),
               method = "loess",
               formula = y ~ x) +
-  geom_vline(xintercept = 28, linetype = "dotted") +
   scale_x_proximity_to_death_days() +
   scale_y_continuous(labels = comma_format(scale = 1000)) +
+  expand_limits(y = 0) +
   theme(legend.position = "bottom") +
   labs(x = "Proximity to death (Months)",
        y = "Rate per 1,000 decedents",
