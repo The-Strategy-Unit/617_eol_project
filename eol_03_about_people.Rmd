@@ -24,7 +24,7 @@ invisible(local({
   load_data(params$stp)
 }))
 
-library(flextable)
+library(flextable, exclude = "compose")
 library(officer)
 ```
 
@@ -364,6 +364,180 @@ tbl %>%
   width(2, 0.59) %>%
   colformat_num(j = c(3:5, 9:11), na_str = "", digits = 1)
 ```
+
+# About place of death
+
+## Place of death profiles for your population
+
+Where a person dies is **extremely important**. For many they may **spend their
+last weeks and days** in this same setting and it will have a crucial impact on
+their experiences and those of their loved ones. 
+
+We’ve seen in the previous chapter the link between the place of death and the
+level of unrelieved pain that people experience <also chapter n on palliative
+versus curative?> and in this chapter, centred on place of death, our
+think-piece considers **hospice perspectives** and the additional value they
+provide to their patients through hospital-at-home and assisting people with the
+use of personal health budgets.
+
+### Place of death recording
+
+Detailed information on the place where a person dies is collected when deaths 
+are certified and registered. The place of death then falls into one of five 
+broad categories as defined by the National End of Life Care Intelligence
+Network[^5]. Their 5 categories, which are used in this report, are:
+
+ - Home
+ - Care home
+ - Hospice
+ - Hospital
+ - Elsewhere
+
+Please note that where there are palliative care beds located in community
+hospitals, since this is still a hospital site, deaths in these palliative care
+beds are counted with a place of death category as 'hospital'.
+
+### Cause of death recording and grouping
+
+An individual’s underlying cause of death is also derived from the cause of
+death information recorded when deaths are certified and registered[^5].
+
+The underlying cause of death in turn informs a 'cause group'. There are five
+cause groups; cancer, frailty, organ failure, sudden death and other terminal
+illness[^5]. All of these are based on research by Dr June Lunney and Dr Joanne
+Lynn from their work on classifying patients approaching death according to
+their healthcare needs[^5].
+
+In practical terms it can be difficult to assign deceased patients to the
+frailty group based on cause of death alone. Instead, to define frailty, we
+utilise work done by Whole Systems Partnership for the National End of Life Care
+Intelligence Network (NEoLCIN)[^1] as a basis for assigning patients to the
+frailty group. This work generated a logic that assigns patients by age groups
+on the following basis:
+
+ - aged 65-74 then 10% of deaths are frailty related
+ - aged 75-84 then 30% of deaths are frailty related
+ - aged 85+ then 80% of deaths are frailty related
+
+### Place of death profile - by cause of death
+
+Chart n shows cause of death by place of death. The axes both represent volumes;
+cause of death (horizontal axis) and place of death (vertical axis). This is as
+opposed to a more traditional bar chart where all bars have the same horizontal
+width and therefore do not give an indication of scale for the horizontal
+groups.
+
+**Frailty** is the single largest underlying cause of death. It also has the
+**largest proportion of deaths in a care home setting** as might be expected
+given the association between frailty and age in our cause of death algorithm.
+
+**Cancer** is a cause of death for around a fifth of the population. It has 
+**largest proportion of deaths in a hospice setting**, again as might be 
+expected since hospices are focused on providing care for those who have an 
+incurable terminal illness. 
+
+**Organ failure**, **sudden death** and **other terminal illness** (OTI) have
+**large proportions of deaths in hospital** although there are still a
+substantial number of deaths occurring at home for these groups.
+
+#### proportions of population by cause of death and place of death
+
+```{r place of death by cause of death mekko}
+mpi %>%
+  filter(location_type != "Unknown",
+         group != "(Missing)") %>%
+  mutate_at(vars(group),
+            compose(fct_rev, fct_recode),
+            "Sudden\nDeath" = "Sudden Death",
+            "OTI" = "Other Terminal Illness") %>%
+  mekko_chart(group, location_type) +
+  place_of_death_fill()
+```
+
+### Place of death profile - by age at death
+
+The place of death profile by age at death is very similar to that for the cause
+of death (n.n.n). This is to be expected since age is a key factor in the
+derivation of cause of death (n.n.n).
+
+#### proportions of population by cause of death and place of death
+
+
+```{r place of death by age mekko}
+mpi %>%
+  filter(location_type != "Unknown") %>%
+  mutate_at(vars(age),
+            ~case_when(age < 65 ~ "18-64",
+                       age < 75 ~ "65-74",
+                       age < 85 ~ "75-84",
+                       TRUE    ~ "85+")) %>%
+  mekko_chart(age, location_type) +
+  place_of_death_fill()
+```
+
+### Place of death profile - by deprivation
+
+The place of death profile by deprivation is generally not so dissimilar between
+the quintiles of deprivation. The more affluent quintiles have less deaths
+taking place in hospital, substituted for by deaths in care homes. This may be
+an effect longer life expectancy for more affluent areas or a funding issue
+where the more affluent population have greater access to care homes and thereby
+avoid dying in hospital. 
+
+```{r place of death by deprivation mekko}
+mpi %>%
+  filter(location_type != "Unknown",
+         !is.na(imd_quintile)) %>%
+  mutate_at("imd_quintile",
+            compose(.dir = "forward",
+              as.factor,
+              partial(fct_recode,
+                      "Most Deprived" = "1",
+                      # we still need unique labels, so let's just increase the
+                      # number of spaces each time
+                      " " = "2", 
+                      "  " = "3",
+                      "   " = "4",
+                      "Least Deprived" = "5")
+              )) %>%
+  mekko_chart(imd_quintile, location_type) +
+  place_of_death_fill()
+```
+
+## Think-piece: End of life care from a hospice perspective
+
+Hospices are hugely valued and much in demand, but that demand isn’t necessarily
+for inpatient care. Some hospices have found that, having secured local support 
+to create additional beds, they struggle to fill them. We have heard that having
+access to the right community support enables more people to stay at home, 
+reducing both demand on ambulance services and the level of avoidable 
+admissions. Critical to this is giving patients and their carers a greater sense
+of control so they have confidence to stay at home if they so wish, particularly
+in the final phase of life when anxieties understandably increase. 
+
+'Hospice at home' initiatives are already common, and other responsive community
+back-up, most of which (perhaps 80%) may be deliverable virtually, are
+developing. 
+
+Extending Personal Health Budgets for end of life care may also have a role to
+play. We heard of a woman with throat cancer whose increasing difficulty eating
+nearly led to her admission to hospital. Her simpler, cheaper and better 
+solution was the provision of a food blender that enabled her to feed herself at
+home until just a few days before she died.
+
+Health and care systems have an opportunity to better coordinate end of life 
+resources, and to define the role that each partner is best placed to play. 
+Hospices and other voluntary sector services are eager to play a more integrated 
+role in both the planning and delivery of care. Linking services to Primary Care
+Networks might also support the earlier identification of end of life patients, 
+enhancing capability to spot end of life indicators and to have the confidence 
+and to initiate difficult and sensitive conversations. 
+
+Whilst the critical need for inpatient hospice services will remain, as the
+'ITU' of palliative care and as vital respite for families, addressing changing 
+patterns in causes of death will require the accelerated development of wider 
+models of care.
+
 
 [//]: <> (URL's / Footnotes ---------------------------------------------------)
 [su_email]: mailto:Strategy.Unit@nhs.net
