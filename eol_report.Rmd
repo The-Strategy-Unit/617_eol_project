@@ -1967,9 +1967,7 @@ activity %>%
       group_nest() %>%
       sample_n(10) %>%
       unnest(cols = c(data)) %>%
-      # mutate(order = n()) %>%
       ungroup() %>%
-      # mutate_at("su_pat_id", fct_reorder, quo(-order)) %>%
       ggplot(aes(proximity_to_death_days, su_pat_id, fill = pod_type)) +
       geom_tile(height = 0.5) +
       #scale_fill_su(reverse = TRUE) +
@@ -1996,17 +1994,7 @@ activity %>%
   reduce(`+`) +
   guide_area() +
   plot_layout(guides = "collect") +
-  theme(legend.direction = "vertical") -> pathways_plots
-
-# ggsave(tf <- tempfile(fileext = ".png"),
-#        pathways_plots,
-#        units = "cm",
-#        height = 21,
-#        width = 29.7,
-#        dpi = "retina",
-#        type = "cairo"); clipr::write_clip(tf)
-
-pathways_plots
+  theme(legend.direction = "vertical")
 ```
 
 # Chemotherapy
