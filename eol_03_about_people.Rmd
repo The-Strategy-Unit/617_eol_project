@@ -516,6 +516,11 @@ Whilst the critical need for inpatient hospice services will remain, as the
 patterns in causes of death will require the accelerated development of wider 
 models of care.
 
+- [http://endoflifecareambitions.org.uk/wp-content/uploads/2015/09/Ambitions-for-Palliative-and-End-of-Life-Care.pdf]
+- [https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/deaths/methodologies/userguidetomortalitystatisticsjuly2017#certification-of-cause-of-death]
+- [http://www.goldstandardsframework.org.uk/How-to-use-the-GSF-PIG-in-your-practice]
+- JAMA. 2003 May 14;289(18):2387-92. & J Am Geriatr Soc. 2002 Jun;50(6):1108-12.
+
 
 [//]: <> (URL's / Footnotes ---------------------------------------------------)
 [su_email]: mailto:Strategy.Unit@nhs.net
