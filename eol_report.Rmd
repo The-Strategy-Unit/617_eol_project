@@ -2231,31 +2231,64 @@ bind_rows(
 
 ```{r chemo utilisation split by years}
 
-mpi %>%
-  transmute(su_pat_id,
-            age,
-            year = list(c("Year of death", "Year prior to death"))) %>%
-  filter(age <= 90) %>%
-  unnest(year) %>%
-  left_join(activity %>% 
-              filter(chemotherapy_indicator == 1) %>%
-              mutate(year = ifelse(proximity_to_death_days <= 365,
-                                   "Year of death",
-                                   "Year prior to death")) %>%
-              distinct(su_pat_id, year) %>%
-              mutate(value = TRUE),
-            by = c("su_pat_id", "year")) %>%
-  modify_at("value", replace_na, FALSE) %>%
-  group_by(year, age) %>%
-  summarise_at("value", mean) %>%
-  ggplot(aes(age, value, colour = year)) +
-  geom_smooth(aes(fill = after_scale(alpha(colour, 0.4))),
-              method = "loess",
-              span = 0.4,
-              formula = y ~ x) +
-  scale_y_continuous(labels = percent) +
+activity %>%
+  inner_join(mpi, by = "su_pat_id") %>%
+  mutate_at("age", ~case_when(.x < 50 ~ 50,
+                              .x < 90 ~ .x,
+                              TRUE ~ 90)) %>%
+  filter(chemotherapy_indicator == 1) %>%
+  mutate(year = ifelse(proximity_to_death_days <= 365,
+                       "Year of death",
+                       "Year prior to death")) %>%
+  count(age, year, name = "activity") %>%
+  inner_join(mpi %>%
+               semi_join(activity %>%
+                           filter(chemotherapy_indicator == 1),
+                         by = "su_pat_id") %>%
+               mutate_at("age", ~case_when(.x < 50 ~ 50,
+                                           .x < 90 ~ .x,
+                                           TRUE ~ 90)) %>%
+               count(age, name = "nd"),
+             by = "age") %>%
+  mutate(utilisation = activity / nd) %>%
+  ggplot(aes(age, utilisation, colour = year)) +
+  geom_point() +
+  geom_smooth(fill = NA) +
   labs(x = "Age",
-       y = "Percentage of decedents who had chemo",
+       y = "Chemo Usage per decedent who had chemo",
+       colour = "") +
+  theme(legend.position = c(0, 0),
+        legend.justification = c(0, 0),
+        legend.background = element_blank())
+```
+
+```{r chemo utilisation split by years by decedent}
+
+activity %>%
+  inner_join(mpi, by = "su_pat_id") %>%
+  mutate_at("age", ~case_when(.x < 50 ~ 50,
+                              .x < 90 ~ .x,
+                              TRUE ~ 90)) %>%
+  filter(chemotherapy_indicator == 1) %>%
+  mutate(year = ifelse(proximity_to_death_days <= 365,
+                       "Year of death",
+                       "Year prior to death")) %>%
+  count(age, year, name = "activity") %>%
+  inner_join(mpi %>%
+               semi_join(activity %>%
+                           filter(chemotherapy_indicator == 1),
+                         by = "su_pat_id") %>%
+               mutate_at("age", ~case_when(.x < 50 ~ 50,
+                                           .x < 90 ~ .x,
+                                           TRUE ~ 90)) %>%
+               count(age, name = "nd"),
+             by = "age") %>%
+  mutate(utilisation = activity / nd) %>%
+  ggplot(aes(age, utilisation, colour = year)) +
+  geom_point() +
+  geom_smooth(fill = NA) +
+  labs(x = "Age",
+       y = "Chemo Usage per decedent",
        colour = "") +
   theme(legend.position = c(0, 0),
         legend.justification = c(0, 0),
