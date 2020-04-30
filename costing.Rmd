@@ -1,0 +1,148 @@
+---
+title: "EOL Report"
+author: "[The Strategy Unit][su_web]"
+output:
+  StrategyUnitTheme::su_document: default
+params:
+  stp: "E54000016"
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+# knitr options ----
+opts_chunk$set(echo = FALSE, eval.after = "fig.cap")
+
+if (!knitr::is_latex_output()) {
+  opts_chunk$set(dpi = 300,
+                 dev.args = list(type = "cairo"))
+}
+
+# all setup should happen in setup.R that could be shared logic between files
+invisible(local({
+  source("setup.R")
+  load_data(params$stp)
+}))
+
+activity_costs <- file.path("data", "sensitive", "activity_costs.fst") %>%
+  read_fst() %>%
+  as_tibble() %>%
+  semi_join(mpi, by = "su_pat_id") %>%
+  mutate_at("ss_flag", fct_recode, "Spec. Services" = "SS") %>%
+  mutate_at("pod_type",
+            fct_recode,
+            "Critical Care" = "CriticalCare",
+            "Bed" = "BED",
+            "Planned Contact" = "PlannedContact",
+            #"Planned Event" = "PlannedEvent"
+            "Planned Admission" = "PlannedEvent",
+            "Urgent Service Event" = "Unplanned") %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            #"Unplanned",
+            "Urgent Service Event",
+            "Planned Contact",
+            #"Planned Event",
+            "Planned Admission",
+            "Bed",
+            "Critical Care Bed Day") %>%
+  
+  mutate(cc_pod_summary_group = ifelse(pod_type == "Critical Care Bed Day",
+                                       as.character(pod_summary_group),
+                                       NA)) %>%
+  mutate_at("cc_pod_summary_group",
+            fct_recode,
+            "Elective Admission" = "EL",
+            "Elective Admission" = "DC",
+            "Emergency Admission" = "EM") %>%
+  mutate_at("pod_summary_group",
+            ~case_when(pod_type == "Critical Care Bed Day" ~ "CCBD",
+                       pod_type == "Bed" ~ paste0(as.character(.x), "BD"),
+                       TRUE ~ as.character(.x))) %>%
+  mutate_at("pod_summary_group",
+            fct_relevel,
+            "EM", "AE", "111",
+            "OP", "MH", "IAPT",
+            "DC", "RA", "EL",
+            "EMBD", "ELBD", "CCBD") %>%
+  mutate_at("pod_summary_group",
+            fct_recode,
+            "Emergency Admission" = "EM",
+            "A&E Attendance" = "AE",
+            "111 Call" = "111",
+            "Outpatient Attendance" = "OP",
+            "Mental Health Contact" = "MH",
+            "IAPT Contact" = "IAPT",
+            "Day Case Admission" = "DC",
+            "Regular Attendance Admission" = "RA",
+            "Elective Admission" = "EL",
+            "Emergency Admission Bed Day" = "EMBD",
+            "Elective Admission Bed Day" = "ELBD",
+            "Critical Care Bed Day" = "CCBD") %>%
+  mutate_at("pod_type", fct_recode, "Bed" = "Critical Care Bed Day") %>%
+  mutate_at("pod_summary_group",
+            ~ifelse(pod_type == "Critical Care" & .x == "Day Case Admission",
+                    "Elective Admission",
+                    as.character(.x)) %>%
+              fct_relevel(levels(.x))) %>%
+  mutate_at("pod_type", fct_explicit_na) %>%
+  rename(cost = final_cost) %>%
+  modify_at("cost", replace_na, 0)
+
+library(magrittr)
+# update levels of ss_flag
+activity_costs %<>%
+  mutate("simple_ss_flag" = fct_collapse(ss_flag, "Other" = activity_costs %>%
+           group_by(ss_flag) %>% 
+           summarise_at("cost", sum) %>% 
+           filter((cost / sum(cost)) <= 0.01) %>% 
+           pull(ss_flag) %>% 
+           as.character()))
+```
+
+# Costing
+
+#### Average spend per person
+
+```{r avg cost split by payer, fig.height = 1}
+activity_costs %>%
+  group_by(simple_ss_flag) %>%
+  summarise_at("cost", sum) %>%
+  mutate(avg_cost = cost / nrow(mpi)) %>%
+  mutate_at("simple_ss_flag", fct_reorder, quo(avg_cost)) %>%
+  ggplot(aes(avg_cost, "", colour = simple_ss_flag)) +
+  geom_col(aes(fill = after_scale(alpha(colour, 0.4)))) +
+  scale_colour_discrete(guide = guide_legend(reverse = TRUE)) +
+  scale_x_continuous(labels = comma_format(prefix = "£")) +
+  scale_y_discrete(expand = expansion()) +
+  labs(x = "", y = "", colour = "") +
+  theme(legend.position = "bottom",
+        axis.line = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title = element_blank())
+```
+
+```{r avg cost split by payer and cod, fig.height = 2}
+activity_costs %>%
+  inner_join(mpi, by = "su_pat_id") %>%
+  filter(group != "(Missing)") %>%
+  group_by(group, simple_ss_flag) %>%
+  summarise_at("cost", sum) %>%
+  inner_join(count(mpi, group, name = "nd"), by = "group") %>%
+  mutate(avg_cost = cost / nd) %>%
+  mutate_at("simple_ss_flag", fct_reorder, quo(avg_cost)) %>%
+  ggplot(aes(avg_cost, fct_rev(group), colour = simple_ss_flag)) +
+  geom_col(aes(fill = after_scale(alpha(colour, 0.4)))) +
+  scale_colour_discrete(guide = guide_legend(reverse = TRUE)) +
+  scale_x_continuous(labels = comma_format(prefix = "£")) +
+  scale_y_discrete(expand = expansion()) +
+  labs(x = "", y = "", colour = "") +
+  theme(legend.position = "bottom",
+        axis.line = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.y = element_blank())
+```
+
+[//]: <> (URL's / References --------------------------------------------------)
+[su_email]: mailto:Strategy.Unit@nhs.net
+[su_web]: https://www.strategyunitwm.nhs.uk/
