@@ -2154,6 +2154,9 @@ cross_df(
   arrange(desc(proximity_to_death_days)) %>%
   mutate_at("n", cumsum) %>%
   mutate(p = n / max(n)) %>%
+  # there is a slight dip in the first couple of days of data - this "cleans"
+  # the chart up a little
+  filter(proximity_to_death_days < 365*1.95) %>%
   ggplot(aes(proximity_to_death_days, p, colour = last_month)) +
   geom_step() +
   geom_vline(xintercept = 28, linetype = "dotted") +
