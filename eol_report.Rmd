@@ -1968,15 +1968,20 @@ activity %>%
       sample_n(10) %>%
       unnest(cols = c(data)) %>%
       ungroup() %>%
+      filter(!pod_summary_group %in% c("Emergency Admission",
+                                       "Elective Admission",
+                                       "Critical Care Bed Day")) %>%
+      mutate_at("pod_type",
+                ~case_when(pod_summary_group == "Emergency Admission Bed Day" ~
+                             "Urgent Service Event",
+                           pod_summary_group == "Elective Admission Bed Day" ~
+                             "Planned Admission",
+                           TRUE ~ as.character(.x))) %>%
       ggplot(aes(proximity_to_death_days, su_pat_id, fill = pod_type)) +
-      geom_tile(height = 0.5) +
-      #scale_fill_su(reverse = TRUE) +
-      scale_fill_manual(values = c(
-        "Bed" = su_theme_cols()[["orange"]],
-        "Planned Contact" = su_theme_cols()[["blue"]],
-        "Planned Admission" = su_theme_cols()[["red"]],
-        "Urgent Service Event" = su_theme_cols()[["charcoal"]]
-      )) +
+      geom_tile(aes(height = ifelse(str_detect(pod_summary_group, "Bed Day"),
+                                    0.25,
+                                    0.75))) +
+      scale_fill_su(reverse = TRUE) +
       scale_y_discrete(expand = expansion()) +
       scale_x_proximity_to_death_days(expand = expansion(c(0.02, 0.001))) +
       theme(axis.text.y = element_blank(),
