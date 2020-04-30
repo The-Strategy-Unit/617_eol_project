@@ -14,6 +14,7 @@ output:
     toc_float: true
 params:
   stp: "E54000016"
+  region_report: true
 ---
 
 ```{r setup, include=FALSE}
@@ -31,6 +32,11 @@ invisible(local({
   source("setup.R")
   load_data(params$stp)
 }))
+
+if (params$region_report == TRUE) {
+  mpi <- mpi_region
+  activity <- activity_region
+}
 ```
 
 This report is about the people in `r stp_name` STP who died between April 2018
@@ -1948,7 +1954,9 @@ little activity other than in the 6 months before death.
 
 # Pathways charts
 
-```{r pathways}
+`r ifelse(params$region_report, "skipping section", "")`
+
+```{r pathways, eval = !params$region_report}
 activity %>%
   inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
   filter(group != "(Missing)") %>%
