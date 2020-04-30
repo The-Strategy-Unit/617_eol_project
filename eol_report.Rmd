@@ -372,7 +372,7 @@ local({
                 mutate(h = as.numeric(sex == "male"),
                        x = 0.025 * ifelse(h, -1, 1)),
               aes(age, x,
-                  label = paste("Median:", age),
+                  label = paste("Median:", age_label),
                   hjust = h),
               vjust = 0,
               nudge_x = 1,
