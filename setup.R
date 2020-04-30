@@ -71,5 +71,6 @@ theme_set(setup_env$theme_report)
 # load additional files
 source("load_data.R")
 source("mekko_chart.R")
+source("place_of_death_fill.R")
 
 attach(setup_env)

@@ -38,7 +38,7 @@ setup_env$mekko_chart <- function(data, x, y,
   data.f %>%
     ggplot(aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,
                fill = {{y}})) +
-    geom_rect(colour="white", alpha = 0.4) +
+    geom_rect(colour="white") +
     geom_text(aes(x = lab_x, y = lab_y, label = lab_v),
               colour = "white",
               na.rm = TRUE) +
