@@ -201,32 +201,17 @@ is a higher proportion for your STP than it is for the Midlands.
 
 #### difference in percentage of population for your STP from the Midlands percentage
 
-```{r ethnicity percentage diff bar plot, fig.height = 3.5}
-local({
-  ethnic_count <- function(data) {
-    data %>%
-      count(ethnic_group) %>%
-      mutate_at(vars(n), ~.x/sum(.x))  
-  }
-  
-  full_join(
-    ethnic_count(mpi) %>%
-      rename(stp = n),
-    ethnic_count(mpi_region) %>%
-      rename(region = n),
-    by = "ethnic_group"
-  ) %>%
-    mutate(diff = stp - region) %>%
-    ggplot(aes(ethnic_group, diff)) +
-    geom_hline(yintercept = 0) +
-    geom_col(colour = su_theme_cols("charcoal"),
-             fill = su_theme_cols("orange"),
-             alpha = 0.4,
-             width = 0.5) +
-    scale_y_continuous(labels = percent) +
-    theme(axis.text.x = element_text(angle = 15, hjust = 1)) +
-    labs(x = "", y = "% difference from region average")
-})
+```{r ethnicity treemap, fig.height = 3.5}
+mpi %>%
+  filter(!ethnic_group %in% c("Not stated", "Unknown")) %>%
+  count(ethnic_group) %>%
+  drop_na() %>%
+  ggplot(aes(area = n, label = ethnic_group, fill = ethnic_group)) +
+  geom_treemap(colour = "white") +
+  #geom_treemap_text() +
+  theme(legend.position = "right",
+        axis.line = element_blank()) +
+  labs(fill = "")
 ```
 
 ## Think-piece: The experience of pain at end of life
