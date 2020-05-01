@@ -195,7 +195,7 @@ p <- activity_costs %>%
   # group_by(pod_summary_group, add = TRUE) %>%
   # mutate(n_psg = n()) %>%
   # filter(n_psg > 1000 | (n_psg/n_pt) > 0.01) %>%
-  ggplot(aes(cost, pod_summary_group, colour = ss_flag)) +
+  ggplot(aes(cost, pod_summary_group, colour = simple_ss_flag)) +
   geom_density_ridges(aes(fill = after_scale(alpha(colour, 0.4)))) +
   facet_wrap(vars(pod_type), scales = "free") +
   scale_x_continuous(labels = comma_format(prefix = "£"),
