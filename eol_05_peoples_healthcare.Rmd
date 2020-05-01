@@ -27,6 +27,7 @@ invisible(local({
 
 library(flextable)
 library(officer)
+library(magrittr)
 ```
 
 # Peoples’ healthcare
@@ -84,19 +85,26 @@ activity %>%
 
 ###	Who accesses which activity type?
 
-```{r}
+```{r activity summary text, include=FALSE}
 stp_deaths <- nrow(mpi)
-stp_activty <- percent((activity %>%
-                          filter(pod_type == "Urgent service event") %>%
-                          unique(su_pat_id) %>%
-                          nrow())/stp_deaths,
-                       accuracy = 1)
+stp_activity <- activity %>%
+  mutate_at("pod_type",
+            ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                    as.character(pod_summary_group),
+                    as.character(.x))) %>%
+  distinct(pod_type, su_pat_id) %>%
+  count(pod_type) %$%
+  set_names(percent(n / stp_deaths, accuracy = 1),
+            pod_type)
+stp_activity
 ```
 
 Of the `r comma(stp_deaths)` people who died in in your STP nearly all of them
-(`r stp_activity`) had at least one type of urgent service event in the period
-before death. This is also true also for planned contacts. The level of access
-is much lower for planned admissions and critical care beds.
+(`r stp_activity[["Urgent Service Event"]]`) had at least one type of urgent
+service event in the period before death. This is also true also for planned
+contacts (`r stp_activity[["Planned Contact"]]`). The level of access is much
+lower for planned admissions (`r stp_activity[["Planned Admission"]]`) and
+critical care beds (`r stp_activity[["Critical Care Bed Day"]]`).
 
 Although access gives a sense of who is in contact with healthcare services it
 does not consider the volume or pattern of activity. These are considered in
@@ -104,8 +112,7 @@ later sections of this chapter.
 
 #### percentage of all decedents who access healthcare activity types
 
-
-```{r activity pcnt}
+```{r activity pcnt, fig.height = 2.3}
 bind_rows(
   mutate(activity, type = "stp"),
   mutate(activity_region, type = "region")
@@ -156,6 +163,207 @@ bind_rows(
         axis.ticks.x = element_blank())
 ```
 
+### Who accesses which service group?
+
+With each activity type the level of access does differ by service. For example,
+we see in prior chart n that the majority of the people who died in your STP
+access planned contacts. By service the driver is outpatient contacts and a very
+small number have access mental health or IAPT.
+
+#### percentage of all decedents who access services (at least one event/contact/admission/bed day) in the two year period before their death
+
+```{r activity pcnt pod summary group}
+bind_rows(
+  mutate(activity, type = "stp"),
+  mutate(activity_region, type = "region")
+) %>%
+  mutate_at("pod_type",
+            ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                    "Critical Care Bed Day",
+                    as.character(.x))) %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
+  group_by(type, pod_type, pod_summary_group, su_pat_id) %>%
+  summarise(n = sign(n())) %>%
+  summarise_at("n", sum) %>%
+  inner_join(
+    bind_rows(
+      mpi %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "stp"),
+      
+      mpi_region %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "region"),
+    ),
+    by = c("type")
+  ) %>%
+  mutate_at("n", ~.x / patients) %>%
+  select(-patients) %>%
+  pivot_wider(names_from = "type", values_from = "n") %>%
+  #filter(!pod_type %in% c("Bed")) %>% 
+  ungroup() %>%
+  ggplot(aes(pod_summary_group, stp)) +
+  geom_col(aes(colour = pod_type,
+               fill = after_scale(alpha(colour, 0.4)))) +
+  geom_point(aes(y = region,
+                 colour = pod_type,
+                 fill = after_scale(alpha(colour, 0.4))),
+             show.legend = FALSE,
+             size = 2,
+             shape = "circle filled",
+             stroke = 1.5) +
+  #scale_x_discrete(guide = guide_axis(n.dodge = 3)) +
+  scale_x_discrete(labels = partial(str_wrap, width = 10)) +
+  scale_y_continuous(labels = percent,
+                     expand = expansion(c(0, 0.05))) +
+  expand_limits(y = c(0, 1)) +
+  labs(x = "", y = "", colour = "", fill = "")  +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 30, hjust = 1),
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())
+```
+
+### How utilisation changes over time
+
+From who accesses care we now look at the volume and pattern of utilisation over
+time. We know from experience that **utilisation will change over time** with a
+resultant 'pattern' or 'utilisation curve'. Here the concept of time is the time
+before death so, regardless of any actual calendar date, it is the time between
+when **a healthcare activity takes place for a person and their date of death.**
+Activity taking place on the day of death is a time of 0 days, taking place the
+day before death is 1 day and so on. 
+
+Here we consider utilisation curves for different healthcare activities over
+time, how they increase, decrease and at what point in the end of life journey a
+peak is reached. 
+
+### Utilisation curves
+
+In the following series of utilisation curves we show utilisation over time for
+your STP and how this compares to the Midlands (on a non-standardised per person
+basis).
+
+We show the utilisation data points for your STP (yellow dots); utilisation curve
+for your STP (yellow line); utilisation curve for the Midlands as a whole
+(dashed grey line). Utilisation curves are calculated using locally estimated
+scatterplot smoothing (LOESS)[^1].
+
+
+```{r utilisation curve plots, include=FALSE}
+util_curve_plots <- local({
+  df <- bind_rows(
+    mutate(activity, type = "stp"),
+    mutate(activity_region, type = "region")
+  ) %>%
+    mutate_at("pod_type",
+              ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                      "Critical Care Bed Day",
+                      as.character(.x))) %>%
+    mutate_at("pod_type",
+              fct_relevel,
+              c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
+    count(type, pod_type, proximity_to_death_days) %>%
+    inner_join(tribble(~type, ~p,
+                       "stp", nrow(mpi),
+                       "region", nrow(mpi_region)),
+               by = "type") %>%
+    mutate_at("n", ~n / p) %>%
+    select(-p) %>%
+    pivot_wider(names_from = type, values_from = n) %>%
+    modify_at(vars(region, stp), replace_na, 0) %>%
+    group_by(pod_type) %>%
+    mutate(tml = pmax(region, stp) %>% ifelse(. == max(.), ., NA)) %>%
+    ungroup() %>%
+    group_nest(pod_type)
+  
+  plots <- pmap(df, function(pod_type, data) {
+    data %>%
+      ggplot(aes(proximity_to_death_days, stp)) +
+      geom_smooth(span = 0.15,
+                  formula = y ~ x,
+                  method = "loess",
+                  fill = NA,
+                  colour = after_scale(alpha(su_theme_cols()[["orange"]], 0.4))) +
+      geom_smooth(aes(y = region),
+                  linetype = "dotted",
+                  span = 0.15,
+                  formula = y ~ x,
+                  method = "loess",
+                  fill = NA,
+                  colour = after_scale(alpha(su_theme_cols()[["charcoal"]], 0.4))) +
+      geom_point(size = 0.2,
+                 shape = "circle filled",
+                 colour = su_theme_cols()[["orange"]],
+                 fill = after_scale(alpha(su_theme_cols()[["orange"]], 0.4))) +
+      geom_text(aes(x = 3*365/12+10, y = tml),
+                label = "3 months prior to death",
+                hjust = 1,
+                size = 3,
+                na.rm = TRUE) +
+      geom_vline(xintercept = 3*365/12,
+                 linetype = "dashed",
+                 colour = su_theme_cols()[["dark_charcoal"]]) +
+      scale_x_proximity_to_death_days() +
+      scale_y_continuous(sec.axis = dup_axis(labels = comma_format(scale = 1000),
+                                             name = "Activity per 1,000 Decedants")) +
+      theme(panel.grid.major = element_line(colour = "grey",
+                                            size = 0.25,
+                                            linetype = "dotted"),
+            axis.title = element_text(size = 8),
+            axis.title.y.left = element_blank(),
+            axis.text.y.left = element_blank(),
+            axis.ticks.y.left = element_blank(),
+            legend.position = "bottom") +
+      labs(x = "Proximity to Death (Months)", y = "", colour = "")
+    })
+  
+  set_names(plots, as.character(df$pod_type))
+})
+```
+
+**Urgent service events** start low and increase slowly for much of the period.
+Then, in the few months prior to death, there is a rapid rate of increase rising
+to a sharp peak in the last few days.
+
+```{r util_curve_plots Urgent Service Event, fig.height = 2.5}
+util_curve_plots$`Urgent Service Event`
+```
+
+**Planned contacts** rise steadily throughout the period until a sharp peak in
+the weeks prior to death at which point they decline steeply.
+
+```{r util_curve_plots Planned Contact, fig.height = 2.5}
+util_curve_plots$`Planned Contact`
+```
+
+**Planned admissions** also rise steadily throughout the period with a rounded
+peak a matter of months prior to death.
+
+```{r util_curve_plots Planned Admission, fig.height = 2.5}
+util_curve_plots$`Planned Admission`
+```
+
+**Bed days**, created when an admission to a bed takes place, closely follows
+the utilisation curve of urgent service events as bed occupancy is dominated by
+people who occupy a bed after being admitted as an emergency.
+
+```{r util_curve_plots Bed Days, fig.height = 2.5}
+util_curve_plots$Bed
+```
+
+**Critical care bed days** start low and do not increase until a sharp rise in
+the weeks prior to death.
+
+```{r util_curve_plots Critical Care Bed Day, fig.height = 2.5}
+util_curve_plots$`Critical Care Bed Day`
+```
+
+
 [//]: <> (URL's / References --------------------------------------------------)
 [su_email]: mailto:Strategy.Unit@nhs.net
 [su_web]: https://www.strategyunitwm.nhs.uk/
+
+[^1]: [Local Regression on Wikipedia](https://en.wikipedia.org/wiki/Local_regression)
