@@ -95,10 +95,9 @@ setup_env$load_data <- function(stp) {
     filter(stp == {{stp}})
 
   env$forecast_deaths <- file.path("data",
-                                   "sensitive",
-                                   "forecast_deaths.fst") %>%
-    read_fst() %>%
-    as_tibble() %>%
+                                   "reference",
+                                   "forecast_deaths.csv") %>%
+    read_csv(col_types = "ncccn") %>%
     filter(age_group >= 18, stp == {{stp}})
 
   env
