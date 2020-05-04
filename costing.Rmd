@@ -209,6 +209,56 @@ p <- activity_costs %>%
 suppressMessages(print(p))
 ```
 
+```{r}
+local({
+  df <- activity_costs %>%
+    group_by(pod_type) %>%
+    filter(cost > 0,
+           !all(simple_ss_flag == "Spec. Services")) %>%
+    ungroup() %>%
+    mutate_at("pod_summary_group", ~case_when(
+      pod_type == "Urgent Service Event" & ss_flag == "Spec. Services" ~
+        "Emergency Admission",
+      pod_type == "Planned Contact" & ss_flag == "Spec. Services" ~
+        "Outpatient Attendance",
+      pod_type == "Planned Admission" & ss_flag == "Spec. Services" ~
+        "Elective Admission",
+      pod_type == "Critical Care" & ss_flag == "Spec. Services" ~
+        "Emergency Admission",
+      TRUE ~ as.character(.x))) %>%
+    #filter(simple_ss_flag != "Other") %>%
+    group_nest(pod_type, pod_summary_group) %>%
+    mutate_at("pod_type", as.character)
+  
+  df <- bind_rows(
+    df,
+    activity_costs %>%
+      group_by(pod_type) %>%
+      filter(cost > 0,
+             all(simple_ss_flag == "Spec. Services")) %>%
+      ungroup() %>%
+      mutate(simple_ss_flag = pod_type,
+             pod_type = "Other",
+             pod_summary_group = "Spec. Services") %>%
+      group_nest(pod_type, pod_summary_group)
+  )
+    
+  df %>%
+    pmap(function(pod_type, pod_summary_group, data) {
+      ggplot(data, aes(cost, simple_ss_flag, colour = simple_ss_flag)) +
+        geom_density_ridges(aes(fill = after_scale(alpha(colour, 0.4)))) +
+        scale_x_continuous(labels = comma_format(prefix = "£"),
+                     trans = "log10",
+                     expand = expansion(c(0.1, 0.05))) +
+        scale_y_discrete(labels = partial(str_wrap, width = 15)) +
+        theme(legend.position = "none") +
+        labs(x = "", y = "", colour = "", title = pod_type,
+             subtitle = pod_summary_group)
+    })
+}) %>%
+  walk(quietly(print))
+```
+
 [//]: <> (URL's / References --------------------------------------------------)
 [su_email]: mailto:Strategy.Unit@nhs.net
 [su_web]: https://www.strategyunitwm.nhs.uk/
