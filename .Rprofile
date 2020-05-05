@@ -2,11 +2,16 @@ source("renv/activate.R")
 
 # fix git2r
 invisible({
-  local({
-    cred <- git2r::cred_ssh_key(
-      str_replace_all(git2r::ssh_path("id_rsa.pub"), "\\\\", "\\/"),
-      str_replace_all(git2r::ssh_path("id_rsa"), "\\\\", "\\/")
-    )
-    usethis::use_git_credentials(cred)
-  })
+  if(require(git2r, quietly = TRUE) &
+     require(usethis, quietly = TRUE)) {
+
+    local({
+      cred <- cred_ssh_key(
+        gsub("\\\\", "\\/", ssh_path("id_rsa.pub")),
+        gsub("\\\\", "\\/", ssh_path("id_rsa"))
+      )
+      use_git_credentials(cred)
+    })
+
+  }
 })
