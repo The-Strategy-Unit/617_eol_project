@@ -97,7 +97,7 @@ setup_env$load_data <- function(stp) {
   env$forecast_deaths <- file.path("data",
                                    "reference",
                                    "forecast_deaths.csv") %>%
-    read_csv(col_types = "ncccn") %>%
+    read_csv(col_types = "ncncn") %>%
     filter(age_group >= 18, stp == {{stp}})
 
   env
