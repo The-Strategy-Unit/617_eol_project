@@ -1,6 +1,6 @@
 ---
 title: "End of Life"
-author: '[T. Jemmett](mailto:thomas.jemmett@nhs.net)'
+author: "[The Strategy Unit][su_web]"
 date: "25/11/2019"
 output:
   StrategyUnitTheme::su_document: default
@@ -251,7 +251,6 @@ for your STP (yellow line); utilisation curve for the Midlands as a whole
 (dashed grey line). Utilisation curves are calculated using locally estimated
 scatterplot smoothing (LOESS)[^1].
 
-
 ```{r utilisation curve plots, include=FALSE}
 util_curve_plots <- local({
   df <- bind_rows(
@@ -361,6 +360,308 @@ the weeks prior to death.
 util_curve_plots$`Critical Care Bed Day`
 ```
 
+### Utilisation curves by cause of death group
+
+Utilisation curves disaggregated by cause of death group show that although we
+have seen in chapter n that cancer deaths only equate to a fifth of the overall
+population, they take up proportionally more activity in both planned activity
+types (planned contact and planned admission). This reflects the nature of their
+treatment which requires a series of regular planned admissions and contacts.
+
+For urgent service events, and bed days, there is little differentiation between
+causes of death group in either pattern or volume. 
+
+```{r utilisation curve grouped, message=FALSE,  echo=FALSE, results = "none", fig.height=3.1}
+activity %>%
+  mutate_at("pod_type",
+            ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                    "Critical Care Bed Day",
+                    as.character(.x))) %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
+  inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
+  filter(group != "(Missing)") %>%
+  count(pod_type, group, proximity_to_death_days) %>%
+
+  inner_join(count(mpi, group, name = "p"), by = "group") %>%
+  mutate_at("n", ~n/p) %>%
+  
+  group_nest(pod_type) %>%
+  pmap(function(pod_type, data) {
+    data %>%
+      ggplot(aes(proximity_to_death_days, n, colour = group)) +
+      geom_smooth(span = 0.15,
+                  formula = y ~ x,
+                  method = "loess",
+                  fill = NA) +
+      # geom_point(size = 0.2, alpha = 0.2) +
+      geom_vline(xintercept = 3*365/12,
+                 linetype = "dashed",
+                 colour = su_theme_cols()[["dark_charcoal"]]) +
+      scale_x_proximity_to_death_days() +
+      scale_y_continuous(sec.axis = dup_axis(labels = comma_format(scale = 1000),
+                                             name = "Activity per 1,000 Decedants")) +
+      theme(panel.grid.major = element_line(colour = "grey",
+                                            size = 0.25,
+                                            linetype = "dotted"),
+            axis.text.y.left = element_blank(),
+            axis.ticks.y.left = element_blank(),
+            legend.position = "bottom") +
+      labs(title = pod_type, x = "Proximity to Death (Months)", y = "", colour = "") +
+      annotate("text",
+               x = 3*365/12+10,
+               y = max(data$n),
+               label = "3 months prior to death",
+               hjust = 1,
+               size = 3)
+  }) %>%
+  walk(plot)
+```
+
+### Summarising utilisation
+
+The utilisation curves provide a detailed day by day view of activity but a 
+straightforward measure summarising utilisation would also allow us to make 
+comparisons across a range of factors.
+
+To this end in this section we calculate a ‘utilisation ratio’ which represents 
+the average activity a person would experience in a year period. 
+
+In our analysis we have chosen to calculate these ratios separately between the 
+first year period before death and the second year period before death. This 
+acknowledges how these ratios change over time whilst remaining simple enough to 
+make meaningful comparisons.
+
+$$
+\textrm{Utilisation ratio in first year prior to death}\ (UR_1) =
+  \frac{\Sigma\textrm{Activity in first year prior to death}}
+  {\textrm{Decededent population}}
+$$
+$$
+\textrm{Utilisation ratio in second year prior to death}\ (UR_2) =
+  \frac{\Sigma\textrm{Activity in second year prior to death}}
+  {\textrm{Decededent population}}
+$$
+
+### Utilisation ratios by age
+
+Utilisation ratios are for each service group within an activity type. They are 
+presented by age, where age is the age at death.
+
+All people aged under 50 are grouped in one age group, as are all people aged 
+over 90. This is because they are very small populations by single year of age,
+leading to high variability.
+
+```{r utilisation rates}
+util_rates_plots <- local({
+  activity_counts <- activity %>%
+    # mutate_at("pod_summary_group",
+    #           ~ifelse(pod_type == "Critical Care Bed Day", "CC", as.character(.x))) %>%
+    # mutate_at("pod_type", fct_recode, "Bed" = "Critical Care Bed Day") %>%
+    inner_join(select(mpi, su_pat_id, age),
+               by = "su_pat_id") %>%
+    mutate(activity_year = as.numeric(proximity_to_death_days >= 365)) %>%
+    mutate_at("age", ~case_when(.x > 90 ~ 90,
+                                .x < 50 ~ 50,
+                                TRUE ~ .x)) %>%
+    mutate_if(is.factor, as.character) %>%
+    count(pod_type, pod_summary_group, activity_year, age,
+          name = "activity")
+  
+  death_counts <- mpi %>%
+      mutate_at("age", ~case_when(.x > 90 ~ 90,
+                                  .x < 50 ~ 50,
+                                  TRUE ~ .x)) %>%
+      count(age, name = "deaths")
+  
+  activity_column_combinations <- list(type = activity_counts %>%
+                                         distinct(pod_type, pod_summary_group) %>%
+                                         pmap(paste, sep = "|"),
+                                       activity_year = c(0, 1),
+                                       age = 50:90) %>%
+    cross_df() %>%
+    separate(type, c("pod_type", "pod_summary_group"), sep = "\\|")
+  
+  df <- activity_column_combinations %>%
+    left_join(inner_join(activity_counts, death_counts, by = c("age")) %>%
+                mutate(utilisation = activity/deaths),
+              by = colnames(activity_column_combinations)) %>%
+    replace_na(list(utilisation = 0,
+                    activity = 0,
+                    deaths = 0)) %>%
+    group_by(age, pod_type, pod_summary_group, activity_year) %>%
+    summarise_at(vars(activity, deaths), sum) %>%
+    mutate(utilisation = activity/deaths) %>%
+    ungroup() %>%
+    group_nest(pod_type)
+  
+  df %>%
+    pmap(function(pod_type, data) {
+      data %>%
+        mutate_at("pod_summary_group",
+                  ~fct_reorder(.x, activity, .fun = sum)) %>%
+        mutate_at("activity_year",
+                  ifelse,
+                  "Year before death",
+                  "Year of death") %>%
+        ggplot(aes(age, utilisation, colour = activity_year)) +
+        geom_point(na.rm = TRUE) +
+        geom_smooth(fill = NA, method = "loess", formula = y ~ x, na.rm = TRUE) +
+        expand_limits(y = 0) +
+        facet_wrap(vars(pod_summary_group), scales = "free") +
+        theme(legend.position = "bottom",
+              axis.title = element_blank()) +
+        labs(x = "", y = "", colour = "")
+    }) %>%
+    set_names(df$pod_type)
+})
+```
+
+**Urgent service events** show that:
+
+1. for each single year of age at death utilisation does not differ greatly.
+So, in the year before their death a person who dies aged 80 years old is
+expected to have a similar amount of emergency admissions as to a person who is
+50 when they die. The same is also true for A&E attendances. Calls to 111 do 
+however tend to increase for patients in their 70s.
+
+2. there are similar volumes between the unplanned care services of emergency
+admissions and A&E attendances (around 2 per person in first year period before
+death and around 0.75 per person in second year period before death). These are
+both only slightly higher than calls to 111.
+ 
+#### utilisation ratio of activity per person, by age at death, over first year period prior to death and second year period prior to death
+
+```{r utilisation rates urgent service events, fig.height=2.6}
+util_rates_plots[["Urgent Service Event"]]
+```
+
+**Planned contacts** show that:
+
+1. planned contacts are dominated by outpatient attendances with between 5-15
+per person per year.
+
+2. utilisation decreases as age increases in both first year period and the
+second year period before death. Indeed, as age increases the less difference in
+utilisation there is between the first year period and second year period. 
+
+#### utilisation ratio of activity per person, by age at death, over first year period prior to death and second year period prior to death
+
+```{r utilisation rates planned contact, fig.height=2.6}
+util_rates_plots[["Planned Contact"]]
+```
+
+**Planned admissions** show that:
+
+1. although there is a general pattern of utilisation decreasing as age
+increases, day case admissions in particular show increasing utilisation for
+patients in their 50s.
+
+2. regular attendances show little variation between the first year period and
+the second year period before death. 
+
+#### utilisation ratio of activity per person, by age at death, over first year period prior to death and second year period prior to death
+
+```{r utilisation rates planned admission, fig.height=2.6}
+util_rates_plots[["Planned Admission"]]
+```
+
+**Bed days** show that:
+
+1. bed days are dominated by emergency bed days. They show that in the second
+year before death utilisation does not differ greatly. However, in the first
+year before death not only does utilisation increase significantly for all ages
+but utilisation increases with age.
+
+2. the utilisation value here also represents the average length of stay in a
+year. So for example, a utilisation of 20 would mean that an average of 20 bed
+days are occupied per person in a year period.
+
+#### utilisation ratio of activity per person, by age at death, over first year period prior to death and second year period prior to death
+
+```{r utilisation rates bed, fig.height=2.6}
+util_rates_plots[["Bed"]]
+```
+
+### Resource usage
+
+Beyond the activity the population utilises is the resource associated with that
+activity. For example, although outpatient attendances are high volume the
+resource for an outpatient attendance is very much less than the resource
+required for an emergency admission including a procedure and associated bed
+days.
+
+Here we use costs derived from national and local sources as an indicative
+measure of the resource consumed by the population.   
+
+## Translating forecast deaths into future demand
+
+How the demands on healthcare services change in future years will depend on
+many factors.
+
+They will be driven by how many people are dying, what resources and 
+interventions each person utilises as they approach end of life and what
+services (downstream and upstream) are available to meet an individual’s need.
+
+In chapter n we have seen how deaths were already expected to rise over future 
+decades; we have seen how these estimates were lower than actual deaths (where 
+both forecast and actual data co-exist), indicating estimates may have
+previously been too conservative. We have also seen the novel coronavirus 
+disease COVID-19 develop across the world with its full direct and indirect 
+effects on mortality as yet unknown.  
+
+In this context the forecast future healthcare demand provides a useful starting
+point. By using the current utilisation ratios from this chapter and the 
+forecast future deaths from chapter n we can estimate the volume of activity 
+required purely to manage what we now know would have been an extremely positive
+scenario for numbers of deaths and <health resource planned?>.
+
+Forecast activity for unplanned healthcare would continue to increase over 
+coming decades driven by the increasing number of deaths in the older population
+and the fact that utilisation ratios for this segment of the population are 
+extremely similar to younger groups.
+
+For both planned types of activity we do not see the same increasing level of
+activity. This is an artefact that other we see more deaths in the older
+population we know utilisation ratios decline with age for planned services.
+
+```{r forecast activity 5 year bars, echo=FALSE, message=FALSE, results='hide', fig.height = 3.1}
+forecast_activity %>%
+  mutate_at("pod_type",
+            ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                    "Critical Care Bed Day",
+                    as.character(.x))) %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
+  filter(year %% 5 == 0) %>%
+  group_by(age_band, year, pod_type) %>%
+  summarise_at(vars(est_deaths, activity), sum) %>%
+  ungroup() %>%
+  group_nest(pod_type) %>%
+  pwalk(function(pod_type, data) {
+    p <- data %>%
+      ggplot(aes(year, activity)) +
+      geom_col(aes(fill = fct_rev(age_band)),
+               alpha = 0.4,
+               colour = "white",
+               position = "stack") +
+      stat_summary(aes(label = scales::comma(..y..,
+                                             accuracy = 1)),
+                   vjust = -.3,
+                   fun   = sum,
+                   geom  = "text") +
+      scale_y_continuous(labels = scales::comma_format(scale = .001),
+                         expand = expansion(c(0, 0.15))) +
+      scale_fill_discrete(guide = guide_legend(reverse = TRUE)) +
+      labs(fill = "",
+           y = "Activity (1,000's)",
+           title = pod_type) +
+      theme(legend.position = "bottom")
+    plot(p)
+  })
+```
 
 [//]: <> (URL's / References --------------------------------------------------)
 [su_email]: mailto:Strategy.Unit@nhs.net
