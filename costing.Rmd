@@ -275,8 +275,8 @@ activity_costs %>%
          !pod_type %in% c("CC", "Bed")) %>%
   mutate_at("pod_type",
             fct_recode,
-            "Other" = "Unknown",
-            "Other" = "(Missing)") %>%
+            "Device + Drug" = "Device",
+            "Device + Drug" = "Drug") %>%
   group_by(pod_type, proximity_to_death_days) %>%
   summarise_at("cost", sum) %>% {
     .x <- .
@@ -302,6 +302,7 @@ activity_costs %>%
                  colour = su_theme_cols()[["orange"]],
                  fill = after_scale(alpha(su_theme_cols()[["orange"]], 0.4))) +
       scale_x_proximity_to_death_days() +
+      scale_y_continuous(labels = comma_format(prefix = "£")) +
       labs(x = "", y = "", title = pod_type)
   })
 ```
