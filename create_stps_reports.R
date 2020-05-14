@@ -1,5 +1,3 @@
-system("%LOCALAPPDATA%\\Microsoft\\OneDrive\\OneDrive.exe /shutdown")
-
 # generate reports for Midlands STPs
 
 library(tidyverse)
@@ -14,17 +12,25 @@ if (!dir.exists("output")) {
 
 plan(multiprocess)
 
-render_report <- function(stp18cd, stp18nm) {
+render_report <- function(stp18cd, stp18nm, region_report) {
   capture.output({
-    filename <- paste0(stp18cd, "_", stp18nm)
+    if (region_report) {
+      filename <- stp18nm
+    } else {
+      filename <- paste0(stp18cd, "-", stp18nm)
+    }
 
-    file.copy("eol_report.Rmd", paste0("tmp/", filename, ".Rmd"))
+    filename <- str_replace(filename, " ", "_")
+
+    file.copy("eol_report.Rmd", paste0(filename, ".Rmd"))
 
     tryCatch({
-      render(paste0("tmp/", filename, ".Rmd"),
-             "StrategyUnitTheme::su_document",
-             paste0("output/", filename, ".docx"),
-             params = list(stp = stp18cd))
+      render(input = paste0(filename, ".Rmd"),
+             output_format = "StrategyUnitTheme::su_document",
+             output_file = paste0(filename, ".docx"),
+             output_dir = "output",
+             envir = new.env(),
+             params = list(stp = stp18cd, region_report = region_report))
     }, finally = {
       unlink(paste0(filename, ".Rmd"))
     })
@@ -40,7 +46,11 @@ stps <- file.path("data", "reference", "stps.csv") %>%
                 read_csv(col_types = "cc") %>%
                 filter(nhser18nm == "Midlands"),
               by = "nhser18cd"),
-    by = "stp18cd")
+    by = "stp18cd") %>%
+  mutate(region_report = FALSE) %>%
+  bind_rows(.,
+            head(., 1) %>%
+              mutate(stp18nm = "Midlands", region_report = TRUE))
 
 {
   tic()
@@ -57,4 +67,4 @@ stps <- file.path("data", "reference", "stps.csv") %>%
   }
 }
 
-system("%LOCALAPPDATA%\\Microsoft\\OneDrive\\OneDrive.exe")
+plan(sequential)
