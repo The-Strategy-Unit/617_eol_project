@@ -724,7 +724,7 @@ bind_rows(
   mutate_at("n", ~.x / patients) %>%
   select(-patients) %>%
   pivot_wider(names_from = "type", values_from = "n") %>%
-  #filter(!pod_type %in% c("Bed")) %>% 
+  filter(pod_type != "Bed") %>%
   ungroup() %>%
   ggplot(aes(pod_type, stp)) +
   geom_col(aes(colour = pod_type,
@@ -775,7 +775,7 @@ bind_rows(
   mutate_at("n", ~.x / patients) %>%
   select(-patients) %>%
   pivot_wider(names_from = "type", values_from = "n") %>%
-  #filter(!pod_type %in% c("Bed")) %>% 
+  filter(pod_type != "Bed") %>% 
   ungroup() %>%
   ggplot(aes(pod_summary_group, stp)) +
   geom_col(aes(colour = pod_type,
