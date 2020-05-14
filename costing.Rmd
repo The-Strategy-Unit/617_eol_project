@@ -259,6 +259,53 @@ local({
   walk(quietly(print))
 ```
 
+# Specialised Services spend per person
+
+$$
+\frac{\Sigma(\textrm{cost of spec. services by pod_type/day})}
+{\textrm{number of decedents in stp}}
+$$
+
+includes all decedents, whether they had Spec. Services or not.
+
+```{r}
+
+activity_costs %>%
+  filter(ss_flag == "Spec. Services",
+         !pod_type %in% c("CC", "Bed")) %>%
+  mutate_at("pod_type",
+            fct_recode,
+            "Other" = "Unknown",
+            "Other" = "(Missing)") %>%
+  group_by(pod_type, proximity_to_death_days) %>%
+  summarise_at("cost", sum) %>% {
+    .x <- .
+    list(pod_type = unique(.x$pod_type),
+         proximity_to_death_days = range(.x$proximity_to_death_days) %>%
+           (lift_dv(seq))) %>%
+      cross_df() %>%
+      left_join(.x, by = c("pod_type", "proximity_to_death_days"))
+  } %>%
+  modify_at("cost", replace_na, 0) %>%
+  mutate_at("cost", `/`, nrow(mpi)) %>%
+  group_nest(pod_type) %>%
+  pmap(function(pod_type, data) {
+    data %>%
+      ggplot(aes(proximity_to_death_days, cost)) +
+      geom_smooth(span = 0.15,
+                  formula = y ~ x,
+                  method = "loess",
+                  fill = NA,
+                  colour = after_scale(alpha(su_theme_cols()[["orange"]], 0.4))) +
+      geom_point(size = 0.2,
+                 shape = "circle filled",
+                 colour = su_theme_cols()[["orange"]],
+                 fill = after_scale(alpha(su_theme_cols()[["orange"]], 0.4))) +
+      scale_x_proximity_to_death_days() +
+      labs(x = "", y = "", title = pod_type)
+  })
+```
+
 [//]: <> (URL's / References --------------------------------------------------)
 [su_email]: mailto:Strategy.Unit@nhs.net
 [su_web]: https://www.strategyunitwm.nhs.uk/
