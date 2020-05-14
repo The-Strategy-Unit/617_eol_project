@@ -2,7 +2,7 @@ if (!exists("setup_env")) {
   stop("must be called from within setup.R")
 }
 
-setup_env$load_data <- function(stp) {
+setup_env$load_data <- function(stp, region_report = FALSE) {
   env <- global_env()
 
   # figure out what region the selected stp is a part of, as well as the other
@@ -85,20 +85,21 @@ setup_env$load_data <- function(stp) {
                                      "forecast_activity.fst") %>%
     read_fst() %>%
     as_tibble() %>%
-    filter(stp == {{stp}})
+    filter(stp == ifelse({{region_report}}, "Region", {{stp}}))
 
   env$historical_deaths <- file.path("data",
                                      "sensitive",
                                      "historical_deaths.fst") %>%
     read_fst() %>%
     as_tibble() %>%
-    filter(stp == {{stp}})
+    filter(stp == ifelse({{region_report}}, "Region", {{stp}}))
 
   env$forecast_deaths <- file.path("data",
                                    "reference",
                                    "forecast_deaths.csv") %>%
     read_csv(col_types = "ncncn") %>%
-    filter(age_group >= 18, stp == {{stp}})
+    filter(age_group >= 18,
+           stp == ifelse({{region_report}}, "Region", {{stp}}))
 
   env
 }

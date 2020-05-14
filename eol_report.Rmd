@@ -14,7 +14,7 @@ output:
     toc_float: true
 params:
   stp: "E54000016"
-  region_report: false
+  region_report: true
 ---
 
 ```{r setup, include=FALSE}
@@ -30,12 +30,15 @@ if (!knitr::is_latex_output()) {
 # all setup should happen in setup.R that could be shared logic between files
 invisible(local({
   source("setup.R")
-  load_data(params$stp)
+  load_data(params$stp, params$region_report)
 }))
 
 if (params$region_report == TRUE) {
   mpi <- mpi_region
   activity <- activity_region
+  
+  stp_name <- region_name
+  region_name <- "NA"
 }
 ```
 
