@@ -832,8 +832,8 @@ bind_rows(
   mutate_at("n", ~.x / patients) %>%
   select(-patients) %>%
   pivot_wider(names_from = "type", values_from = "n") %>%
-  filter(group != "(Missing)") %>% #,
-         #pod_type != "Bed") %>%
+  filter(group != "(Missing)",
+         pod_type != "Bed") %>%
   mutate_at("group",
             fct_recode,
             "OTI" = "Other Terminal Illness") %>%
