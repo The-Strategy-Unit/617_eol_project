@@ -50,10 +50,10 @@ setup_env$scale_imd <- function(..., quintiles = FALSE) {
                      ...)
 }
 
-setup_env$scale_x_proximity_to_death_days <- function(...) {
+setup_env$scale_x_proximity_to_death_days <- function(months_every = 6, ...) {
   scale_x_continuous(trans = reverse_trans(),
-                     breaks = seq(0, 2*365, 6*365/12),
-                     labels = function(x) floor(x/(365/12)),
+                     breaks = seq(0, 2*365, months_every*365/12),
+                     labels = function(x) floor(x*12/365),
                      ...)
 }
 
