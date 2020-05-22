@@ -695,7 +695,7 @@ activity %>%
 ## Activity types per person
 
 ```{r activity pcnt}
-bind_rows(
+p <- bind_rows(
   mutate(activity, type = "stp"),
   mutate(activity_region, type = "region")
 ) %>%
@@ -729,13 +729,6 @@ bind_rows(
   ggplot(aes(pod_type, stp)) +
   geom_col(aes(colour = pod_type,
                fill = after_scale(alpha(colour, 0.4)))) +
-  geom_point(aes(y = region,
-                 colour = pod_type,
-                 fill = after_scale(alpha(colour, 0.4))),
-             show.legend = FALSE,
-             size = 2,
-             shape = "circle filled",
-             stroke = 1.5) +
   scale_y_continuous(labels = percent,
                      expand = expansion(c(0, 0.05))) +
   expand_limits(y = c(0, 1)) +
@@ -743,10 +736,25 @@ bind_rows(
   theme(legend.position = "none",
         axis.line.x = element_blank(),
         axis.ticks.x = element_blank())
+
+if (!params$region_report) {
+  p <- p +
+    geom_point(aes(y = region,
+                   colour = pod_type,
+                   fill = after_scale(alpha(colour, 0.4))),
+               show.legend = FALSE,
+               size = 2,
+               shape = "circle filled",
+               stroke = 1.5) 
+}
+
+p + geom_text(aes(label = percent(stp, accuracy = 1)),
+              size = 3.5,
+              vjust = -.35)
 ```
 
 ```{r activity pcnt pod summary group}
-bind_rows(
+p <- bind_rows(
   mutate(activity, type = "stp"),
   mutate(activity_region, type = "region")
 ) %>%
@@ -780,14 +788,6 @@ bind_rows(
   ggplot(aes(pod_summary_group, stp)) +
   geom_col(aes(colour = pod_type,
                fill = after_scale(alpha(colour, 0.4)))) +
-  geom_point(aes(y = region,
-                 colour = pod_type,
-                 fill = after_scale(alpha(colour, 0.4))),
-             show.legend = FALSE,
-             size = 2,
-             shape = "circle filled",
-             stroke = 1.5) +
-  #scale_x_discrete(guide = guide_axis(n.dodge = 3)) +
   scale_x_discrete(labels = partial(str_wrap, width = 10)) +
   scale_y_continuous(labels = percent,
                      expand = expansion(c(0, 0.05))) +
@@ -797,10 +797,26 @@ bind_rows(
         axis.text.x = element_text(angle = 30, hjust = 1),
         axis.line.x = element_blank(),
         axis.ticks.x = element_blank())
+
+
+if (!params$region_report) {
+  p <- p +
+    geom_point(aes(y = region,
+                   colour = pod_type,
+                   fill = after_scale(alpha(colour, 0.4))),
+               show.legend = FALSE,
+               size = 2,
+               shape = "circle filled",
+               stroke = 1.5) 
+}
+
+p + geom_text(aes(label = percent(stp, accuracy = 1)),
+              size = 3.5,
+              vjust = -.35)
 ```
 
 ```{r activity pcnt cod}
-bind_rows(
+p <- bind_rows(
   mutate(activity, type = "stp"),
   mutate(activity_region, type = "region")
 ) %>%
@@ -843,14 +859,6 @@ bind_rows(
                fill = after_scale(alpha(colour, 0.4))),
            position = position_dodge(width = 0.8),
            width = 0.8) +
-  geom_point(aes(y = region,
-                 colour = group,
-                 fill = after_scale(alpha(colour, 0.4))),
-             show.legend = FALSE,
-             shape = "circle filled",
-             size = 2,
-             stroke = 1.5,
-             position = position_dodge(width = .8)) +
   scale_y_continuous(labels = percent,
                      expand = expansion(c(0, 0.05))) +
   expand_limits(y = c(0, 1)) +
@@ -858,6 +866,21 @@ bind_rows(
   theme(legend.position = "bottom",
         axis.line.x = element_blank(),
         axis.ticks.x = element_blank())
+
+
+if (!params$region_report) {
+  p <- p  +
+    geom_point(aes(y = region,
+                   colour = group,
+                   fill = after_scale(alpha(colour, 0.4))),
+               show.legend = FALSE,
+               shape = "circle filled",
+               size = 2,
+               stroke = 1.5,
+               position = position_dodge(width = .8))
+}
+
+p
 ```
 
 #### Percentage of decedants who had a bed day
