@@ -1956,40 +1956,62 @@ little activity other than in the 6 months before death.
 # ensure repeatability of this chart
 set.seed(234523)
 
-activity %>%
-  inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
-  filter(group != "(Missing)") %>%
+activity_region %>%
+  inner_join(select(mpi_region, su_pat_id, group), by = "su_pat_id") %>%
+  filter(group != "(Missing)",
+         proximity_to_death_days < 365) %>%
+  mutate_at("su_pat_id", as.character) %>%
   group_nest(group) %>%
+  mutate_at("data", map, function(.x) {
+    .x %>%
+      group_by(su_pat_id) %>%
+      mutate(n_act = sum(pod_type != "Bed")) %>%
+      ungroup(su_pat_id) %>%
+      mutate_at("n_act", ~.x %>%
+                  quantile(c(0.10, 0.90)) %>%
+                  set_names(c("left", "right")) %>%
+                  c(.f = between) %>%
+                  (lift_dv(partial)) %>%
+                  {.(.x)}) %>%
+      filter(n_act) %>%
+      select(-n_act)
+  }) %>%
+  # randomly sample the patients
+  mutate_at("data", map, function(.x) {
+    .x %>%
+      nest(data = -su_pat_id) %>%
+      sample_n(15) %>%
+      unnest(cols = c(data)) %>%
+      ungroup()
+  }) %>%
   pmap(function(group, data) {
     data %>%
-      mutate_at("su_pat_id", as.character) %>%
-      filter(proximity_to_death_days < 365) %>%
-      group_by(su_pat_id) %>%
-      # keep only those people who's activity is within 1.5 of the IQR
-      mutate(n_act = sum(pod_type != "Bed")) %>%
-      filter(abs(median(n_act)-n_act) <= IQR(n_act)*1.5) %>%
-      select(-n_act) %>%
-      # randomly sample the patients
-      group_nest() %>%
-      sample_n(10) %>%
-      unnest(cols = c(data)) %>%
-      ungroup() %>%
-      filter(!pod_summary_group %in% c("Emergency Admission",
-                                       "Elective Admission",
-                                       "Critical Care Bed Day")) %>%
+      filter(pod_summary_group != "Critical Care Bed Day") %>%
       mutate_at("pod_type",
                 ~case_when(pod_summary_group == "Emergency Admission Bed Day" ~
-                             "Urgent Service Event",
+                             "Urgent Bed Day",
                            pod_summary_group == "Elective Admission Bed Day" ~
-                             "Planned Admission",
-                           TRUE ~ as.character(.x))) %>%
+                             "Planned Bed Day",
+                           TRUE ~ as.character(.x)) %>%
+                  factor(levels = c("Urgent Service Event",
+                                    "Urgent Bed Day",
+                                    "Planned Admission",
+                                    "Planned Bed Day",
+                                    "Planned Contact"))) %>%
+      mutate(order = !str_ends(pod_type, "Bed Day")) %>%
+      arrange(order) %>%
       ggplot(aes(proximity_to_death_days, su_pat_id, fill = pod_type)) +
-      geom_tile(aes(height = ifelse(str_detect(pod_summary_group, "Bed Day"),
-                                    0.25,
-                                    0.75))) +
-      scale_fill_su(reverse = TRUE) +
+      geom_tile(height = 0.75) +
+      scale_fill_manual(values = c(
+        "Urgent Service Event" = "#EC6555",
+        "Urgent Bed Day"       = "#F7C1BA",
+        "Planned Admission"    = "#587FC1",
+        "Planned Bed Day"      = "#BCCBE6",
+        "Planned Contact"      = "#F8BF07"
+      ), drop = FALSE) +
       scale_y_discrete(expand = expansion()) +
-      scale_x_proximity_to_death_days(expand = expansion(c(0.02, 0.001))) +
+      scale_x_proximity_to_death_days(months_every = 3,
+                                      expand = expansion(c(0.02, 0.001))) +
       theme(axis.text.y = element_blank(),
             axis.line.y = element_blank(),
             axis.ticks.y = element_blank(),
@@ -1997,15 +2019,9 @@ activity %>%
             panel.border = element_blank(),
             panel.spacing = unit(0, "cm"),
             plot.margin = margin(0, 0.1, 0, 0.1, "cm"),
-            legend.position = ifelse(group == "Frailty",
-                                     "right",
-                                     "none")) +
+            legend.position = "bottom") +
       labs(title = group, x = "", y = "", fill = "")
-  }) %>%
-  reduce(`+`) +
-  guide_area() +
-  plot_layout(guides = "collect") +
-  theme(legend.direction = "vertical")
+  })
 ```
 
 # Chemotherapy
