@@ -98,8 +98,7 @@ setup_env$load_data <- function(stp, region_report = FALSE) {
                                    "reference",
                                    "forecast_deaths.csv") %>%
     read_csv(col_types = "ncncn") %>%
-    filter(age_group >= 18,
-           stp == ifelse({{region_report}}, "Region", {{stp}}))
+    filter(stp == ifelse({{region_report}}, "Region", {{stp}}))
 
   env
 }

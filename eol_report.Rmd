@@ -932,29 +932,33 @@ forecast_deaths %>%
   mutate(age = age_group) %>%
   mutate_at("age_group",
             cut,
-            breaks = c(0,65,75,85,Inf),
-            labels = c("18-64","65-74","75-85","85+"),
+            breaks = c(0,18,65,75,85,Inf),
+            labels = c("0-17", "18-64","65-74","75-85","85+"),
             right = FALSE) %>%
   arrange(age_group, year) %>%
   group_by(age_group, year) %>%
   filter(year >= 2020) %>%
   summarise_at("est_deaths", sum) %>%
-  mutate(first_year = ifelse(year == min(year), comma(est_deaths, accuracy = 1), NA),
+  mutate(first_year = ifelse(year == min(year),
+                             comma(est_deaths, accuracy = 1),
+                             NA),
          last_year  = ifelse(year == max(year),
-                             paste(comma(est_deaths, accuracy = 1),
-                                   percent(est_deaths / first(est_deaths) - 1,
+                             paste0(comma(est_deaths, accuracy = 1),
+                                    " (",
+                                    percent(est_deaths / first(est_deaths) - 1,
                                            accuracy = 1),
-                                   sep = "\n"),
+                                   ")"),
                              NA)) %>%
   ungroup() %>%
   ggplot(aes(year, est_deaths, colour = age_group)) +
   geom_line(linetype = "dashed") +
-  geom_point() +
+  coord_cartesian(xlim = c(2018, 2046)) +
   #scale_x_continuous(expand = expansion(c(0.05, 0.15))) +
   geom_text_repel(aes(year-1, est_deaths, label = first_year),
                   na.rm = TRUE,
                   direction = "y",
                   hjust = 1,
+                  size = 3,
                   segment.colour = NA,
                   point.padding = NA,
                   show.legend = FALSE) +
@@ -962,6 +966,7 @@ forecast_deaths %>%
                   na.rm = TRUE,
                   direction = "y",
                   hjust = 0,
+                  size = 3,
                   segment.colour = NA,
                   point.padding = NA,
                   show.legend = FALSE) +
@@ -969,10 +974,7 @@ forecast_deaths %>%
        x = "",
        y = "") +
   scale_x_continuous(breaks = seq(2020, 2040, 5)) +
-  theme(legend.position = "bottom",
-        axis.line.y = element_blank(),
-        axis.ticks.y = element_blank(),
-        axis.text.y = element_blank())
+  theme(legend.position = "bottom")
 ``` 
 
 ```{r forecast activity 5 year bars, echo=FALSE, message=FALSE, results='hide'}
@@ -1184,12 +1186,15 @@ ggplot(mapping = aes(year, deaths, colour = sex)) +
               group_by(year, sex) %>%
               summarise_at("est_deaths", sum) %>%
               rename(deaths = est_deaths) %>%
-              filter(year > .2019),
+              filter(year > 2019),
             linetype = "dashed") +
+  scale_x_continuous(breaks = seq(2010, 2040, 5)) +
   scale_y_continuous(labels = comma_format(accuracy = 1)) +
   labs(colour = "gender", x = "", y = "") +
   theme(legend.position = c(1, 0),
-        legend.justification = c(1, 0))
+        legend.justification = c(1, 0),
+        legend.background = element_blank(),
+        legend.key = element_blank())
 ```
 
 
