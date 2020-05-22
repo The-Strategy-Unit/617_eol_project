@@ -1733,13 +1733,14 @@ local({
                   ~fct_reorder(.x, activity, .fun = sum)) %>%
         mutate_at("activity_year",
                   ifelse,
-                  "Year before death",
-                  "Year of death") %>%
+                  "Second year period (12-24 months before death)",
+                  "First year period (0-12 months before death)") %>%
         ggplot(aes(age, utilisation, colour = activity_year)) +
+        geom_smooth(fill = NA, method = "loess", formula = y ~ x, na.rm = TRUE,
+                    lwd = 0.75) +
         geom_point(na.rm = TRUE) +
-        geom_smooth(fill = NA, method = "loess", formula = y ~ x, na.rm = TRUE) +
         expand_limits(y = 0) +
-        facet_wrap(vars(pod_summary_group), scales = "free") +
+        facet_wrap(vars(fct_rev(pod_summary_group)), scales = "free") +
         theme(legend.position = "bottom") +
         labs(title = pod_type, colour = "")
     }) %>%
