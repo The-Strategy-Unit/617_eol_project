@@ -2129,18 +2129,23 @@ cross_df(
     s <- ifelse(str_detect(name, "[Rr]ate"), 1000, 1)
     
     data %>%
-      mutate_at("last_month", ifelse, "Yes", "No") %>%
+      mutate_at("last_month",
+                ifelse,
+                "later - received in last 4 weeks",
+                "earlier - did not receive in last 4 weeks") %>%
       ggplot(aes(proximity_to_death_days, value, colour = last_month)) +
       geom_smooth(fill = NA,
                   method = "loess",
                   formula = y ~ x) +
       geom_vline(xintercept = 28, linetype = "dotted") +
       scale_x_proximity_to_death_days() +
-      scale_y_continuous(labels = comma_format(scale = s)) +
-      theme(legend.position = "bottom") +
+      scale_y_continuous(labels = comma_format(scale = s),
+                         position = "right") +
+      theme(legend.position = "bottom",
+            axis.title.y.right = element_text(margin = margin(0, 0, 0, 10))) +
       labs(x = "Proximity to death (Months)",
            y = name,
-           colour = "Had chemo in last 4 weeks of life?")
+           colour = "")
   }) %>%
   walk(plot)
 ```
