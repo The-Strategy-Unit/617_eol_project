@@ -1759,14 +1759,10 @@ activity %>%
   count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
   mutate(n = n()) %>%
   select(-bb5008_pseudo_apcs_ident_pseudo) %>%
-  # ggplot(aes(cc_los)) +
-  # geom_density() +
-  # facet_wrap(vars(group))
   ggplot(aes(group, cc_los)) +
   geom_boxplot(aes(colour = group,
                    fill = after_scale(alpha(colour, 0.4))),
                outlier.shape = NA) +
-  geom_text(aes(y = 0, label = paste("n =", n))) +
   coord_cartesian(ylim = c(0, 21)) +
   theme(legend.position = "none")
 ```
@@ -1779,14 +1775,10 @@ activity %>%
   count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
   mutate(n = n()) %>%
   select(-bb5008_pseudo_apcs_ident_pseudo) %>%
-  # ggplot(aes(cc_los)) +
-  # geom_density() +
-  # facet_wrap(vars(group))
   ggplot(aes(age_band, cc_los)) +
   geom_boxplot(aes(colour = age_band,
                    fill = after_scale(alpha(colour, 0.4))),
                outlier.shape = NA) +
-  geom_text(aes(y = 0, label = paste("n =", n))) +
   coord_cartesian(ylim = c(0, 21)) +
   theme(legend.position = "none")
 ```
@@ -1799,14 +1791,10 @@ activity %>%
   count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
   mutate(n = n()) %>%
   select(-bb5008_pseudo_apcs_ident_pseudo) %>%
-  # ggplot(aes(cc_los)) +
-  # geom_density() +
-  # facet_wrap(vars(group))
   ggplot(aes(group, cc_los)) +
   geom_boxplot(aes(colour = group,
                    fill = after_scale(alpha(colour, 0.4))),
                outlier.shape = NA) +
-  geom_text(aes(y = 0, label = paste("n =", n))) +
   coord_cartesian(ylim = c(0, 21)) +
   theme(legend.position = "none")
 ```
@@ -1821,17 +1809,15 @@ activity %>%
   count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
   mutate(n = n()) %>%
   select(-bb5008_pseudo_apcs_ident_pseudo) %>%
-  # ggplot(aes(cc_los)) +
-  # geom_density() +
-  # facet_wrap(vars(group))
   ggplot(aes(died_in_critical_care, cc_los)) +
   geom_boxplot(aes(colour = group,
                    fill = after_scale(alpha(colour, 0.4))),
                outlier.shape = NA) +
-  geom_text(aes(y = 0, label = paste("n =", n))) +
   coord_cartesian(ylim = c(0, 21)) +
   theme(legend.position = "none") +
-  facet_wrap(vars(group))
+  facet_wrap(vars(group), nrow = 1) +
+  labs(x = "Died in Critical Care?",
+       y = "Critical Care Length of Stay")
 ```
 
 
@@ -1842,14 +1828,10 @@ activity %>%
   count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
   mutate(n = n()) %>%
   select(-bb5008_pseudo_apcs_ident_pseudo) %>%
-  # ggplot(aes(cc_los)) +
-  # geom_density() +
-  # facet_wrap(vars(group))
   ggplot(aes(group, cc_los)) +
   geom_boxplot(aes(colour = group,
                    fill = after_scale(alpha(colour, 0.4))),
                outlier.shape = NA) +
-  geom_text(aes(y = 0, label = paste("n =", n))) +
   coord_cartesian(ylim = c(0, 21)) +
   theme(legend.position = "none")
 ```
@@ -1927,20 +1909,18 @@ activity %>%
   count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
   mutate(n = n()) %>%
   select(-bb5008_pseudo_apcs_ident_pseudo) %>%
-  # ggplot(aes(cc_los)) +
-  # geom_density() +
-  # facet_wrap(vars(group))
   ggplot(aes(cc_pod_summary_group, cc_los)) +
   geom_boxplot(aes(colour = group,
                    fill = after_scale(alpha(colour, 0.4))),
                outlier.shape = NA) +
-  geom_text(aes(y = 0, label = paste("n =", n))) +
   scale_x_discrete(labels = partial(str_replace,
-                                    pattern = " ",
-                                    replacement = "\n")) +
-  coord_cartesian(ylim = c(0, 21)) +
+                                    pattern = " \\w+$",
+                                    replacement = "")) +
+  coord_flip(ylim = c(0, 21)) +
   theme(legend.position = "none") +
-  facet_wrap(vars(group))
+  facet_wrap(vars(group), nrow = 1) +
+  labs (x = "Admission Method",
+        y = "Critical Care Lenght of Stay")
 ```
 
 ### Critical Care stay "Theographs"
