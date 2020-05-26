@@ -1290,23 +1290,13 @@ activity %>%
 # Inpatient Bed Days
 
 ```{r ipbd data}
-ipbd <- local({
-  tdf <- filter(activity, activity_type == "IPBDDAYS")
-
-  cross_df(list(
-    pod_summary_group = unique(tdf$pod_summary_group),
-    proximity_to_death_days = range(tdf$proximity_to_death_days) %>%
-      as.list() %>%
-      do.call(seq, .)
-  )) %>%
-    left_join(tdf %>%
-                group_by(pod_summary_group, proximity_to_death_days) %>%
-                distinct(su_pat_id) %>%
-                count(),
-              by = c("pod_summary_group", "proximity_to_death_days")) %>%
-    replace_na(list(n = 0)) %>%
-    mutate_at("pod_summary_group", as.character)
-}) %>%
+ipbd <- activity %>%
+  filter(activity_type == "IPBDDAYS") %>%
+  mutate_at("pod_summary_group", as.character) %>%
+  group_by(pod_summary_group, proximity_to_death_days) %>%
+  summarise(n = n_distinct(su_pat_id)) %>%
+  complete(pod_summary_group, proximity_to_death_days, fill = list(n = 0)) %>%
+  ungroup() %>%
   inner_join(activity %>%
                filter(activity_type == "IP") %>% 
                mutate_at("pod_summary_group", paste, "Bed Day") %>%
@@ -1686,66 +1676,48 @@ activity %>%
 ### Utilisation Rates
 
 ```{r utilisation rates, message=FALSE,  echo=FALSE, results = "none"}
-local({
-  activity_counts <- activity %>%
-    # mutate_at("pod_summary_group",
-    #           ~ifelse(pod_type == "Critical Care Bed Day", "CC", as.character(.x))) %>%
-    # mutate_at("pod_type", fct_recode, "Bed" = "Critical Care Bed Day") %>%
-    inner_join(select(mpi, su_pat_id, age),
-               by = "su_pat_id") %>%
-    mutate(activity_year = as.numeric(proximity_to_death_days >= 365)) %>%
-    mutate_at("age", ~case_when(.x > 90 ~ 90,
-                                .x < 50 ~ 50,
-                                TRUE ~ .x)) %>%
-    mutate_if(is.factor, as.character) %>%
-    count(pod_type, pod_summary_group, activity_year, age,
-          name = "activity")
-  
-  death_counts <- mpi %>%
-      mutate_at("age", ~case_when(.x > 90 ~ 90,
-                                  .x < 50 ~ 50,
-                                  TRUE ~ .x)) %>%
-      count(age, name = "deaths")
-  
-  activity_column_combinations <- list(type = activity_counts %>%
-                                         distinct(pod_type, pod_summary_group) %>%
-                                         pmap(paste, sep = "|"),
-                                       activity_year = c(0, 1),
-                                       age = 50:90) %>%
-    cross_df() %>%
-    separate(type, c("pod_type", "pod_summary_group"), sep = "\\|")
-  
-  activity_column_combinations %>%
-    left_join(inner_join(activity_counts, death_counts, by = c("age")) %>%
-                mutate(utilisation = activity/deaths),
-              by = colnames(activity_column_combinations)) %>%
-    replace_na(list(utilisation = 0,
-                    activity = 0,
-                    deaths = 0)) %>%
-    group_by(age, pod_type, pod_summary_group, activity_year) %>%
-    summarise_at(vars(activity, deaths), sum) %>%
-    mutate(utilisation = activity/deaths) %>%
-    ungroup() %>%
-    group_nest(pod_type) %>%
-    pmap(function(pod_type, data) {
-      data %>%
-        mutate_at("pod_summary_group",
-                  ~fct_reorder(.x, activity, .fun = sum)) %>%
-        mutate_at("activity_year",
-                  ifelse,
-                  "Second year period (12-24 months before death)",
-                  "First year period (0-12 months before death)") %>%
-        ggplot(aes(age, utilisation, colour = activity_year)) +
-        geom_smooth(fill = NA, method = "loess", formula = y ~ x, na.rm = TRUE,
-                    lwd = 0.75) +
-        geom_point(na.rm = TRUE) +
-        expand_limits(y = 0) +
-        facet_wrap(vars(fct_rev(pod_summary_group)), scales = "free") +
-        theme(legend.position = "bottom") +
-        labs(title = pod_type, colour = "")
-    }) %>%
-    walk(plot)
-})
+activity %>%
+  inner_join(select(mpi, su_pat_id, age),
+             by = "su_pat_id") %>%
+  mutate(activity_year = as.numeric(proximity_to_death_days >= 365)) %>%
+  mutate_at("age", ~case_when(.x > 90 ~ 90,
+                              .x < 50 ~ 50,
+                              TRUE ~ .x)) %>%
+  mutate_if(is.factor, as.character) %>%
+  count(pod_type, pod_summary_group, activity_year, age,
+        name = "activity") %>%
+  arrange(pod_type, pod_summary_group, activity_year, age) %>%
+  complete(nesting(pod_type, pod_summary_group),
+           activity_year = 0:1,
+           age = seq(50, 90),
+           fill = list(activity = 0)) %>%
+  inner_join(mpi %>%
+               mutate_at("age",
+                         ~case_when(.x > 90 ~ 90,
+                                    .x < 50 ~ 50,
+                                    TRUE ~ .x)) %>%
+               count(age, name = "deaths"),
+             by = "age") %>%
+  mutate(utilisation = activity / deaths) %>%
+  group_nest(pod_type) %>%
+  pmap(function(pod_type, data) {
+    data %>%
+      mutate_at("pod_summary_group",
+                ~fct_reorder(.x, activity, .fun = sum)) %>%
+      mutate_at("activity_year",
+                ifelse,
+                "Second year period (12-24 months before death)",
+                "First year period (0-12 months before death)") %>%
+      ggplot(aes(age, utilisation, colour = activity_year)) +
+      geom_smooth(fill = NA, method = "loess", formula = y ~ x, na.rm = TRUE,
+                  lwd = 0.75) +
+      geom_point(na.rm = TRUE) +
+      expand_limits(y = 0) +
+      facet_wrap(vars(fct_rev(pod_summary_group)), scales = "free") +
+      theme(legend.position = "bottom") +
+      labs(title = pod_type, colour = "")
+  }) %>%
+  walk(plot)
 ```
 
 # Critical Care LoS
@@ -2102,25 +2074,17 @@ tibble(proximity_to_death_days = activity %>%
 ```
 
 ```{r chemo activity split last month}
-cross_df(
-  list(proximity_to_death_days = activity %>%
-         pull(proximity_to_death_days) %>%
-         range() %>%
-         (lift_dv(seq)),
-       last_month = c(TRUE, FALSE)
-  )
-) %>%
-  filter(last_month | proximity_to_death_days > 28) %>%
-  left_join(activity %>%
-              filter(chemotherapy_indicator == 1) %>%
-              group_by(su_pat_id) %>%
-              mutate(last_month = any(proximity_to_death_days <= 28)) %>%
-              group_by(last_month) %>%
-              mutate(nd = n_distinct(su_pat_id)) %>%
-              count(proximity_to_death_days, nd) %>%
-              mutate_at("nd", ~n / nd),
-            by = c("proximity_to_death_days", "last_month")) %>%
-  modify_at(vars(nd, n), replace_na, 0) %>%
+activity %>%
+  filter(chemotherapy_indicator == 1) %>%
+  group_by(su_pat_id) %>%
+  mutate(last_month = any(proximity_to_death_days <= 28)) %>%
+  group_by(last_month) %>%
+  mutate(nd = n_distinct(su_pat_id)) %>%
+  count(proximity_to_death_days, nd) %>%
+  ungroup() %>%
+  mutate_at("nd", ~n / nd) %>%
+  complete(last_month, proximity_to_death_days, fill = list(nd = 0, n = 0)) %>%
+  filter(last_month | proximity_to_death_days > 28)  %>%
   rename("Number" = n,
          "Rate per 1,000 decedents" = nd) %>%
   pivot_longer(cols = -c("proximity_to_death_days", "last_month")) %>%
@@ -2176,23 +2140,14 @@ tibble(proximity_to_death_days = activity %>%
 
 ```{r chemo when do people have first chemo split last month}
 local({
-  df <- cross_df(
-    list(proximity_to_death_days = activity %>%
-           pull(proximity_to_death_days) %>%
-           range() %>%
-           (lift_dv(seq)),
-         last_month = c(TRUE, FALSE)
-    )
-  ) %>%
+  df <- activity %>%
+    filter(chemotherapy_indicator == 1) %>%
+    group_by(su_pat_id) %>%
+    summarise(last_month = any(proximity_to_death_days <= 28),
+              proximity_to_death_days = max(proximity_to_death_days)) %>%
+    count(proximity_to_death_days, last_month) %>%
+    complete(proximity_to_death_days, last_month, fill = list(n = 0)) %>%
     filter(last_month | proximity_to_death_days > 28) %>%
-    left_join(activity %>%
-                filter(chemotherapy_indicator == 1) %>%
-                group_by(su_pat_id) %>%
-                summarise(last_month = any(proximity_to_death_days <= 28),
-                          proximity_to_death_days = max(proximity_to_death_days)) %>%
-                count(proximity_to_death_days, last_month),
-              by = c("proximity_to_death_days", "last_month")) %>%
-    mutate_at("n", replace_na, 0) %>%
     mutate_at("last_month",
               ifelse,
               "later - received in last 4 weeks",
