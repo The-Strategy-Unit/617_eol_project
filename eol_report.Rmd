@@ -2362,3 +2362,26 @@ activity %>%
         legend.justification = c(0, 0),
         legend.background = element_blank())
 ```
+
+# Extra mekko charts
+
+```{r cc mekko - died in CC}
+mpi %>%
+  filter(group != "(Missing)") %>%
+  mutate_at("group", fct_recode, "OTI" = "Other Terminal Illness") %>%
+  drop_na(died_in_critical_care) %>%
+  mutate_at("died_in_critical_care", ~ifelse(.x == 1, "Yes", "No")) %>%
+  mekko_chart(group, died_in_critical_care)
+
+```
+
+```{r cc mekko - admission method split}
+activity %>%
+  inner_join(select(mpi, su_pat_id, group),
+             by = "su_pat_id") %>%
+  filter(group != "(Missing)",
+         pod_summary_group == "Critical Care Bed Day") %>%
+  mutate_at("group", fct_recode, "OTI" = "Other Terminal Illness") %>%
+  mutate_at("cc_pod_summary_group", str_replace, " ", "\n") %>%
+  mekko_chart(group, cc_pod_summary_group)
+```
