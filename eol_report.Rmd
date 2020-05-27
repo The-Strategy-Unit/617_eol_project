@@ -2073,13 +2073,16 @@ tibble(proximity_to_death_days = activity %>%
   geom_smooth(fill = NA,
               colour = su_theme_cols("orange"),
               method = "loess",
+              span = 0.3,
               formula = y ~ x) +
   scale_x_proximity_to_death_days() +
-  scale_y_continuous(labels = comma_format(scale = 1000)) +
+  scale_y_continuous(labels = comma_format(scale = 1000),
+                     position = "right") +
   expand_limits(y = 0) +
-  theme(legend.position = "bottom") +
+  theme(legend.position = "bottom",
+        axis.title.y.right = element_text(margin = margin(l = 10))) +
   labs(x = "Proximity to death (Months)",
-       y = "Rate per 1,000 decedents",
+       y = "Daily chemo activity\nper 1,000 decedents who had chemo",
        colour = "Had chemo in last 4 weeks of life?")
 ```
 
@@ -2096,11 +2099,11 @@ activity %>%
   complete(last_month, proximity_to_death_days, fill = list(nd = 0, n = 0)) %>%
   filter(last_month | proximity_to_death_days > 28)  %>%
   rename("Number" = n,
-         "Rate per 1,000 decedents" = nd) %>%
+         "Daily chemo activity\nper 1,000 decedents who had chemo" = nd) %>%
   pivot_longer(cols = -c("proximity_to_death_days", "last_month")) %>%
   group_nest(name) %>%
   pmap(function(name, data) {
-    s <- ifelse(str_detect(name, "[Rr]ate"), 1000, 1)
+    s <- ifelse(name != "Number", 1000, 1)
     
     data %>%
       mutate_at("last_month",
@@ -2111,12 +2114,14 @@ activity %>%
       geom_smooth(fill = NA,
                   method = "loess",
                   formula = y ~ x) +
-      geom_vline(xintercept = 28, linetype = "dotted") +
+      geom_vline(xintercept = 28, linetype = "dashed") +
       scale_x_proximity_to_death_days() +
       scale_y_continuous(labels = comma_format(scale = s),
                          position = "right") +
       theme(legend.position = "bottom",
-            axis.title.y.right = element_text(margin = margin(0, 0, 0, 10))) +
+            axis.title.y.right = element_text(margin = margin(0, 0, 0, 10)),
+            panel.grid.major = element_line(linetype = "dotted",
+                                            colour = "lightgrey")) +
       labs(x = "Proximity to death (Months)",
            y = name,
            colour = "")
@@ -2149,8 +2154,7 @@ tibble(proximity_to_death_days = activity %>%
 ```
 
 ```{r chemo when do people have first chemo split last month}
-local({
-  df <- activity %>%
+activity %>%
     filter(chemotherapy_indicator == 1) %>%
     group_by(su_pat_id) %>%
     summarise(last_month = any(proximity_to_death_days <= 28),
@@ -2168,29 +2172,10 @@ local({
     mutate(p = n / max(n)) %>%
     # there is a slight dip in the first couple of days of data - this "cleans"
     # the chart up a little
-    filter(proximity_to_death_days < 365*1.95)
-  
-  df_segments <- c(0.25, 0.50, 0.75) %>%
-    map_dfr(~ df %>%
-              filter(p >= .x) %>%
-              summarise_at("proximity_to_death_days", max) %>%
-              mutate(p = .x))
-  
-  df %>%
+    filter(proximity_to_death_days < 365*1.95) %>%
     ggplot(aes(proximity_to_death_days, p, colour = last_month)) +
-    geom_segment(data = df_segments %>%
-                   group_by(p) %>%
-                   summarise_at("proximity_to_death_days", max),
-                 aes(xend = 0, yend = p),
-                 colour = "black",
-                 linetype = "dashed",
-                 alpha = 0.4) +
-    geom_segment(data = df_segments,
-                 aes(xend = proximity_to_death_days, yend = 0),
-                 linetype = "dashed",
-                 alpha = 0.4) +
     geom_step(lwd = 1) +
-    geom_vline(xintercept = 28, linetype = "dotted") +
+    geom_vline(xintercept = 28, linetype = "dashed") +
     scale_y_continuous(labels = percent,
                        position = "right") +
     scale_x_proximity_to_death_days() +
@@ -2198,8 +2183,9 @@ local({
          y = "Cumulative % of when people had\ntheir first chemo",
          colour = "") +
     theme(legend.position = "bottom",
+          panel.grid.major = element_line(linetype = "dashed",
+                                          colour = "lightgrey"),
           axis.title.y.right = element_text(margin = margin(l = 10)))
-})
 ```
 
 ```{r chemo utilisation}
