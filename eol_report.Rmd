@@ -1082,6 +1082,38 @@ forecast_activity %>%
 # Death Comparison Charts
 
 ```{r pcnt_dot_comparison_plot}
+pcnt_bar_comparison_plot <- function(mpi, category, value, reorder = TRUE) {
+  data <- mpi %>%
+    filter({{category}} != "(Missing)",
+           !is.na({{category}})) %>%
+    modify_at(vars({{value}}), replace_na, 0) %>%
+    group_by({{category}}) %>%
+    #filter(group != "(Missing)") %>%
+    #modify_at("died_in_critical_care", replace_na, 0) %>%
+    summarise_at(vars({{value}}), mean, na.rm = TRUE)
+    
+  if (reorder) {
+    data <- mutate_at(data,
+                      vars({{category}}),
+                      fct_reorder,
+                      quo({{value}}))
+  }
+    
+  data %>%
+    ggplot(aes({{value}}, {{category}})) +
+    geom_col(colour = su_theme_cols("orange"),
+             fill = after_scale(alpha(su_theme_cols("orange"), 0.4))) +
+    scale_x_continuous(labels = percent,
+                       expand = expansion(c(0, 0.05))) +
+    scale_y_discrete(expand = expansion()) +
+    labs(x = "", y = "") +
+    theme(axis.title.y = element_blank(),
+          axis.ticks = element_blank(),
+          axis.line = element_blank(),
+          panel.grid.major.x = element_line(colour = "lightgrey",
+                                            linetype = "dotted"))  
+}
+
 pcnt_dot_comparison_plot <- function(mpi, mpi_region, category, value, reorder = TRUE) {
   data <- bind_rows(
     mutate(mpi, type = stp_name),
@@ -1134,16 +1166,28 @@ pcnt_dot_comparison_plot <- function(mpi, mpi_region, category, value, reorder =
 ```
 
 ```{r died in critical care - group}
+pcnt_bar_comparison_plot(mpi, group, died_in_critical_care) +
+  xlab("% who died in critical care")
+
 pcnt_dot_comparison_plot(mpi, mpi_region, group, died_in_critical_care) +
   ylab("% who died in critical care")
 ```
 
 ```{r died in critical care - age}
+pcnt_bar_comparison_plot(mpi, age_band, died_in_critical_care) +
+  xlab("% who died in critical care")
+
 pcnt_dot_comparison_plot(mpi, mpi_region, age_band, died_in_critical_care) +
   ylab("% who died in critical care")
 ```
 
 ```{r died in critical care - imd}
+mpi %>%
+  mutate_at("imd_quintile", factor, levels = as.character(5:1)) %>%
+  pcnt_bar_comparison_plot(imd_quintile, died_in_critical_care) +
+  scale_y_discrete(labels = c("Least Deprived","","","","Most Deprived")) +
+  ylab("% who died in critical care")
+
 local({
   mpi <- mpi %>%
     mutate_at("imd_quintile", factor, levels = as.character(5:1))
@@ -1160,6 +1204,11 @@ local({
 ```
 
 ```{r had critical care - group}
+mpi %>%
+  mutate(had_critical_care = as.numeric(!is.na(died_in_critical_care))) %>%
+  pcnt_bar_comparison_plot(group, had_critical_care) +
+  xlab("% who had critical care")
+
 local({
   mpi <- mpi %>%
     mutate(had_critical_care = as.numeric(!is.na(died_in_critical_care)))
@@ -1173,6 +1222,11 @@ local({
 ```
 
 ```{r had critical care - age}
+mpi %>%
+  mutate(had_critical_care = as.numeric(!is.na(died_in_critical_care))) %>%
+  pcnt_bar_comparison_plot(age_band, had_critical_care) +
+  xlab("% who had critical care")
+
 local({
   mpi <- mpi %>%
     mutate(had_critical_care = as.numeric(!is.na(died_in_critical_care)))
@@ -1186,6 +1240,11 @@ local({
 ```
 
 ```{r percentage lives alone}
+mpi %>%
+  drop_na(lives_alone) %>%
+  pcnt_bar_comparison_plot(group, lives_alone) +
+  xlab("% who lived alone")
+
 pcnt_dot_comparison_plot(drop_na(mpi, lives_alone),
                          drop_na(mpi_region, lives_alone),
                          group,
@@ -1194,6 +1253,11 @@ pcnt_dot_comparison_plot(drop_na(mpi, lives_alone),
 ```
 
 ```{r percentage carer support}
+mpi %>%
+  mutate_at("carer_support", ~.x == "01") %>%
+  pcnt_bar_comparison_plot(group, carer_support) +
+  ylab("% who had carer support")
+
 pcnt_dot_comparison_plot(mpi %>%
                            mutate_at("carer_support", ~.x == "01"),
                          mpi_region %>%
