@@ -2435,6 +2435,34 @@ activity %>%
                                           linetype = "dotted"))
 ```
 
+```{r chemo in last month of life binomial ci plot by age band}
+
+activity %>%
+  filter(chemotherapy_indicator == 1) %>%
+  inner_join(select(mpi, su_pat_id, age_band), by = "su_pat_id") %>%
+  mutate(last_month = ifelse(proximity_to_death_days <= 28, su_pat_id, NA)) %>%
+  group_by(age_band) %>%
+  summarise(d = n_distinct(su_pat_id),
+            n = n_distinct(last_month, na.rm = TRUE)) %>%
+  mutate(ci = map2(n, d, compose(as_tibble, BinomCI))) %>%
+  unnest(ci) %>%
+  mutate(mean_est = sum(n) / sum(d)) %>%
+  ggplot(aes(fct_rev(age_band), est)) +
+  geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci),
+                colour = su_theme_cols("orange")) +
+  geom_point(colour = su_theme_cols("orange"),
+             fill = after_scale(alpha(su_theme_cols("orange"), 0.4))) +
+  geom_hline(aes(yintercept = mean_est),
+             linetype = "dashed") +
+  coord_flip() +
+  scale_y_continuous(labels = percent) +
+  labs(x = "", y = "% of patients who have chemo in last month before death") +
+  theme(axis.line.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid.major.x = element_line(colour = "lightgrey",
+                                          linetype = "dotted"))
+```
+
 # Extra mekko charts
 
 ```{r cc mekko - died in CC}
