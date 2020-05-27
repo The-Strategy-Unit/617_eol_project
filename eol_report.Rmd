@@ -2155,37 +2155,37 @@ tibble(proximity_to_death_days = activity %>%
 
 ```{r chemo when do people have first chemo split last month}
 activity %>%
-    filter(chemotherapy_indicator == 1) %>%
-    group_by(su_pat_id) %>%
-    summarise(last_month = any(proximity_to_death_days <= 28),
-              proximity_to_death_days = max(proximity_to_death_days)) %>%
-    count(proximity_to_death_days, last_month) %>%
-    complete(proximity_to_death_days, last_month, fill = list(n = 0)) %>%
-    filter(last_month | proximity_to_death_days > 28) %>%
-    mutate_at("last_month",
-              ifelse,
-              "later - received in last 4 weeks",
-              "earlier - did not receive in last 4 weeks") %>%
-    group_by(last_month) %>%
-    arrange(desc(proximity_to_death_days)) %>%
-    mutate_at("n", cumsum) %>%
-    mutate(p = n / max(n)) %>%
-    # there is a slight dip in the first couple of days of data - this "cleans"
-    # the chart up a little
-    filter(proximity_to_death_days < 365*1.95) %>%
-    ggplot(aes(proximity_to_death_days, p, colour = last_month)) +
-    geom_step(lwd = 1) +
-    geom_vline(xintercept = 28, linetype = "dashed") +
-    scale_y_continuous(labels = percent,
-                       position = "right") +
-    scale_x_proximity_to_death_days() +
-    labs(x = "Proximity to death (Months)",
-         y = "Cumulative % of when people had\ntheir first chemo",
-         colour = "") +
-    theme(legend.position = "bottom",
-          panel.grid.major = element_line(linetype = "dashed",
-                                          colour = "lightgrey"),
-          axis.title.y.right = element_text(margin = margin(l = 10)))
+  filter(chemotherapy_indicator == 1) %>%
+  group_by(su_pat_id) %>%
+  summarise(last_month = any(proximity_to_death_days <= 28),
+            proximity_to_death_days = max(proximity_to_death_days)) %>%
+  count(proximity_to_death_days, last_month) %>%
+  complete(proximity_to_death_days, last_month, fill = list(n = 0)) %>%
+  filter(last_month | proximity_to_death_days > 28) %>%
+  mutate_at("last_month",
+            ifelse,
+            "later - received in last 4 weeks",
+            "earlier - did not receive in last 4 weeks") %>%
+  group_by(last_month) %>%
+  arrange(desc(proximity_to_death_days)) %>%
+  mutate_at("n", cumsum) %>%
+  mutate(p = n / max(n)) %>%
+  # there is a slight dip in the first couple of days of data - this "cleans"
+  # the chart up a little
+  filter(proximity_to_death_days < 365*1.95) %>%
+  ggplot(aes(proximity_to_death_days, p, colour = last_month)) +
+  geom_step(lwd = 1) +
+  geom_vline(xintercept = 28, linetype = "dashed") +
+  scale_y_continuous(labels = percent,
+                     position = "right") +
+  scale_x_proximity_to_death_days() +
+  labs(x = "Proximity to death (Months)",
+       y = "Cumulative % of when people had\ntheir first chemo",
+       colour = "") +
+  theme(legend.position = "bottom",
+        panel.grid.major = element_line(linetype = "dashed",
+                                        colour = "lightgrey"),
+        axis.title.y.right = element_text(margin = margin(l = 10)))
 ```
 
 ```{r chemo utilisation}
