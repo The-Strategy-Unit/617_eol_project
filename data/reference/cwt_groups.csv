@@ -1,0 +1,91 @@
+icd10,cancer_site
+C00,Head & Neck
+C01,Head & Neck
+C02,Head & Neck
+C03,Head & Neck
+C04,Head & Neck
+C05,Head & Neck
+C06,Head & Neck
+C07,Head & Neck
+C08,Head & Neck
+C09,Head & Neck
+C10,Head & Neck
+C11,Head & Neck
+C12,Head & Neck
+C13,Head & Neck
+C14,Head & Neck
+C15,Upper Gastrointestinal
+C16,Upper Gastrointestinal
+C18,Lower Gastrointestinal
+C19,Lower Gastrointestinal
+C20,Lower Gastrointestinal
+C21,Lower Gastrointestinal
+C22,Hepatobiliary 
+C23,Hepatobiliary 
+C24,Hepatobiliary 
+C25,Pancreatic
+C26,Lower Gastrointestinal
+C30,Head & Neck
+C31,Head & Neck
+C32,Head & Neck
+C33,Lung
+C34,Lung
+C37,Lung
+C38,Lung
+C39,Lung
+C40,Sarcoma  
+C41,Sarcoma  
+C43,Skin
+C44,Skin
+C45,Lung
+C46,Sarcoma  
+C47,Brain/Central Nervous System
+C48,Sarcoma  
+C49,Sarcoma  
+C50,Breast
+C51,Gynaecological
+C52,Gynaecological
+C53,Gynaecological
+C54,Gynaecological
+C55,Gynaecological
+C56,Gynaecological
+C57,Gynaecological
+C58,Gynaecological
+C60,Urological (Excluding Testicular and Prostate)
+C61,Prostate
+C62,Testicular
+C63,Urological (Excluding Testicular and Prostate)
+C64,Urological (Excluding Testicular and Prostate)
+C65,Urological (Excluding Testicular and Prostate)
+C66,Urological (Excluding Testicular and Prostate)
+C67,Urological (Excluding Testicular and Prostate)
+C68,Urological (Excluding Testicular and Prostate)
+C69,Brain/Central Nervous System
+C70,Brain/Central Nervous System
+C71,Brain/Central Nervous System
+C72,Brain/Central Nervous System
+C73,Thyroid
+C74,Urological (Excluding Testicular and Prostate)
+C75,Other
+C76,Other
+C77,Metastatic disease of unknown primary
+C770,Head & Neck
+C78,Metastatic disease of unknown primary
+C79,Metastatic disease of unknown primary
+C80,Metastatic disease of unknown primary
+C81,Haematological (Excluding Acute Leukaemia)
+C82,Haematological (Excluding Acute Leukaemia)
+C83,Haematological (Excluding Acute Leukaemia)
+C84,Haematological (Excluding Acute Leukaemia)
+C85,Haematological (Excluding Acute Leukaemia)
+C86,Haematological (Excluding Acute Leukaemia)
+C88,Haematological (Excluding Acute Leukaemia)
+C90,Haematological (Excluding Acute Leukaemia)
+C91,Haematological (Excluding Acute Leukaemia)
+C92,Haematological (Excluding Acute Leukaemia)
+C93,Haematological (Excluding Acute Leukaemia)
+C94,Haematological (Excluding Acute Leukaemia)
+C95,Haematological (Excluding Acute Leukaemia)
+C96,Haematological (Excluding Acute Leukaemia)
+C97,Haematological (Excluding Acute Leukaemia)
+D05,Breast

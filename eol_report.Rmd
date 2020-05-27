@@ -2388,6 +2388,53 @@ activity %>%
         legend.background = element_blank())
 ```
 
+```{r chemo in last month of life binomial ci plot}
+cwt_groups <- file.path("data","reference","cwt_groups.csv") %>%
+  read_csv(col_types = "cc")
+
+activity %>%
+  filter(chemotherapy_indicator == 1) %>%
+  inner_join(select(mpi, su_pat_id, primary_cod), by = "su_pat_id") %>%
+  mutate_at("primary_cod", ~ifelse(.x == "C770", .x, str_sub(.x, 1, 3))) %>%
+  #left_join(cwt_groups, by = c("primary_cod" = "icd10")) %>%
+  #mutate_at("cancer_site", replace_na, "Non-Cancer") %>%
+  inner_join(cwt_groups, by = c("primary_cod" = "icd10")) %>%
+  mutate(last_month = ifelse(proximity_to_death_days <= 28, su_pat_id, NA)) %>%
+  mutate_at("cancer_site",
+            fct_relevel,
+            unique(cwt_groups$cancer_site)) %>% #,
+  #"Non-Cancer") %>%
+  mutate_at("cancer_site",
+            fct_recode,
+            "Haematological" = "Haematological (Excluding Acute Leukaemia)",
+            "Urological (Excluding Prostate)" =
+              "Urological (Excluding Testicular and Prostate)",
+            "Urological (Excluding Prostate)" =
+              "Testicular",
+            "Head & Neck" = "Thyroid",
+            "Metastatic disease of unknown primary" = "Other") %>%
+  group_by(cancer_site) %>%
+  summarise(d = n_distinct(su_pat_id),
+            n = n_distinct(last_month, na.rm = TRUE)) %>%
+  mutate(ci = map2(n, d, compose(as_tibble, BinomCI))) %>%
+  unnest(ci) %>%
+  mutate(mean_est = sum(n) / sum(d)) %>%
+  ggplot(aes(fct_rev(cancer_site), est)) +
+  geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci),
+                colour = su_theme_cols("orange")) +
+  geom_point(colour = su_theme_cols("orange"),
+             fill = after_scale(alpha(su_theme_cols("orange"), 0.4))) +
+  geom_hline(aes(yintercept = mean_est),
+             linetype = "dashed") +
+  coord_flip() +
+  scale_y_continuous(labels = percent) +
+  labs(x = "", y = "% of patients who have chemo in last month before death") +
+  theme(axis.line.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid.major.x = element_line(colour = "lightgrey",
+                                          linetype = "dotted"))
+```
+
 # Extra mekko charts
 
 ```{r cc mekko - died in CC}
