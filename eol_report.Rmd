@@ -2388,7 +2388,7 @@ activity %>%
         legend.background = element_blank())
 ```
 
-```{r chemo in last month of life binomial ci plot}
+```{r chemo in last month of life binomial ci plot by cwt site}
 cwt_groups <- file.path("data","reference","cwt_groups.csv") %>%
   read_csv(col_types = "cc")
 
