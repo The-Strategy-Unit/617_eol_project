@@ -1735,8 +1735,11 @@ activity %>%
   geom_boxplot(aes(colour = group,
                    fill = after_scale(alpha(colour, 0.4))),
                outlier.shape = NA) +
-  coord_cartesian(ylim = c(0, 21)) +
-  theme(legend.position = "none")
+  scale_y_continuous(breaks = seq(0,30,3)) +
+  coord_flip(ylim = c(0, 18)) +
+  theme(legend.position = "none",
+        axis.title.x = element_blank()) +
+  labs(x = "", y = "Critical Care Bed Days")
 ```
 
 ```{r critical care LoS boxplot age}
@@ -1747,12 +1750,14 @@ activity %>%
   count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
   mutate(n = n()) %>%
   select(-bb5008_pseudo_apcs_ident_pseudo) %>%
-  ggplot(aes(age_band, cc_los)) +
+  ggplot(aes(fct_rev(age_band), cc_los)) +
   geom_boxplot(aes(colour = age_band,
                    fill = after_scale(alpha(colour, 0.4))),
                outlier.shape = NA) +
-  coord_cartesian(ylim = c(0, 21)) +
-  theme(legend.position = "none")
+  scale_y_continuous(breaks = seq(0,30,3)) +
+  coord_flip(ylim = c(0, 18)) +
+  theme(legend.position = "none") +
+  labs(x = "", y = "Critical Care Bed Days")
 ```
 
 ```{r critical care LoS boxplot died}
@@ -1767,8 +1772,10 @@ activity %>%
   geom_boxplot(aes(colour = group,
                    fill = after_scale(alpha(colour, 0.4))),
                outlier.shape = NA) +
-  coord_cartesian(ylim = c(0, 21)) +
-  theme(legend.position = "none")
+  scale_y_continuous(breaks = seq(0,30,3)) +
+  coord_flip(ylim = c(0, 18)) +
+  theme(legend.position = "none") +
+  labs(x = "Died in Critical Care?", y = "Critical Care Bed Days")
 ```
 
 ```{r critical care LoS boxplot died cod}
@@ -1785,9 +1792,10 @@ activity %>%
   geom_boxplot(aes(colour = group,
                    fill = after_scale(alpha(colour, 0.4))),
                outlier.shape = NA) +
-  coord_cartesian(ylim = c(0, 21)) +
+  scale_y_continuous(breaks = seq(0,30,3)) +
+  coord_flip(ylim = c(0, 18)) +
   theme(legend.position = "none") +
-  facet_wrap(vars(group), nrow = 1) +
+  facet_wrap(vars(group), ncol = 1) +
   labs(x = "Died in Critical Care?",
        y = "Critical Care Length of Stay")
 ```
@@ -1804,7 +1812,8 @@ activity %>%
   geom_boxplot(aes(colour = group,
                    fill = after_scale(alpha(colour, 0.4))),
                outlier.shape = NA) +
-  coord_cartesian(ylim = c(0, 21)) +
+  scale_y_continuous(breaks = seq(0,30,3)) +
+  coord_flip(ylim = c(0, 18)) +
   theme(legend.position = "none")
 ```
 
@@ -1885,14 +1894,15 @@ activity %>%
   geom_boxplot(aes(colour = group,
                    fill = after_scale(alpha(colour, 0.4))),
                outlier.shape = NA) +
-  scale_x_discrete(labels = partial(str_replace,
-                                    pattern = " \\w+$",
-                                    replacement = "")) +
-  coord_flip(ylim = c(0, 21)) +
-  theme(legend.position = "none") +
-  facet_wrap(vars(group), nrow = 1) +
-  labs (x = "Admission Method",
-        y = "Critical Care Lenght of Stay")
+  scale_x_discrete(labels = compose(str_to_upper,
+                                    partial(str_sub, start = 1, end = 2))) +
+  scale_y_continuous(breaks = seq(0,30,3)) +
+  coord_flip(ylim = c(0, 18)) +
+  theme(legend.position = "none",
+        axis.title.y = element_text(margin = margin(r = 10))) +
+  facet_wrap(vars(group), ncol = 1) +
+  labs (x = "Admission Method (EL=Elective, EM=Emergency)",
+        y = "Critical Care Bed Days")
 ```
 
 ### Critical Care stay "Theographs"
