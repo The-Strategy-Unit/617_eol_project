@@ -765,6 +765,16 @@ p <- bind_rows(
   mutate_at("pod_type",
             fct_relevel,
             c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
+  mutate_at("pod_summary_group", ~ifelse(pod_type == "Critical Care Bed Day",
+                                         paste0("Critical Care (",
+                                                word(cc_pod_summary_group, 1),
+                                                ")"),
+                                         as.character(pod_summary_group))) %>%
+  mutate_at("pod_summary_group",
+            fct_relevel,
+            levels(activity$pod_summary_group),
+            "Critical Care (Emergency)",
+            "Critical Care (Elective)") %>%
   group_by(type, pod_type, pod_summary_group, su_pat_id) %>%
   summarise(n = sign(n())) %>%
   summarise_at("n", sum) %>%
