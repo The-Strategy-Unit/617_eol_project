@@ -1871,7 +1871,7 @@ activity %>%
   theme(legend.position = "none") +
   facet_wrap(vars(group), ncol = 1) +
   labs(x = "Died in Critical Care?",
-       y = "Critical Care Length of Stay")
+       y = "Critical Care Bed Days")
 ```
 
 
@@ -1888,7 +1888,10 @@ activity %>%
                outlier.shape = NA) +
   scale_y_continuous(breaks = seq(0,30,3)) +
   coord_flip(ylim = c(0, 18)) +
-  theme(legend.position = "none")
+  theme(legend.position = "none",
+        axis.title.y = element_blank()) +
+  labs(y = "Critical Care Bed Days",
+       x = "")
 ```
 
 ```{r critical care LoS boxplot age line}
@@ -1916,7 +1919,7 @@ activity %>%
              linetype = "dashed") +
   geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci)) +
   geom_point() +
-  labs(x = "", y = "Mean Length of Stay in Critical Care")
+  labs(x = "", y = "Mean Critical Care Bed Days")
 ```
 
 ```{r critical care LoS boxplot age line by cod, message = FALSE, echo = FALSE, results = "none"}
@@ -1949,7 +1952,7 @@ activity %>%
                  linetype = "dashed") +
       geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci), na.rm = TRUE) +
       geom_point(na.rm = TRUE) +
-      labs(title = group, x = "", y = "Mean Length of Stay in Critical Care") +
+      labs(title = group, x = "", y = "Mean Critical Care Bed Days") +
       theme(legend.position = "none")
   }) %>%
   walk(plot)
