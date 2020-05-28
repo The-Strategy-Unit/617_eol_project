@@ -97,7 +97,12 @@ activity_costs %<>%
            summarise_at("cost", sum) %>% 
            filter((cost / sum(cost)) <= 0.01) %>% 
            pull(ss_flag) %>% 
-           as.character()))
+           as.character())) %>%
+   mutate_at("pod_type",
+            fct_recode,
+            "Critical Care" = "CC",
+            "Other" = "Unknown",
+            "Other" = "(Missing)")
 ```
 
 # Costing
@@ -313,11 +318,6 @@ activity_costs %>%
 ```{r}
 activity_costs %>%
   filter(!pod_type %in% c("Bed", "Critical Care")) %>%
-  mutate_at("pod_type",
-            fct_recode,
-            "Critical Care" = "CC",
-            "Other" = "Unknown",
-            "Other" = "(Missing)") %>%
   group_by(pod_type) %>%
   summarise(n  = n_distinct(su_pat_id),
             ss = n_distinct(ifelse(ss_flag == "Spec. Services",
@@ -372,11 +372,6 @@ ss_cum_spend <- activity_costs %>%
   filter(ss_flag == "Spec. Services",
          pod_type != "Bed",
          proximity_to_death_days > 0) %>%
-  mutate_at("pod_type",
-            fct_recode,
-            "Critical Care" = "CC",
-            "Other" = "Unknown",
-            "Other" = "(Missing)") %>%
   group_by(pod_type, proximity_to_death_days) %>%
   summarise_at("cost", sum)
 
@@ -428,11 +423,6 @@ the right.
 
 ```{r}
 df <- activity_costs %>%
-  mutate_at("pod_type",
-            fct_recode,
-            "Critical Care" = "CC",
-            "Other" = "Unknown",
-            "Other" = "(Missing)") %>%
   filter(ss_flag %in% c("Spec. Services", "CCG"),
          pod_type != "Bed")
 
