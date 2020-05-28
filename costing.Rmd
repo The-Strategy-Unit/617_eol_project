@@ -390,6 +390,38 @@ ss_cum_spend %>%
   facet_wrap(vars(pod_type), scales = "free")
 ```
 
+## cumulative percentage spend
+
+```{r}
+activity_costs %>%
+  filter(ss_flag == "Spec. Services",
+         pod_type != "Bed") %>%
+  group_by(proximity_to_death_days) %>%
+  summarise_at("cost", sum) %>%
+  arrange(-proximity_to_death_days) %>%
+  mutate_at("cost", cumsum) %>%
+  mutate_at("cost", ~.x / max(.x)) %>%
+  ggplot(aes(proximity_to_death_days, cost)) +
+  geom_step() +
+  geom_abline(slope = 1/(365*2), intercept = 1, colour = "lightgrey") +
+  geom_polygon(data = tibble(x = c(Inf, 729, 0, 0,   Inf, Inf),
+                             y = c(0,   0,   1, Inf, Inf, 0)),
+               aes(x, y),
+               colour = NA,
+               fill = "white") +
+  scale_x_proximity_to_death_days(expand = expansion(c(0.02, 0)),
+                                  months_every = 3) +
+  scale_y_continuous(labels = percent, expand = expansion(),
+                     breaks = seq(0, 1, 0.25),
+                     position = "right") +
+  theme(panel.grid = element_line(linetype = "dotted",
+                                  colour = "lightgrey"),
+        axis.title.y.right = element_text(margin = margin(l = 10))) +
+  labs(x = "Proximity to Death (Months)",
+       y = "Cumulative Percentage of Spend")
+```
+
+
 [//]: <> (URL's / References --------------------------------------------------)
 [su_email]: mailto:Strategy.Unit@nhs.net
 [su_web]: https://www.strategyunitwm.nhs.uk/
