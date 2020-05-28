@@ -2418,21 +2418,27 @@ activity %>%
             n = n_distinct(last_month, na.rm = TRUE)) %>%
   mutate(ci = map2(n, d, compose(as_tibble, BinomCI))) %>%
   unnest(ci) %>%
-  mutate(mean_est = sum(n) / sum(d)) %>%
-  ggplot(aes(fct_rev(cancer_site), est)) +
-  geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci),
-                colour = su_theme_cols("orange")) +
-  geom_point(colour = su_theme_cols("orange"),
-             fill = after_scale(alpha(su_theme_cols("orange"), 0.4))) +
+  mutate(mean_est = sum(n) / sum(d),
+         colour = case_when(
+           upr.ci < mean_est ~ "orange",
+           lwr.ci > mean_est ~ "red",
+           TRUE ~ "charcoal"
+         )) %>%
+  mutate_at("cancer_site", fct_reorder, quo(-est)) %>%
+  ggplot(aes(fct_rev(cancer_site), est, colour = colour)) +
+  geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci)) +
+  geom_point(aes(fill = after_scale(alpha(colour, 0.4)))) +
   geom_hline(aes(yintercept = mean_est),
              linetype = "dashed") +
   coord_flip() +
+  scale_colour_manual(values = su_theme_cols()) +
   scale_y_continuous(labels = percent) +
   labs(x = "", y = "% of patients who have chemo in last month before death") +
   theme(axis.line.y = element_blank(),
         axis.ticks.y = element_blank(),
         panel.grid.major.x = element_line(colour = "lightgrey",
-                                          linetype = "dotted"))
+                                          linetype = "dotted"),
+        legend.position = "none")
 ```
 
 ```{r chemo in last month of life binomial ci plot by age band}
@@ -2446,21 +2452,26 @@ activity %>%
             n = n_distinct(last_month, na.rm = TRUE)) %>%
   mutate(ci = map2(n, d, compose(as_tibble, BinomCI))) %>%
   unnest(ci) %>%
-  mutate(mean_est = sum(n) / sum(d)) %>%
-  ggplot(aes(fct_rev(age_band), est)) +
-  geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci),
-                colour = su_theme_cols("orange")) +
-  geom_point(colour = su_theme_cols("orange"),
-             fill = after_scale(alpha(su_theme_cols("orange"), 0.4))) +
+  mutate(mean_est = sum(n) / sum(d),
+         colour = case_when(
+           upr.ci < mean_est ~ "orange",
+           lwr.ci > mean_est ~ "red",
+           TRUE ~ "charcoal"
+         )) %>%
+  ggplot(aes(fct_rev(age_band), est, colour = colour)) +
+  geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci)) +
+  geom_point(aes(fill = after_scale(alpha(colour, 0.4)))) +
   geom_hline(aes(yintercept = mean_est),
              linetype = "dashed") +
   coord_flip() +
+  scale_colour_manual(values = su_theme_cols()) +
   scale_y_continuous(labels = percent) +
   labs(x = "", y = "% of patients who have chemo in last month before death") +
   theme(axis.line.y = element_blank(),
         axis.ticks.y = element_blank(),
         panel.grid.major.x = element_line(colour = "lightgrey",
-                                          linetype = "dotted"))
+                                          linetype = "dotted"),
+        legend.position = "none")
 ```
 
 # Extra mekko charts
