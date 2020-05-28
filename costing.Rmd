@@ -5,6 +5,7 @@ output:
   StrategyUnitTheme::su_document: default
 params:
   stp: "E54000016"
+  region_report: false
 ---
 
 ```{r setup, include=FALSE}
@@ -20,7 +21,7 @@ if (!knitr::is_latex_output()) {
 # all setup should happen in setup.R that could be shared logic between files
 invisible(local({
   source("setup.R")
-  load_data(params$stp)
+  load_data(params$stp, params$region_report)
 }))
 
 activity_costs <- file.path("data", "sensitive", "activity_costs.fst") %>%
