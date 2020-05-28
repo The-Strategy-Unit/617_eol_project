@@ -421,6 +421,54 @@ activity_costs %>%
        y = "Cumulative Percentage of Spend")
 ```
 
+# % of spend by % of patients
+
+ordered such that highest "cost" patients are at the left, lowest "cost" are on
+the right.
+
+```{r}
+df <- activity_costs %>%
+  mutate_at("pod_type",
+            fct_recode,
+            "Critical Care" = "CC",
+            "Other" = "Unknown",
+            "Other" = "(Missing)") %>%
+  filter(ss_flag %in% c("Spec. Services", "CCG"),
+         pod_type != "Bed")
+
+
+list(
+  data = list(group_by(df, ss_flag, su_pat_id),
+              group_by(df, ss_flag, pod_type, su_pat_id)),
+  facet = list(NULL,
+               facet_wrap(vars(pod_type), scales = "free_x"))
+) %>%
+  pmap(function(data, facet) {
+    data %>%
+      summarise_at("cost", sum) %>%
+      complete(su_pat_id = mpi$su_pat_id, fill = list(cost = 0)) %>%
+      arrange(desc(cost)) %>%
+      mutate(cumcost = cumsum(cost)) %>%
+      mutate_at("cumcost", ~.x / max(.x)) %>%
+      mutate(row = row_number() / n()) %>%
+      filter(cost > 0) %>%
+      ggplot(aes(row, cumcost, colour = ss_flag)) +
+      geom_step() +
+      scale_x_continuous(labels = percent) +
+      scale_y_continuous(labels = percent) +
+      labs(x = "% of All Patients",
+           y = "% of Spend",
+           colour = "") +
+      theme(panel.grid = element_line(linetype = "dotted",
+                                      colour = "lightgrey"),
+            legend.position = c(1, 0),
+            legend.justification = c(1, 0),
+            legend.background = element_blank(),
+            legend.key = element_blank()) +
+      facet
+  }) %>%
+  walk(plot)
+```
 
 [//]: <> (URL's / References --------------------------------------------------)
 [su_email]: mailto:Strategy.Unit@nhs.net
