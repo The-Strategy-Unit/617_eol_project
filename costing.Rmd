@@ -307,6 +307,44 @@ activity_costs %>%
   })
 ```
 
+# Specialised Services access
+
+```{r}
+activity_costs %>%
+  filter(!pod_type %in% c("Bed", "Critical Care")) %>%
+  mutate_at("pod_type",
+            fct_recode,
+            "Critical Care" = "CC",
+            "Other" = "Unknown",
+            "Other" = "(Missing)") %>%
+  group_by(pod_type) %>%
+  summarise(n  = n_distinct(su_pat_id),
+            ss = n_distinct(ifelse(ss_flag == "Spec. Services",
+                                   su_pat_id,
+                                   NA),
+                            na.rm = TRUE)) %>%
+  mutate_at(vars(-pod_type), `/`, nrow(mpi)) %>%
+  mutate(n = n - ss) %>%
+  pivot_longer(-pod_type) %>%
+  filter(value > 0) %>%
+  mutate(label = percent(value)) %>%
+  #mutate(label = ifelse(name == "ss", percent(value), NA)) %>%
+  ggplot(aes(pod_type, value)) +
+  geom_col(aes(colour = name, fill = after_scale(alpha(colour, 0.4))),
+           position = "stack") +
+  scale_x_discrete(labels = partial(str_wrap, width = 10)) +
+  scale_y_continuous(labels = percent,
+                     expand = expansion(c(0, 0.05))) +
+  geom_text(aes(label = label, group = name),
+            position = "stack",
+            na.rm = TRUE,
+            vjust = -0.5,
+            size = 3) +
+  labs(x = "", y = "") +
+  theme(axis.title = element_blank(),
+        legend.position = "none")
+```
+
 [//]: <> (URL's / References --------------------------------------------------)
 [su_email]: mailto:Strategy.Unit@nhs.net
 [su_web]: https://www.strategyunitwm.nhs.uk/
