@@ -168,6 +168,7 @@ activity_costs %>%
         axis.ticks = element_blank(),
         axis.title = element_blank())
 ```
+
 #### Average spend per pod type for decedents who had that type of activity
 
 ```{r}
@@ -182,6 +183,7 @@ activity_costs %>%
   ggplot(aes(cost, pod_type, colour = fct_rev(simple_ss_flag))) +
   geom_col(aes(fill = after_scale(alpha(colour, 0.4))),
            position = "dodge") +
+  scale_colour_discrete(guide = guide_legend(reverse = TRUE)) +
   scale_x_continuous(labels = comma_format(prefix = "£")) +
   scale_y_discrete(expand = expansion()) +
   labs(x = "", y = "", colour = "") +
