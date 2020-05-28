@@ -51,41 +51,41 @@ C55,Gynaecological
 C56,Gynaecological
 C57,Gynaecological
 C58,Gynaecological
-C60,Urological (Excluding Testicular and Prostate)
+C60,Urological (Excluding Prostate)
 C61,Prostate
-C62,Testicular
-C63,Urological (Excluding Testicular and Prostate)
-C64,Urological (Excluding Testicular and Prostate)
-C65,Urological (Excluding Testicular and Prostate)
-C66,Urological (Excluding Testicular and Prostate)
-C67,Urological (Excluding Testicular and Prostate)
-C68,Urological (Excluding Testicular and Prostate)
+C62,Urological (Excluding Prostate)
+C63,Urological (Excluding Prostate)
+C64,Urological (Excluding Prostate)
+C65,Urological (Excluding Prostate)
+C66,Urological (Excluding Prostate)
+C67,Urological (Excluding Prostate)
+C68,Urological (Excluding Prostate)
 C69,Brain/Central Nervous System
 C70,Brain/Central Nervous System
 C71,Brain/Central Nervous System
 C72,Brain/Central Nervous System
-C73,Thyroid
-C74,Urological (Excluding Testicular and Prostate)
-C75,Other
-C76,Other
+C73,Head & Neck
+C74,Urological (Excluding Prostate)
+C75,Metastatic disease of unknown primary
+C76,Metastatic disease of unknown primary
 C77,Metastatic disease of unknown primary
 C770,Head & Neck
 C78,Metastatic disease of unknown primary
 C79,Metastatic disease of unknown primary
 C80,Metastatic disease of unknown primary
-C81,Haematological (Excluding Acute Leukaemia)
-C82,Haematological (Excluding Acute Leukaemia)
-C83,Haematological (Excluding Acute Leukaemia)
-C84,Haematological (Excluding Acute Leukaemia)
-C85,Haematological (Excluding Acute Leukaemia)
-C86,Haematological (Excluding Acute Leukaemia)
-C88,Haematological (Excluding Acute Leukaemia)
-C90,Haematological (Excluding Acute Leukaemia)
-C91,Haematological (Excluding Acute Leukaemia)
-C92,Haematological (Excluding Acute Leukaemia)
-C93,Haematological (Excluding Acute Leukaemia)
-C94,Haematological (Excluding Acute Leukaemia)
-C95,Haematological (Excluding Acute Leukaemia)
-C96,Haematological (Excluding Acute Leukaemia)
-C97,Haematological (Excluding Acute Leukaemia)
+C81,Haematological
+C82,Haematological
+C83,Haematological
+C84,Haematological
+C85,Haematological
+C86,Haematological
+C88,Haematological
+C90,Haematological
+C91,Haematological
+C92,Haematological
+C93,Haematological
+C94,Haematological
+C95,Haematological
+C96,Haematological
+C97,Haematological
 D05,Breast
