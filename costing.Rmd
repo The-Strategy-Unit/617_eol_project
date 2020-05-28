@@ -156,8 +156,8 @@ activity_costs %>%
   group_by(pod_type, simple_ss_flag) %>%
   summarise_at("cost", sum) %>%
   mutate(avg_cost = cost / nrow(mpi)) %>%
-  mutate_at("simple_ss_flag", fct_reorder, quo(avg_cost)) %>%
-  ggplot(aes(avg_cost, pod_type, colour = simple_ss_flag)) +
+  mutate_at("simple_ss_flag", fct_relevel, "CCG", "Spec. Services", "Other") %>%
+  ggplot(aes(avg_cost, pod_type, colour = fct_rev(simple_ss_flag))) +
   geom_col(aes(fill = after_scale(alpha(colour, 0.4)))) +
   scale_colour_discrete(guide = guide_legend(reverse = TRUE)) +
   scale_x_continuous(labels = comma_format(prefix = "£")) +
@@ -168,6 +168,31 @@ activity_costs %>%
         axis.ticks = element_blank(),
         axis.title = element_blank())
 ```
+#### Average spend per pod type for decedents who had that type of activity
+
+```{r}
+activity_costs %>%
+  filter(pod_type != "Bed") %>%
+  group_by(simple_ss_flag, pod_type, su_pat_id) %>%
+  summarise_at("cost", sum) %>%
+  summarise_at("cost", mean) %>%
+  ungroup() %>%
+  mutate_at("simple_ss_flag", fct_relevel, "CCG", "Spec. Services", "Other") %>%
+  complete(pod_type, simple_ss_flag) %>%
+  ggplot(aes(cost, pod_type, colour = fct_rev(simple_ss_flag))) +
+  geom_col(aes(fill = after_scale(alpha(colour, 0.4))),
+           position = "dodge") +
+  scale_x_continuous(labels = comma_format(prefix = "£")) +
+  scale_y_discrete(expand = expansion()) +
+  labs(x = "", y = "", colour = "") +
+  theme(legend.position = "bottom",
+        axis.line = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title = element_blank())
+```
+
+note: it's not valid to add these bars up, as each bar is the average for that
+`pod_type` for patients who had that type of activity
 
 #### Average spend per pod type per activity
 
