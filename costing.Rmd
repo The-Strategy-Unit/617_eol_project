@@ -346,6 +346,50 @@ activity_costs %>%
         legend.position = "none")
 ```
 
+# Specialised services spend
+
+```{r}
+ss_cum_spend_plot <- function(df) {
+  df %>%
+    arrange(-proximity_to_death_days) %>%
+    mutate_at("cost", cumsum) %>%
+
+    ggplot(aes(proximity_to_death_days, cost)) +
+    geom_step() +
+    scale_x_proximity_to_death_days() +
+    scale_y_continuous(labels = number_format(prefix = "£",
+                                              suffix = "m",
+                                              scale = 1e-6),
+                       position = "right") +
+    theme(panel.grid.major = element_line(linetype = "dashed",
+                                          colour = "lightgrey"),
+          axis.title.y.right = element_text(margin = margin(l = 10))) +
+    labs(x = "Proximity to Death (Months)",
+         y = "Cumulative Spend")
+}
+
+ss_cum_spend <- activity_costs %>%
+  filter(ss_flag == "Spec. Services",
+         pod_type != "Bed",
+         proximity_to_death_days > 0) %>%
+  mutate_at("pod_type",
+            fct_recode,
+            "Critical Care" = "CC",
+            "Other" = "Unknown",
+            "Other" = "(Missing)") %>%
+  group_by(pod_type, proximity_to_death_days) %>%
+  summarise_at("cost", sum)
+
+ss_cum_spend %>%
+  group_by(proximity_to_death_days) %>%
+  summarise_at("cost", sum) %>%
+  ss_cum_spend_plot()
+
+ss_cum_spend %>%
+  ss_cum_spend_plot() +
+  facet_wrap(vars(pod_type), scales = "free")
+```
+
 [//]: <> (URL's / References --------------------------------------------------)
 [su_email]: mailto:Strategy.Unit@nhs.net
 [su_web]: https://www.strategyunitwm.nhs.uk/
