@@ -100,5 +100,13 @@ setup_env$load_data <- function(stp, region_report = FALSE) {
     read_csv(col_types = "ncncn") %>%
     filter(stp == ifelse({{region_report}}, "Region", {{stp}}))
 
+  if (region_report) {
+    env$mpi <- env$mpi_region
+    env$activity <- env$activity_region
+
+    env$stp_name <- env$region_name
+    env$region_name <- "NA"
+  }
+
   env
 }

@@ -32,14 +32,6 @@ invisible(local({
   source("setup.R")
   load_data(params$stp, params$region_report)
 }))
-
-if (params$region_report == TRUE) {
-  mpi <- mpi_region
-  activity <- activity_region
-  
-  stp_name <- region_name
-  region_name <- "NA"
-}
 ```
 
 This report is about the people in `r stp_name` STP who died between April 2018
