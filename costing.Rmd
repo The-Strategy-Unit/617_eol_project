@@ -370,8 +370,16 @@ activity_costs %>%
 # All spend
 
 ```{r}
-all_spend_plot <- function(df) {
-  df %>%
+spend_plot <- function(data) {
+  if (length(groups(data)) > 0) {
+    facet <- facet_wrap(groups(data)[[1]], scales = "free")
+  } else {
+    facet <- NULL
+  }
+    
+  data %>%
+    group_by(proximity_to_death_days, add = TRUE) %>%
+    summarise_at("cost", sum) %>%
     ggplot(aes(proximity_to_death_days, cost)) +
     geom_line(colour = su_theme_cols("charcoal"),
               lwd = 1) +
@@ -380,66 +388,47 @@ all_spend_plot <- function(df) {
                                               suffix = "m",
                                               scale = 1e-6),
                        position = "right") +
-    theme(panel.grid.major = element_line(linetype = "dashed",
-                                          colour = "lightgrey"),
-          axis.title.y.right = element_text(margin = margin(l = 10))) +
+    theme(axis.title.y.right = element_text(margin = margin(l = 10))) +
     labs(x = "Proximity to Death (Months)",
-         y = "Spend")
+         y = "Spend") +
+    facet
 }
 
-all_spend <- activity_costs %>%
+activity_costs %>%
   filter(pod_type != "Bed") %>%
-  group_by(pod_type, proximity_to_death_days) %>%
-  summarise_at("cost", sum)
-
-all_spend %>%
-  group_by(proximity_to_death_days) %>%
-  summarise_at("cost", sum) %>%
-  all_spend_plot()
-
-all_spend %>%
-  all_spend_plot() +
-  facet_wrap(vars(pod_type), scales = "free")
+  list(., group_by(., pod_type)) %>%
+  map(spend_plot) %>%
+  walk(plot)
 ```
 # Specialised services spend
 
 ```{r}
-ss_spend <- activity_costs %>%
+activity_costs %>%
   filter(ss_flag == "Spec. Services", pod_type != "Bed") %>%
-  group_by(pod_type, proximity_to_death_days) %>%
-  summarise_at("cost", sum)
-
-ss_spend %>%
-  group_by(proximity_to_death_days) %>%
-  summarise_at("cost", sum) %>%
-  all_spend_plot()
-
-ss_spend %>%
-  all_spend_plot() +
-  facet_wrap(vars(pod_type), scales = "free")
+  list(., group_by(., pod_type)) %>%
+  map(spend_plot) %>%
+  walk(plot)
 ```
 # Daily % split of Specialised Services to All Spend
 
 ```{r}
-inner_join(
-  all_spend %>%
-    group_by(proximity_to_death_days) %>%
-    summarise_at("cost", sum) %>%
-    rename("all" = "cost"),
-  ss_spend %>%
-    group_by(proximity_to_death_days) %>%
-    summarise_at("cost", sum) %>%
-    rename("spec_services" = "cost"),
-  by = "proximity_to_death_days"
-) %>%
-  mutate(percent = spec_services/all) %>%
+
+activity_costs %>%
+  group_by(proximity_to_death_days, ss_flag) %>%
+  summarise_at("cost", sum) %>%
+  summarise(all = sum(cost),
+            spec_services = ifelse(ss_flag == "Spec. Services",
+                                   cost,
+                                   0) %>% sum(),
+            percent = spec_services/all) %>%
   ggplot(aes(proximity_to_death_days, percent)) +
   geom_point(colour = su_theme_cols("orange"),
              fill = after_scale(alpha(su_theme_cols("orange"), 0.4)),
              shape = "circle filled") +
-  scale_x_proximity_to_death_days() +
+  scale_x_proximity_to_death_days(months_every = 3) +
   scale_y_continuous(labels = percent,
-                     position = "right") +
+                     position = "right",
+                     breaks = seq(0, 1, 0.1)) +
   expand_limits(y = 0) +
   theme(panel.grid.major = element_line(linetype = "dashed",
                                         colour = "lightgrey"),
