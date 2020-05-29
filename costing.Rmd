@@ -367,16 +367,14 @@ activity_costs %>%
         legend.position = "none")
 ```
 
-# Specialised services spend
+# All spend
 
 ```{r}
-ss_cum_spend_plot <- function(df) {
+all_spend_plot <- function(df) {
   df %>%
-    arrange(-proximity_to_death_days) %>%
-    mutate_at("cost", cumsum) %>%
-
     ggplot(aes(proximity_to_death_days, cost)) +
-    geom_step() +
+    geom_line(colour = su_theme_cols("charcoal"),
+              lwd = 1) +
     scale_x_proximity_to_death_days() +
     scale_y_continuous(labels = number_format(prefix = "£",
                                               suffix = "m",
@@ -386,24 +384,68 @@ ss_cum_spend_plot <- function(df) {
                                           colour = "lightgrey"),
           axis.title.y.right = element_text(margin = margin(l = 10))) +
     labs(x = "Proximity to Death (Months)",
-         y = "Cumulative Spend")
+         y = "Spend")
 }
 
-ss_cum_spend <- activity_costs %>%
-  filter(ss_flag == "Spec. Services",
-         pod_type != "Bed",
-         proximity_to_death_days > 0) %>%
+all_spend <- activity_costs %>%
+  filter(pod_type != "Bed") %>%
   group_by(pod_type, proximity_to_death_days) %>%
   summarise_at("cost", sum)
 
-ss_cum_spend %>%
+all_spend %>%
   group_by(proximity_to_death_days) %>%
   summarise_at("cost", sum) %>%
-  ss_cum_spend_plot()
+  all_spend_plot()
 
-ss_cum_spend %>%
-  ss_cum_spend_plot() +
+all_spend %>%
+  all_spend_plot() +
   facet_wrap(vars(pod_type), scales = "free")
+```
+# Specialised services spend
+
+```{r}
+ss_spend <- activity_costs %>%
+  filter(ss_flag == "Spec. Services", pod_type != "Bed") %>%
+  group_by(pod_type, proximity_to_death_days) %>%
+  summarise_at("cost", sum)
+
+ss_spend %>%
+  group_by(proximity_to_death_days) %>%
+  summarise_at("cost", sum) %>%
+  all_spend_plot()
+
+ss_spend %>%
+  all_spend_plot() +
+  facet_wrap(vars(pod_type), scales = "free")
+```
+# Daily % split of Specialised Services to All Spend
+
+```{r}
+inner_join(
+  all_spend %>%
+    group_by(proximity_to_death_days) %>%
+    summarise_at("cost", sum) %>%
+    rename("all" = "cost"),
+  ss_spend %>%
+    group_by(proximity_to_death_days) %>%
+    summarise_at("cost", sum) %>%
+    rename("spec_services" = "cost"),
+  by = "proximity_to_death_days"
+) %>%
+  mutate(percent = spec_services/all) %>%
+  ggplot(aes(proximity_to_death_days, percent)) +
+  geom_point(colour = su_theme_cols("orange"),
+             fill = after_scale(alpha(su_theme_cols("orange"), 0.4)),
+             shape = "circle filled") +
+  scale_x_proximity_to_death_days() +
+  scale_y_continuous(labels = percent,
+                     position = "right") +
+  expand_limits(y = 0) +
+  theme(panel.grid.major = element_line(linetype = "dashed",
+                                        colour = "lightgrey"),
+        axis.title.y.right = element_text(margin = margin(l = 10))) +
+  labs(x = "Proximity to Death (Months)",
+       y = "% of Spend that is Specialised Services")
 ```
 
 ## cumulative percentage spend
