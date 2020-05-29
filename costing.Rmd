@@ -482,7 +482,6 @@ df <- activity_costs %>%
   filter(ss_flag %in% c("Spec. Services", "CCG"),
          pod_type != "Bed")
 
-
 list(
   data = list(group_by(df, ss_flag, su_pat_id),
               group_by(df, ss_flag, pod_type, su_pat_id)),
@@ -500,8 +499,8 @@ list(
       filter(cost > 0) %>%
       ggplot(aes(row, cumcost, colour = ss_flag)) +
       geom_step() +
-      scale_x_continuous(labels = percent) +
-      scale_y_continuous(labels = percent) +
+      scale_x_continuous(labels = percent, n.breaks = 5) +
+      scale_y_continuous(labels = percent, n.breaks = 5) +
       labs(x = "% of All Patients",
            y = "% of Spend",
            colour = "") +
