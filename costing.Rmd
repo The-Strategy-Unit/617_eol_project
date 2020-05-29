@@ -338,7 +338,7 @@ activity_costs %>%
 
 ```{r}
 activity_costs %>%
-  filter(!pod_type %in% c("Bed", "Critical Care")) %>%
+  filter(!pod_type %in% c("Bed")) %>%
   group_by(pod_type) %>%
   summarise(n  = n_distinct(su_pat_id),
             ss = n_distinct(ifelse(ss_flag == "Spec. Services",
@@ -349,14 +349,14 @@ activity_costs %>%
   mutate(n = n - ss) %>%
   pivot_longer(-pod_type) %>%
   filter(value > 0) %>%
-  mutate(label = percent(value)) %>%
-  #mutate(label = ifelse(name == "ss", percent(value), NA)) %>%
+  mutate(label = ifelse(name == "ss", percent(value, accuracy = 1), NA)) %>%
   ggplot(aes(pod_type, value)) +
   geom_col(aes(colour = name, fill = after_scale(alpha(colour, 0.4))),
            position = "stack") +
   scale_x_discrete(labels = partial(str_wrap, width = 10)) +
   scale_y_continuous(labels = percent,
                      expand = expansion(c(0, 0.05))) +
+  coord_cartesian(ylim = c(0, 1)) +
   geom_text(aes(label = label, group = name),
             position = "stack",
             na.rm = TRUE,
