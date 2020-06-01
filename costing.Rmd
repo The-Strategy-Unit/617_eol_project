@@ -117,7 +117,11 @@ activity_costs %>%
   mutate_at("simple_ss_flag", fct_reorder, quo(avg_cost)) %>%
   ggplot(aes(avg_cost, "", colour = simple_ss_flag)) +
   geom_col(aes(fill = after_scale(alpha(colour, 0.4)))) +
-  scale_colour_discrete(guide = guide_legend(reverse = TRUE)) +
+  scale_colour_manual(values = c(
+    "CCG" = su_theme_cols("red")[[1]],
+    "Spec. Services" = su_theme_cols("orange")[[1]],
+    "Other" = su_theme_cols("charcoal")[[1]]
+  ), guide = guide_legend(reverse = TRUE)) +
   scale_x_continuous(labels = comma_format(prefix = "£")) +
   scale_y_discrete(expand = expansion()) +
   labs(x = "", y = "", colour = "") +
@@ -139,7 +143,11 @@ activity_costs %>%
   mutate_at("simple_ss_flag", fct_reorder, quo(avg_cost)) %>%
   ggplot(aes(avg_cost, fct_rev(group), colour = simple_ss_flag)) +
   geom_col(aes(fill = after_scale(alpha(colour, 0.4)))) +
-  scale_colour_discrete(guide = guide_legend(reverse = TRUE)) +
+  scale_colour_manual(values = c(
+    "CCG" = su_theme_cols("red")[[1]],
+    "Spec. Services" = su_theme_cols("orange")[[1]],
+    "Other" = su_theme_cols("charcoal")[[1]]
+  ), guide = guide_legend(reverse = TRUE)) +
   scale_x_continuous(labels = comma_format(prefix = "£")) +
   scale_y_discrete(expand = expansion()) +
   labs(x = "", y = "", colour = "") +
@@ -159,7 +167,11 @@ activity_costs %>%
   mutate_at("simple_ss_flag", fct_relevel, "CCG", "Spec. Services", "Other") %>%
   ggplot(aes(avg_cost, pod_type, colour = fct_rev(simple_ss_flag))) +
   geom_col(aes(fill = after_scale(alpha(colour, 0.4)))) +
-  scale_colour_discrete(guide = guide_legend(reverse = TRUE)) +
+  scale_colour_manual(values = c(
+    "CCG" = su_theme_cols("red")[[1]],
+    "Spec. Services" = su_theme_cols("orange")[[1]],
+    "Other" = su_theme_cols("charcoal")[[1]]
+  ), guide = guide_legend(reverse = TRUE)) +
   scale_x_continuous(labels = comma_format(prefix = "£")) +
   scale_y_discrete(expand = expansion()) +
   labs(x = "", y = "", colour = "") +
