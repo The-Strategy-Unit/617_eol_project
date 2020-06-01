@@ -185,17 +185,22 @@ activity_costs %>%
 
 ```{r}
 activity_costs %>%
-  filter(pod_type != "Bed") %>%
   group_by(simple_ss_flag, pod_type, su_pat_id) %>%
+  filter(cost > 0) %>%
   summarise_at("cost", sum) %>%
   summarise_at("cost", mean) %>%
   ungroup() %>%
   mutate_at("simple_ss_flag", fct_relevel, "CCG", "Spec. Services", "Other") %>%
   complete(pod_type, simple_ss_flag) %>%
-  ggplot(aes(cost, pod_type, colour = fct_rev(simple_ss_flag))) +
+  filter(pod_type != "Bed", simple_ss_flag != "Other") %>%
+  ggplot(aes(cost, fct_rev(pod_type), colour = fct_rev(simple_ss_flag))) +
   geom_col(aes(fill = after_scale(alpha(colour, 0.4))),
            position = "dodge") +
-  scale_colour_discrete(guide = guide_legend(reverse = TRUE)) +
+  scale_colour_manual(values = c(
+    "CCG" = su_theme_cols("red")[[1]],
+    "Spec. Services" = su_theme_cols("orange")[[1]],
+    "Other" = su_theme_cols("charcoal")[[1]]
+  ), guide = guide_legend(reverse = TRUE)) +
   scale_x_continuous(labels = comma_format(prefix = "£")) +
   scale_y_discrete(expand = expansion()) +
   labs(x = "", y = "", colour = "") +
