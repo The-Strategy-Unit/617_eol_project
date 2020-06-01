@@ -998,6 +998,11 @@ forecast_deaths %>%
        y = "") +
   scale_x_continuous(breaks = seq(2020, 2040, 5),
                      expand = expansion(c(0.10, 0.15))) +
+  scale_colour_manual(values = su_theme_cols("slate",
+                                             "orange",
+                                             "charcoal",
+                                             "blue",
+                                             "red") %>% unname()) +
   scale_y_continuous(labels = comma) +
   theme(legend.position = "bottom",
         legend.key = element_blank())
@@ -1031,7 +1036,8 @@ forecast_activity %>%
                    geom  = "text") +
       scale_y_continuous(labels = scales::comma_format(scale = .001),
                          expand = expansion(c(0, 0.15))) +
-      scale_fill_discrete(guide = guide_legend(reverse = TRUE)) +
+      scale_fill_discrete(guide = guide_legend(reverse = TRUE),
+                          reverse = TRUE) +
       labs(fill = "",
            y = "Activity (1,000's)",
            title = pod_type) +
