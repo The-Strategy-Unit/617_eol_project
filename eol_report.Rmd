@@ -2488,3 +2488,69 @@ activity %>%
   mutate_at("cc_pod_summary_group", str_replace, " ", "\n") %>%
   mekko_chart(group, cc_pod_summary_group)
 ```
+
+# Ambulance Arrivals
+
+```{r AandE arrival volumes}
+activity_ambulance %>%
+  count(proximity_to_death_days, arrival_mode) %>%
+  complete(proximity_to_death_days = seq(1, 729),
+           arrival_mode,
+           fill = list(n = 0)) %>%
+  ggplot(aes(proximity_to_death_days, n, colour = arrival_mode)) +
+  geom_smooth(method = "loess",
+              formula = y ~ x,
+              span = 0.2,
+              fill = NA) +
+  scale_x_proximity_to_death_days() +
+  expand_limits(y = 0) +
+  labs(x = "Proximity to death (months)",
+       y = "Number of A&E arrivals",
+       colour = "") +
+  theme(legend.position = c(0.02, 1),
+        legend.justification = c(0, 1),
+        legend.key = element_blank(),
+        legend.title = element_blank())
+```
+
+```{r Ambulance pcnt by cod group}
+activity_ambulance %>%
+  group_by(arrival_mode, proximity_to_death_days, group) %>%
+  summarise_at("n", sum) %>%
+  ungroup() %>%
+  complete(proximity_to_death_days =
+             seq(min(activity_ambulance$proximity_to_death_days),
+                 max(activity_ambulance$proximity_to_death_days)),
+           arrival_mode,
+           group,
+           fill = list(n = 0)) %>%
+  pivot_wider(names_from = arrival_mode, values_from = n) %>%
+  mutate(total = ambulance + other,
+         ci = map2(ambulance, total, compose(as_tibble, BinomCI))) %>%
+  filter(group != "(Missing)") %>%
+  group_by(group) %>%
+  mutate(line_label = ifelse(proximity_to_death_days == max(proximity_to_death_days),
+                             as.character(group),
+                             NA)) %>%
+  ungroup() %>%
+  unnest(cols = c(ci)) %>%
+  ggplot(aes(proximity_to_death_days, est, colour = group)) +
+  # geom_point(size = 1, alpha = 0.4) +
+  geom_smooth(method = "loess",
+              formula = y ~ x,
+              span = 0.2,
+              fill = NA) +
+  scale_x_proximity_to_death_days() +
+  scale_y_continuous(labels = percent_format(accuracy = 1),
+                     position = "right") +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(x = "Proximity to death (months)",
+       y = "% of A&E arrivals by Ambulance",
+       colour = "") +
+  #facet_wrap(vars(group), ncol = 1) +
+  theme(legend.position = c(0, 0),
+        legend.justification = c(0, 0),
+        legend.direction = "horizontal",
+        legend.key = element_blank(),
+        axis.title.y.right = element_text(margin = margin(l = 10)))
+```
