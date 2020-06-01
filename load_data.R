@@ -2,7 +2,7 @@ if (!exists("setup_env")) {
   stop("must be called from within setup.R")
 }
 
-setup_env$load_data <- function(stp) {
+setup_env$load_data <- function(stp, region_report = FALSE) {
   env <- global_env()
 
   # figure out what region the selected stp is a part of, as well as the other
@@ -85,20 +85,45 @@ setup_env$load_data <- function(stp) {
                                      "forecast_activity.fst") %>%
     read_fst() %>%
     as_tibble() %>%
-    filter(stp == {{stp}})
+    filter(stp == ifelse({{region_report}}, "Region", {{stp}}))
 
   env$historical_deaths <- file.path("data",
                                      "sensitive",
                                      "historical_deaths.fst") %>%
     read_fst() %>%
     as_tibble() %>%
-    filter(stp == {{stp}})
+    filter(stp == ifelse({{region_report}}, "Region", {{stp}}))
 
   env$forecast_deaths <- file.path("data",
                                    "reference",
                                    "forecast_deaths.csv") %>%
     read_csv(col_types = "ncncn") %>%
-    filter(age_group >= 18, stp == {{stp}})
+    filter(stp == ifelse({{region_report}}, "Region", {{stp}}))
+
+  if (region_report) {
+    env$mpi <- env$mpi_region
+    env$activity <- env$activity_region
+
+    env$stp_name <- env$region_name
+    env$region_name <- "NA"
+  }
+
+  env$activity_ambulance <- file.path("data",
+                                      "sensitive",
+                                      "activity_ambulance.fst") %>%
+    read_fst() %>%
+    as_tibble() %>%
+    filter((region_report & stp18cd %in% region$stp18cd) |
+             stp18cd == stp) %>%
+    select(-stp18cd) %>%
+    group_by_at(vars(-n)) %>%
+    summarise_at("n", sum) %>%
+    ungroup() %>%
+    mutate_at("arrival_mode", ~ifelse(.x == "1", "ambulance", NA) %>%
+                replace_na("other")) %>%
+    rename(group = cause_group_ll) %>%
+    mutate_at("group", fct_explicit_na) %>%
+    mutate_at("group", fct_relevel, levels(mpi$group))
 
   env
 }

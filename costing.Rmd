@@ -5,6 +5,7 @@ output:
   StrategyUnitTheme::su_document: default
 params:
   stp: "E54000016"
+  region_report: true
 ---
 
 ```{r setup, include=FALSE}
@@ -20,7 +21,7 @@ if (!knitr::is_latex_output()) {
 # all setup should happen in setup.R that could be shared logic between files
 invisible(local({
   source("setup.R")
-  load_data(params$stp)
+  load_data(params$stp, params$region_report)
 }))
 
 activity_costs <- file.path("data", "sensitive", "activity_costs.fst") %>%
@@ -96,7 +97,12 @@ activity_costs %<>%
            summarise_at("cost", sum) %>% 
            filter((cost / sum(cost)) <= 0.01) %>% 
            pull(ss_flag) %>% 
-           as.character()))
+           as.character())) %>%
+   mutate_at("pod_type",
+            fct_recode,
+            "Critical Care" = "CC",
+            "Other" = "Unknown",
+            "Other" = "(Missing)")
 ```
 
 # Costing
@@ -111,7 +117,11 @@ activity_costs %>%
   mutate_at("simple_ss_flag", fct_reorder, quo(avg_cost)) %>%
   ggplot(aes(avg_cost, "", colour = simple_ss_flag)) +
   geom_col(aes(fill = after_scale(alpha(colour, 0.4)))) +
-  scale_colour_discrete(guide = guide_legend(reverse = TRUE)) +
+  scale_colour_manual(values = c(
+    "CCG" = su_theme_cols("red")[[1]],
+    "Spec. Services" = su_theme_cols("orange")[[1]],
+    "Other" = su_theme_cols("charcoal")[[1]]
+  ), guide = guide_legend(reverse = TRUE)) +
   scale_x_continuous(labels = comma_format(prefix = "£")) +
   scale_y_discrete(expand = expansion()) +
   labs(x = "", y = "", colour = "") +
@@ -133,7 +143,11 @@ activity_costs %>%
   mutate_at("simple_ss_flag", fct_reorder, quo(avg_cost)) %>%
   ggplot(aes(avg_cost, fct_rev(group), colour = simple_ss_flag)) +
   geom_col(aes(fill = after_scale(alpha(colour, 0.4)))) +
-  scale_colour_discrete(guide = guide_legend(reverse = TRUE)) +
+  scale_colour_manual(values = c(
+    "CCG" = su_theme_cols("red")[[1]],
+    "Spec. Services" = su_theme_cols("orange")[[1]],
+    "Other" = su_theme_cols("charcoal")[[1]]
+  ), guide = guide_legend(reverse = TRUE)) +
   scale_x_continuous(labels = comma_format(prefix = "£")) +
   scale_y_discrete(expand = expansion()) +
   labs(x = "", y = "", colour = "") +
@@ -150,10 +164,14 @@ activity_costs %>%
   group_by(pod_type, simple_ss_flag) %>%
   summarise_at("cost", sum) %>%
   mutate(avg_cost = cost / nrow(mpi)) %>%
-  mutate_at("simple_ss_flag", fct_reorder, quo(avg_cost)) %>%
-  ggplot(aes(avg_cost, pod_type, colour = simple_ss_flag)) +
+  mutate_at("simple_ss_flag", fct_relevel, "CCG", "Spec. Services", "Other") %>%
+  ggplot(aes(avg_cost, pod_type, colour = fct_rev(simple_ss_flag))) +
   geom_col(aes(fill = after_scale(alpha(colour, 0.4)))) +
-  scale_colour_discrete(guide = guide_legend(reverse = TRUE)) +
+  scale_colour_manual(values = c(
+    "CCG" = su_theme_cols("red")[[1]],
+    "Spec. Services" = su_theme_cols("orange")[[1]],
+    "Other" = su_theme_cols("charcoal")[[1]]
+  ), guide = guide_legend(reverse = TRUE)) +
   scale_x_continuous(labels = comma_format(prefix = "£")) +
   scale_y_discrete(expand = expansion()) +
   labs(x = "", y = "", colour = "") +
@@ -162,6 +180,38 @@ activity_costs %>%
         axis.ticks = element_blank(),
         axis.title = element_blank())
 ```
+
+#### Average spend per pod type for decedents who had that type of activity
+
+```{r}
+activity_costs %>%
+  group_by(simple_ss_flag, pod_type, su_pat_id) %>%
+  filter(cost > 0) %>%
+  summarise_at("cost", sum) %>%
+  summarise_at("cost", mean) %>%
+  ungroup() %>%
+  mutate_at("simple_ss_flag", fct_relevel, "CCG", "Spec. Services", "Other") %>%
+  complete(pod_type, simple_ss_flag) %>%
+  filter(pod_type != "Bed", simple_ss_flag != "Other") %>%
+  ggplot(aes(cost, fct_rev(pod_type), colour = fct_rev(simple_ss_flag))) +
+  geom_col(aes(fill = after_scale(alpha(colour, 0.4))),
+           position = "dodge") +
+  scale_colour_manual(values = c(
+    "CCG" = su_theme_cols("red")[[1]],
+    "Spec. Services" = su_theme_cols("orange")[[1]],
+    "Other" = su_theme_cols("charcoal")[[1]]
+  ), guide = guide_legend(reverse = TRUE)) +
+  scale_x_continuous(labels = comma_format(prefix = "£")) +
+  scale_y_discrete(expand = expansion()) +
+  labs(x = "", y = "", colour = "") +
+  theme(legend.position = "bottom",
+        axis.line = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title = element_blank())
+```
+
+note: it's not valid to add these bars up, as each bar is the average for that
+`pod_type` for patients who had that type of activity
 
 #### Average spend per pod type per activity
 
@@ -189,12 +239,6 @@ activity_costs %>%
 ```{r, fig.height = 9}
 p <- activity_costs %>%
   filter(cost > 0) %>%
-  # mutate_at("pod_summary_group", paste0, "\n", quo(simple_ss_flag)) %>%
-  # group_by(pod_type) %>%
-  # mutate(n_pt = n()) %>%
-  # group_by(pod_summary_group, add = TRUE) %>%
-  # mutate(n_psg = n()) %>%
-  # filter(n_psg > 1000 | (n_psg/n_pt) > 0.01) %>%
   ggplot(aes(cost, pod_summary_group, colour = simple_ss_flag)) +
   geom_density_ridges(aes(fill = after_scale(alpha(colour, 0.4)))) +
   facet_wrap(vars(pod_type), scales = "free") +
@@ -257,6 +301,226 @@ local({
     })
 }) %>%
   walk(quietly(print))
+```
+
+# Specialised Services spend per person
+
+$$
+\frac{\Sigma(\textrm{cost of spec. services by pod_type/day})}
+{\textrm{number of decedents in stp}}
+$$
+
+includes all decedents, whether they had Spec. Services or not.
+
+```{r}
+
+activity_costs %>%
+  filter(ss_flag == "Spec. Services",
+         !pod_type %in% c("CC", "Bed")) %>%
+  mutate_at("pod_type",
+            fct_recode,
+            "Device + Drug" = "Device",
+            "Device + Drug" = "Drug") %>%
+  group_by(pod_type, proximity_to_death_days) %>%
+  summarise_at("cost", sum) %>% {
+    .x <- .
+    list(pod_type = unique(.x$pod_type),
+         proximity_to_death_days = range(.x$proximity_to_death_days) %>%
+           (lift_dv(seq))) %>%
+      cross_df() %>%
+      left_join(.x, by = c("pod_type", "proximity_to_death_days"))
+  } %>%
+  modify_at("cost", replace_na, 0) %>%
+  mutate_at("cost", `/`, nrow(mpi)) %>%
+  group_nest(pod_type) %>%
+  pmap(function(pod_type, data) {
+    data %>%
+      ggplot(aes(proximity_to_death_days, cost)) +
+      geom_smooth(span = 0.15,
+                  formula = y ~ x,
+                  method = "loess",
+                  fill = NA,
+                  colour = after_scale(alpha(su_theme_cols()[["orange"]], 0.4))) +
+      geom_point(size = 0.2,
+                 shape = "circle filled",
+                 colour = su_theme_cols()[["orange"]],
+                 fill = after_scale(alpha(su_theme_cols()[["orange"]], 0.4))) +
+      scale_x_proximity_to_death_days() +
+      scale_y_continuous(labels = comma_format(prefix = "£")) +
+      labs(x = "", y = "", title = pod_type)
+  })
+```
+
+# Specialised Services access
+
+```{r}
+activity_costs %>%
+  filter(!pod_type %in% c("Bed")) %>%
+  group_by(pod_type) %>%
+  summarise(n  = n_distinct(su_pat_id),
+            ss = n_distinct(ifelse(ss_flag == "Spec. Services",
+                                   su_pat_id,
+                                   NA),
+                            na.rm = TRUE)) %>%
+  mutate_at(vars(-pod_type), `/`, nrow(mpi)) %>%
+  mutate(n = n - ss) %>%
+  pivot_longer(-pod_type) %>%
+  filter(value > 0) %>%
+  mutate(label = ifelse(name == "ss", percent(value, accuracy = 1), NA)) %>%
+  ggplot(aes(pod_type, value)) +
+  geom_col(aes(colour = name, fill = after_scale(alpha(colour, 0.4))),
+           position = "stack") +
+  scale_x_discrete(labels = partial(str_wrap, width = 10)) +
+  scale_y_continuous(labels = percent,
+                     expand = expansion(c(0, 0.05))) +
+  coord_cartesian(ylim = c(0, 1)) +
+  geom_text(aes(label = label, group = name),
+            position = "stack",
+            na.rm = TRUE,
+            vjust = -0.5,
+            size = 3) +
+  labs(x = "", y = "") +
+  theme(axis.title = element_blank(),
+        legend.position = "none")
+```
+
+# All spend
+
+```{r}
+spend_plot <- function(data) {
+  if (length(groups(data)) > 0) {
+    facet <- facet_wrap(groups(data)[[1]], scales = "free")
+  } else {
+    facet <- NULL
+  }
+    
+  data %>%
+    group_by(proximity_to_death_days, add = TRUE) %>%
+    summarise_at("cost", sum) %>%
+    ggplot(aes(proximity_to_death_days, cost)) +
+    geom_line(colour = su_theme_cols("charcoal"),
+              lwd = 1) +
+    scale_x_proximity_to_death_days() +
+    scale_y_continuous(labels = number_format(prefix = "£",
+                                              suffix = "m",
+                                              scale = 1e-6),
+                       position = "right") +
+    theme(axis.title.y.right = element_text(margin = margin(l = 10))) +
+    labs(x = "Proximity to Death (Months)",
+         y = "Spend") +
+    facet
+}
+
+activity_costs %>%
+  filter(pod_type != "Bed") %>%
+  list(., group_by(., pod_type)) %>%
+  map(spend_plot) %>%
+  walk(plot)
+```
+# Specialised services spend
+
+```{r}
+activity_costs %>%
+  filter(ss_flag == "Spec. Services", pod_type != "Bed") %>%
+  list(., group_by(., pod_type)) %>%
+  map(spend_plot) %>%
+  walk(plot)
+```
+# Daily % split of Specialised Services to All Spend
+
+```{r}
+
+activity_costs %>%
+  group_by(proximity_to_death_days, ss_flag) %>%
+  summarise_at("cost", sum) %>%
+  summarise(all = sum(cost),
+            spec_services = ifelse(ss_flag == "Spec. Services",
+                                   cost,
+                                   0) %>% sum(),
+            percent = spec_services/all) %>%
+  ggplot(aes(proximity_to_death_days, percent)) +
+  geom_point(colour = su_theme_cols("orange"),
+             fill = after_scale(alpha(su_theme_cols("orange"), 0.4)),
+             shape = "circle filled") +
+  scale_x_proximity_to_death_days(months_every = 3) +
+  scale_y_continuous(labels = percent,
+                     position = "right",
+                     breaks = seq(0, 1, 0.1)) +
+  expand_limits(y = 0) +
+  theme(panel.grid.major = element_line(linetype = "dashed",
+                                        colour = "lightgrey"),
+        axis.title.y.right = element_text(margin = margin(l = 10))) +
+  labs(x = "Proximity to Death (Months)",
+       y = "% of Spend that is Specialised Services")
+```
+
+## cumulative percentage spend
+
+```{r}
+activity_costs %>%
+  filter(pod_type != "Bed") %>%
+  group_by(proximity_to_death_days) %>%
+  summarise_at("cost", sum) %>%
+  arrange(-proximity_to_death_days) %>%
+  mutate_at("cost", cumsum) %>%
+  mutate_at("cost", ~.x / max(.x)) %>%
+  ggplot(aes(proximity_to_death_days, cost)) +
+  geom_step() +
+  scale_x_proximity_to_death_days(expand = expansion(c(0.02, 0)),
+                                  minor_breaks = seq(0, 2*365, 365/12),
+                                  months_every = 3) +
+  scale_y_continuous(labels = percent,
+                     expand = expansion(),
+                     breaks = seq(0, 1, 0.2),
+                     position = "right") +
+  theme(panel.grid = element_line(linetype = "dashed",
+                                  colour = "lightgrey"),
+        axis.title.y.right = element_text(margin = margin(l = 10))) +
+  labs(x = "Proximity to Death (Months)",
+       y = "Cumulative Percentage of Spend")
+```
+
+# % of spend by % of patients
+
+ordered such that highest "cost" patients are at the left, lowest "cost" are on
+the right.
+
+```{r}
+df <- activity_costs %>%
+  filter(ss_flag %in% c("Spec. Services", "CCG"),
+         pod_type != "Bed")
+
+list(
+  data = list(group_by(df, ss_flag, su_pat_id),
+              group_by(df, ss_flag, pod_type, su_pat_id)),
+  facet = list(NULL,
+               facet_wrap(vars(pod_type), scales = "free_x"))
+) %>%
+  pmap(function(data, facet) {
+    data %>%
+      summarise_at("cost", sum) %>%
+      complete(su_pat_id = mpi$su_pat_id, fill = list(cost = 0)) %>%
+      arrange(desc(cost)) %>%
+      mutate(cumcost = cumsum(cost)) %>%
+      mutate_at("cumcost", ~.x / max(.x)) %>%
+      mutate(row = row_number() / n()) %>%
+      filter(cost > 0) %>%
+      ggplot(aes(row, cumcost, colour = ss_flag)) +
+      geom_step() +
+      scale_x_continuous(labels = percent, n.breaks = 5) +
+      scale_y_continuous(labels = percent, n.breaks = 5) +
+      labs(x = "% of All Patients",
+           y = "% of Spend",
+           colour = "") +
+      theme(panel.grid = element_line(linetype = "dotted",
+                                      colour = "lightgrey"),
+            legend.position = c(1, 0),
+            legend.justification = c(1, 0),
+            legend.background = element_blank(),
+            legend.key = element_blank()) +
+      facet
+  }) %>%
+  walk(plot)
 ```
 
 [//]: <> (URL's / References --------------------------------------------------)
