@@ -467,11 +467,13 @@ activity_costs %>%
   ggplot(aes(proximity_to_death_days, cost)) +
   geom_step() +
   scale_x_proximity_to_death_days(expand = expansion(c(0.02, 0)),
+                                  minor_breaks = seq(0, 2*365, 365/12),
                                   months_every = 3) +
-  scale_y_continuous(labels = percent, expand = expansion(),
+  scale_y_continuous(labels = percent,
+                     expand = expansion(),
                      breaks = seq(0, 1, 0.2),
                      position = "right") +
-  theme(panel.grid = element_line(linetype = "dotted",
+  theme(panel.grid = element_line(linetype = "dashed",
                                   colour = "lightgrey"),
         axis.title.y.right = element_text(margin = margin(l = 10))) +
   labs(x = "Proximity to Death (Months)",
