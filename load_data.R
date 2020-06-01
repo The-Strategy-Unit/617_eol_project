@@ -108,5 +108,22 @@ setup_env$load_data <- function(stp, region_report = FALSE) {
     env$region_name <- "NA"
   }
 
+  env$activity_ambulance <- file.path("data",
+                                      "sensitive",
+                                      "activity_ambulance.fst") %>%
+    read_fst() %>%
+    as_tibble() %>%
+    filter((region_report & stp18cd %in% region$stp18cd) |
+             stp18cd == stp) %>%
+    select(-stp18cd) %>%
+    group_by_at(vars(-n)) %>%
+    summarise_at("n", sum) %>%
+    ungroup() %>%
+    mutate_at("arrival_mode", ~ifelse(.x == "1", "ambulance", NA) %>%
+                replace_na("other")) %>%
+    rename(group = cause_group_ll) %>%
+    mutate_at("group", fct_explicit_na) %>%
+    mutate_at("group", fct_relevel, levels(mpi$group))
+
   env
 }
