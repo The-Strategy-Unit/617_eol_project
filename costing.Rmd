@@ -504,7 +504,7 @@ list(
       mutate(cumcost = cumsum(cost)) %>%
       mutate_at("cumcost", ~.x / max(.x)) %>%
       mutate(row = row_number() / n()) %>%
-      filter(cost > 0) %>%
+      #filter(cost > 0) %>%
       ggplot(aes(row, cumcost, colour = ss_flag)) +
       geom_step() +
       scale_x_continuous(labels = percent, n.breaks = 5) +
@@ -512,6 +512,7 @@ list(
       labs(x = "% of All Patients",
            y = "% of Spend",
            colour = "") +
+      geom_abline(slope = 1) +
       theme(panel.grid = element_line(linetype = "dotted",
                                       colour = "lightgrey"),
             legend.position = c(1, 0),
