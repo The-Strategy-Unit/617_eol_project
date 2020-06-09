@@ -431,14 +431,20 @@ activity_costs %>%
 
 ```{r}
 
+ccg_pod_types <- activity_costs %>%
+  filter(ss_flag == "CCG") %>%
+  distinct(pod_type)
+
 activity_costs %>%
   group_by(proximity_to_death_days, ss_flag) %>%
+  semi_join(ccg_pod_types, by = "pod_type") %>%
   summarise_at("cost", sum) %>%
   summarise(all = sum(cost),
             spec_services = ifelse(ss_flag == "Spec. Services",
                                    cost,
                                    0) %>% sum(),
-            percent = spec_services/all) %>%
+            percent = spec_services/all,
+            .groups = "drop_last") %>%
   ggplot(aes(proximity_to_death_days, percent)) +
   geom_point(colour = su_theme_cols("orange"),
              fill = after_scale(alpha(su_theme_cols("orange"), 0.4)),
