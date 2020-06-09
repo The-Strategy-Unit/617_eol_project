@@ -361,7 +361,8 @@ activity_costs %>%
             ss = n_distinct(ifelse(ss_flag == "Spec. Services",
                                    su_pat_id,
                                    NA),
-                            na.rm = TRUE)) %>%
+                            na.rm = TRUE),
+            .groups = "drop_last") %>%
   mutate_at(vars(-pod_type), `/`, nrow(mpi)) %>%
   mutate(n = n - ss) %>%
   pivot_longer(-pod_type) %>%
