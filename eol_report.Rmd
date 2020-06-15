@@ -1022,17 +1022,24 @@ forecast_activity %>%
   ungroup() %>%
   group_nest(pod_type) %>%
   pwalk(function(pod_type, data) {
+    lbls <- data %>%
+      group_by(year) %>%
+      summarise_at("activity", sum) %>%
+      arrange(year) %>%
+      mutate(act_sum_lbl = comma(activity, accuracy = 1),
+             pcnt_change_lbl = percent(ifelse(year == 2020,
+                                              NA,
+                                              activity / first(activity) - 1),
+                                       accuracy = .1))
+    
     p <- data %>%
       ggplot(aes(year, activity)) +
       geom_col(aes(fill = fct_rev(age_band)),
                alpha = 0.4,
                colour = "white",
                position = "stack") +
-      stat_summary(aes(label = scales::comma(..y..,
-                                             accuracy = 1)),
-                   vjust = -.3,
-                   fun   = sum,
-                   geom  = "text") +
+      geom_text(data = lbls, aes(label = act_sum_lbl), vjust = -.3, na.rm = TRUE) +
+      geom_text(data = lbls, aes(label = pcnt_change_lbl), vjust = 1.3, size = 3.5, na.rm = TRUE) +
       scale_y_continuous(labels = scales::comma_format(scale = .001),
                          expand = expansion(c(0, 0.15))) +
       scale_fill_discrete(guide = guide_legend(reverse = TRUE),
