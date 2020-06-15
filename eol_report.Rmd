@@ -2031,75 +2031,78 @@ little activity other than in the 6 months before death.
 `r ifelse(params$region_report, "skipping section", "")`
 
 ```{r pathways, eval = !params$region_report}
-# ensure repeatability of this chart
-set.seed(234523)
-
-activity_region %>%
-  inner_join(select(mpi_region, su_pat_id, group), by = "su_pat_id") %>%
-  filter(group != "(Missing)",
-         proximity_to_death_days < 365) %>%
-  mutate_at("su_pat_id", as.character) %>%
-  group_nest(group) %>%
-  mutate_at("data", map, function(.x) {
-    .x %>%
-      group_by(su_pat_id) %>%
-      mutate(n_act = sum(pod_type != "Bed")) %>%
-      ungroup(su_pat_id) %>%
-      mutate_at("n_act", ~.x %>%
-                  quantile(c(0.10, 0.90)) %>%
-                  set_names(c("left", "right")) %>%
-                  c(.f = between) %>%
-                  (lift_dv(partial)) %>%
-                  {.(.x)}) %>%
-      filter(n_act) %>%
-      select(-n_act)
-  }) %>%
-  # randomly sample the patients
-  mutate_at("data", map, function(.x) {
-    .x %>%
-      nest(data = -su_pat_id) %>%
-      sample_n(15) %>%
-      unnest(cols = c(data)) %>%
-      ungroup()
-  }) %>%
-  pmap(function(group, data) {
-    data %>%
-      filter(pod_summary_group != "Critical Care Bed Day") %>%
-      mutate_at("pod_type",
-                ~case_when(pod_summary_group == "Emergency Admission Bed Day" ~
-                             "Urgent Bed Day",
-                           pod_summary_group == "Elective Admission Bed Day" ~
-                             "Planned Bed Day",
-                           TRUE ~ as.character(.x)) %>%
-                  factor(levels = c("Urgent Service Event",
-                                    "Urgent Bed Day",
-                                    "Planned Admission",
-                                    "Planned Bed Day",
-                                    "Planned Contact"))) %>%
-      mutate(order = !str_ends(pod_type, "Bed Day")) %>%
-      arrange(order) %>%
-      ggplot(aes(proximity_to_death_days, su_pat_id, fill = pod_type)) +
-      geom_tile(height = 0.75) +
-      scale_fill_manual(values = c(
-        "Urgent Service Event" = "#EC6555",
-        "Urgent Bed Day"       = "#F7C1BA",
-        "Planned Admission"    = "#587FC1",
-        "Planned Bed Day"      = "#BCCBE6",
-        "Planned Contact"      = "#F8BF07"
-      ), drop = FALSE) +
-      scale_y_discrete(expand = expansion()) +
-      scale_x_proximity_to_death_days(months_every = 3,
-                                      expand = expansion(c(0.02, 0.001))) +
-      theme(axis.text.y = element_blank(),
-            axis.line.y = element_blank(),
-            axis.ticks.y = element_blank(),
-            axis.title = element_blank(),
-            panel.border = element_blank(),
-            panel.spacing = unit(0, "cm"),
-            plot.margin = margin(0, 0.1, 0, 0.1, "cm"),
-            legend.position = "bottom") +
-      labs(title = group, x = "", y = "", fill = "")
-  })
+# required for interactive use
+if (!params$region_report) {
+  # ensure repeatability of this chart
+  set.seed(234523)
+  
+  activity_region %>%
+    inner_join(select(mpi_region, su_pat_id, group), by = "su_pat_id") %>%
+    filter(group != "(Missing)",
+           proximity_to_death_days < 365) %>%
+    mutate_at("su_pat_id", as.character) %>%
+    group_nest(group) %>%
+    mutate_at("data", map, function(.x) {
+      .x %>%
+        group_by(su_pat_id) %>%
+        mutate(n_act = sum(pod_type != "Bed")) %>%
+        ungroup(su_pat_id) %>%
+        mutate_at("n_act", ~.x %>%
+                    quantile(c(0.10, 0.90)) %>%
+                    set_names(c("left", "right")) %>%
+                    c(.f = between) %>%
+                    (lift_dv(partial)) %>%
+                    {.(.x)}) %>%
+        filter(n_act) %>%
+        select(-n_act)
+    }) %>%
+    # randomly sample the patients
+    mutate_at("data", map, function(.x) {
+      .x %>%
+        nest(data = -su_pat_id) %>%
+        sample_n(15) %>%
+        unnest(cols = c(data)) %>%
+        ungroup()
+    }) %>%
+    pmap(function(group, data) {
+      data %>%
+        filter(pod_summary_group != "Critical Care Bed Day") %>%
+        mutate_at("pod_type",
+                  ~case_when(pod_summary_group == "Emergency Admission Bed Day" ~
+                               "Urgent Bed Day",
+                             pod_summary_group == "Elective Admission Bed Day" ~
+                               "Planned Bed Day",
+                             TRUE ~ as.character(.x)) %>%
+                    factor(levels = c("Urgent Service Event",
+                                      "Urgent Bed Day",
+                                      "Planned Admission",
+                                      "Planned Bed Day",
+                                      "Planned Contact"))) %>%
+        mutate(order = !str_ends(pod_type, "Bed Day")) %>%
+        arrange(order) %>%
+        ggplot(aes(proximity_to_death_days, su_pat_id, fill = pod_type)) +
+        geom_tile(height = 0.75) +
+        scale_fill_manual(values = c(
+          "Urgent Service Event" = "#EC6555",
+          "Urgent Bed Day"       = "#F7C1BA",
+          "Planned Admission"    = "#587FC1",
+          "Planned Bed Day"      = "#BCCBE6",
+          "Planned Contact"      = "#F8BF07"
+        ), drop = FALSE) +
+        scale_y_discrete(expand = expansion()) +
+        scale_x_proximity_to_death_days(months_every = 3,
+                                        expand = expansion(c(0.02, 0.001))) +
+        theme(axis.text.y = element_blank(),
+              axis.line.y = element_blank(),
+              axis.ticks.y = element_blank(),
+              axis.title = element_blank(),
+              panel.border = element_blank(),
+              panel.spacing = unit(0, "cm"),
+              plot.margin = margin(0, 0.1, 0, 0.1, "cm"),
+              legend.position = "bottom") +
+        labs(title = group, x = "", y = "", fill = "")
+    })
+}
 ```
 
 # Chemotherapy
