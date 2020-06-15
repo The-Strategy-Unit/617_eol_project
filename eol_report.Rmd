@@ -109,21 +109,20 @@ basic_stats
 
 # create a formatted matrix of the basic stats that we can easily use in the
 # text above
-basic_stats.fmt <- as.matrix(bind_rows(basic_stats))
-rownames(basic_stats.fmt) <- names(basic_stats$stp)
+basic_stats.fmt <- do.call(rbind, transpose(basic_stats))
 
 basic_stats.fmt <- c(
-  comma(basic_stats.fmt["deaths",]),
-  comma(basic_stats.fmt["population",]),
-  number(basic_stats.fmt["est",], accuracy = 0.1),
-  number(basic_stats.fmt["lwr.ci",], accuracy = 0.1),
-  number(basic_stats.fmt["upr.ci",], accuracy = 0.1),
-  number(basic_stats.fmt["mean_age",], accuracy = 0.1),
-  percent(basic_stats.fmt["0-17",], accuracy = 0.1),
-  percent(basic_stats.fmt["18-64",], accuracy = 0.1),
-  percent(basic_stats.fmt["65-74",], accuracy = 0.1),
-  percent(basic_stats.fmt["75-84",], accuracy = 0.1),
-  percent(basic_stats.fmt["85+",], accuracy = 0.1)
+  comma(basic_stats.fmt["deaths",] %>% unlist()),
+  comma(basic_stats.fmt["population",] %>% unlist()),
+  number(basic_stats.fmt["est",] %>% unlist(), accuracy = 0.1),
+  number(basic_stats.fmt["lwr.ci",] %>% unlist(), accuracy = 0.1),
+  number(basic_stats.fmt["upr.ci",] %>% unlist(), accuracy = 0.1),
+  number(basic_stats.fmt["mean_age",] %>% unlist(), accuracy = 0.1),
+  percent(basic_stats.fmt["0-17",] %>% unlist(), accuracy = 0.1),
+  percent(basic_stats.fmt["18-64",] %>% unlist(), accuracy = 0.1),
+  percent(basic_stats.fmt["65-74",] %>% unlist(), accuracy = 0.1),
+  percent(basic_stats.fmt["75-84",] %>% unlist(), accuracy = 0.1),
+  percent(basic_stats.fmt["85+",] %>% unlist(), accuracy = 0.1)
 ) %>%
   matrix(ncol = ncol(basic_stats.fmt),
          byrow = TRUE,
