@@ -552,37 +552,47 @@ gini_df <- df %>%
                              NA)) %>%
    filter(cost > 0)
 
-gini_df_end <- gini_df %>%
-   filter(max(cumcost) == cumcost)
 
-gini_df %>%
-  ggplot(aes(row, cumcost)) +
-  geom_step() +
-  scale_x_continuous(labels = percent, n.breaks = 5) +
-  scale_y_continuous(labels = percent, n.breaks = 5) +
-  labs(x = "% of All Patients",
-       y = "% of Spend",
-       colour = "") +
-  geom_text(aes(x = 1, y = 0, label = gini_label),
-            na.rm = TRUE,
-            hjust = "right",
-            vjust = "bottom") +
-  geom_segment(data = gini_df_end,
-               aes(xend = row, yend = 0)) +
-  geom_segment(data = gini_df_end,
-               aes(xend = 1, yend = 1)) +
-  geom_point(data = gini_df_end,
-             shape = "circle filled",
-             colour = "black",
-             fill = "white") +
-  geom_abline(slope = 1, linetype = "dashed") +
-  theme(panel.grid = element_line(linetype = "dotted",
-                                  colour = "lightgrey"),
-        legend.position = c(1, 0),
-        legend.justification = c(1, 0),
-        legend.background = element_blank(),
-        legend.key = element_blank()) +
-  facet_wrap(vars(pod_type), scales = "free_x")
+
+list(
+  gini_df %>% filter(pod_type == "Urgent Service Event"),
+  gini_df %>% filter(pod_type != "Urgent Service Event")
+) %>%
+  map(function(data) {
+    gini_df_end <- data %>%
+      filter(max(cumcost) == cumcost)
+    
+    data %>%
+      mutate_at("pod_type", fct_drop) %>%
+      ggplot(aes(row, cumcost)) +
+      geom_step() +
+      scale_x_continuous(labels = percent, n.breaks = 5) +
+      scale_y_continuous(labels = percent, n.breaks = 5) +
+      labs(x = "% of All Patients",
+           y = "% of Spend",
+           colour = "") +
+      geom_segment(data = gini_df_end,
+                   aes(xend = row, yend = 0)) +
+      geom_segment(data = gini_df_end,
+                   aes(xend = 1, yend = 1)) +
+      geom_point(data = gini_df_end,
+                 shape = "circle filled",
+                 colour = "black",
+                 fill = "white") +
+      geom_label(aes(x = 1, y = 0, label = gini_label),
+                 na.rm = TRUE,
+                 hjust = "right",
+                 vjust = "bottom",
+                 size = 3,
+                 label.size = 0) +
+      geom_abline(slope = 1, linetype = "dashed") +
+      theme(legend.position = c(1, 0),
+            legend.justification = c(1, 0),
+            legend.background = element_blank(),
+            legend.key = element_blank()) +
+      facet_wrap(vars(pod_type), scales = "free_x")
+  }) %>%
+  walk(plot)
 ```
 
 [//]: <> (URL's / References --------------------------------------------------)
