@@ -382,6 +382,8 @@ activity_costs %>%
             size = 3) +
   labs(x = "", y = "") +
   theme(axis.title = element_blank(),
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank(),
         legend.position = "none")
 ```
 
