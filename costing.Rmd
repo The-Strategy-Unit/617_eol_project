@@ -621,15 +621,13 @@ average_costs_per_person <- activity_costs %>%
   mutate_at("age", pmin, 90) %>%
   mutate(activity_year = as.numeric(proximity_to_death_days >= 365)) %>%
   group_by(activity_year, pod_type, age, sex) %>%
-  summarise(cost = sum(cost),
-            #decedents = n_distinct(su_pat_id),
-            .groups = "drop") %>%
-  inner_join(count(mpi, age, name = "decedents"), by = "age") %>%
+  summarise(cost = sum(cost), .groups = "drop") %>%
   complete(nesting(pod_type),
            activity_year = 0:1,
            age = seq(18, 90),
            sex,
-           fill = list(cost = 0, decedents = 0))
+           fill = list(cost = 0)) %>%
+  inner_join(count(mpi, age, sex, name = "decedents"), by = c("age", "sex"))
 
 plots <- average_costs_per_person %>%
   mutate_at("age", ~case_when(.x > 90 ~ 90,
@@ -641,9 +639,9 @@ plots <- average_costs_per_person %>%
   pmap(function(pod_type, data) {
     data %>%
       mutate_at("activity_year",
-                  ifelse,
-                  "Second year period (12-24 months before death)",
-                  "First year period (0-12 months before death)") %>%
+                ifelse,
+                "Second year period (12-24 months before death)",
+                "First year period (0-12 months before death)") %>%
       ggplot(aes(age, avg_cost, colour = activity_year)) +
       geom_smooth(fill = NA, method = "loess", formula = y ~ x, na.rm = TRUE,
                   lwd = 0.75) +
@@ -656,13 +654,10 @@ plots <- average_costs_per_person %>%
 
 reduce(plots[1:3], `+`) / guide_area() + plot_layout(guides = 'collect', heights = c(10, 1))
 reduce(plots[4:6], `+`) / guide_area() + plot_layout(guides = 'collect', heights = c(10, 1))
-
-# %>%
-#   walk(plot)
 ```
 
 ```{r}
-forecast_deaths %>%
+average_costs_per_person_sum <- forecast_deaths %>%
   inner_join(average_costs_per_person, by = c("sex", "age_group" = "age")) %>%
   mutate_at("year", ~.x - activity_year) %>%
   filter(!year %% 5) %>%
@@ -672,11 +667,22 @@ forecast_deaths %>%
             c(0, 18, 65, 75, 85, Inf),
             labels = levels(mpi$age_band),
             right = FALSE) %>%
-  bind_rows(mutate_at(., "pod_type", ~"All Activity"), .) %>%
   group_by(year, age_group, pod_type) %>%
-  summarise(across(c("est_deaths", "cost", "decedents"), sum), .groups = "drop") %>%
+  summarise(across(c("est_deaths", "cost", "decedents"), sum), .groups = "drop_last")
+
+bind_rows(
+  average_costs_per_person_sum,
+  average_costs_per_person_sum %>%
+    group_by(est_deaths, decedents, add = TRUE) %>%
+    summarise_at("cost", sum) %>%
+    mutate(pod_type = "All Activity")
+) %>%
+  ungroup() %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c("All Activity",
+              levels(activity_costs$pod_type) %>% subset(., . != "Bed"))) %>%
   mutate(cost = ifelse(decedents, cost / decedents * est_deaths, 0)) %>%
-  select(-est_deaths, -decedents) %>%
   group_nest(pod_type) %>%
   pmap(function(pod_type, data) {
     lbls <- data %>%
