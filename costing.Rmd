@@ -426,11 +426,13 @@ activity_costs_ex_bed %>%
 # Specialised services spend
 
 ```{r}
-spend_plot("All Activity", activity_costs_ex_bed %>%
-             filter(ss_flag == "Spec. Services", pod_type != "Bed"))
+spend_plot("All Activity",
+           activity_costs_ex_bed %>%
+             filter(ss_flag == "Spec. Services",
+                    proximity_to_death_days > 0))
 
 activity_costs_ex_bed %>%
-  filter(ss_flag == "Spec. Services", pod_type != "Bed") %>%
+  filter(ss_flag == "Spec. Services", proximity_to_death_days > 0) %>%
   group_nest(pod_type) %>%
   pmap(spend_plot) %>%
   walk(plot)
@@ -443,10 +445,15 @@ ccg_pod_types <- activity_costs %>%
   distinct(pod_type)
 
 activity_costs %>%
+  filter(ss_flag %in% c("CCG", "Spec. Services")) %>%
+  semi_join(ccg_pod_types, by = "pod_type") %>%
+  group_by(ss_flag, pod_type) %>%
+  
+  filter(cost > quantile(cost, 0.25), cost < quantile(cost, 0.75)) %>%
+  
   group_by(proximity_to_death_days, ss_flag) %>%
   # exclude extreme points
-  filter(cost < 600000) %>%
-  semi_join(ccg_pod_types, by = "pod_type") %>%
+  # filter(cost < 600000) %>%
   summarise_at("cost", sum) %>%
   summarise(all = sum(cost),
             spec_services = ifelse(ss_flag == "Spec. Services",
