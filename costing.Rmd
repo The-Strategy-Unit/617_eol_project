@@ -414,8 +414,7 @@ spend_plot <- function(pod_type, data) {
          title = pod_type)
 }
 
-activity_costs_ex_bed <- activity_costs %>%
-  filter(pod_type != "Bed")
+activity_costs_ex_bed <- filter(activity_costs, pod_type != "Bed")
 
 spend_plot("All Activity", activity_costs_ex_bed)
 
@@ -427,9 +426,6 @@ activity_costs_ex_bed %>%
 # Specialised services spend
 
 ```{r}
-
-activity_costs_ex_bed <- filter(activity_costs, pod_type != "Bed")
-
 spend_plot("All Activity", activity_costs_ex_bed %>%
              filter(ss_flag == "Spec. Services", pod_type != "Bed"))
 
@@ -442,7 +438,6 @@ activity_costs_ex_bed %>%
 # Daily % split of Specialised Services to All Spend
 
 ```{r}
-
 ccg_pod_types <- activity_costs %>%
   filter(ss_flag == "CCG") %>%
   distinct(pod_type)
