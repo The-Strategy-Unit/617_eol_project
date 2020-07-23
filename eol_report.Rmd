@@ -1686,6 +1686,7 @@ utilisation_curve_plot_grouped <- function(pod_type, data, loess_span = 0.15) {
     geom_smooth(span = loess_span,
                 formula = y ~ x,
                 method = "loess",
+                size = 0.5,
                 fill = NA) +
     # geom_point(size = 0.2, alpha = 0.2) +
     geom_vline(xintercept = 3*365/12,
