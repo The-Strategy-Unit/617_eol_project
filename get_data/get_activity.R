@@ -5,7 +5,7 @@ library(odbc)
 library(janitor)
 library(fst)
 
-mpi <- read_fst(file.path("tmp", "data", "sensitive", "mpi.fst")) %>%
+mpi <- read_fst(file.path("data", "sensitive", "mpi.fst")) %>%
   as_tibble()
 
 tryCatch({

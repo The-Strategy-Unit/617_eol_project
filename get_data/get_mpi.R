@@ -7,7 +7,7 @@ library(odbc)
 # ref data we need to load first
 # icd10 <- readRDS(file.path("data", "icd10.rds"))
 
-ethnicity_lookup <- read_csv(file.path("data", "ethnicity.csv"),
+ethnicity_lookup <- read_csv(file.path("data", "reference", "ethnicity.csv"),
                              col_types = "ccc") %>%
   mutate_at(vars(ethnic_group), fct_inorder)
 

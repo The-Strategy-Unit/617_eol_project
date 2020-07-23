@@ -63,7 +63,8 @@ setup_env$theme_report <- theme_get() +
         panel.background = element_blank(),
         panel.grid = element_blank(),
         axis.line = element_line(colour = su_theme_cols("charcoal")),
-        strip.background = element_blank())
+        strip.background = element_blank(),
+        legend.key = element_blank())
 
 theme_set(setup_env$theme_report)
 
