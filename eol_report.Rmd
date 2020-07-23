@@ -1640,7 +1640,10 @@ utilisation_curve_plot <- function(pod_type, data, loess_span = 0.15) {
           axis.title.y.right = element_text(margin = margin(0, 0, 0, 10)),
           axis.ticks.y.left = element_blank(),
           legend.position = "bottom") +
-    labs(title = pod_type, x = "Proximity to Death (Months)", y = "", colour = "") +
+    labs(title = ifelse(pod_type == "Bed", "Bed Days", as.character(pod_type)),
+         x = "Proximity to Death (Months)",
+         y = "",
+         colour = "") +
     annotate("text",
              x = 3*365/12+10,
              y = max(c(data$stp, data$region)),
@@ -1699,7 +1702,10 @@ utilisation_curve_plot_grouped <- function(pod_type, data, loess_span = 0.15) {
           axis.title.y.right = element_text(margin = margin(0, 0, 0, 10)),
           axis.ticks.y.left = element_blank(),
           legend.position = "bottom") +
-    labs(title = pod_type, x = "Proximity to Death (Months)", y = "", colour = "") +
+    labs(title = ifelse(pod_type == "Bed", "Bed Days", as.character(pod_type)),
+         x = "Proximity to Death (Months)",
+         y = "",
+         colour = "") +
     annotate("text",
              x = 3*365/12+10,
              y = max(data$n),
