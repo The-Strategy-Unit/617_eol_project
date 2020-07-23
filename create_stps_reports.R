@@ -10,7 +10,7 @@ if (!dir.exists("output")) {
   dir.create("output")
 }
 
-plan(multiprocess)
+#plan(multiprocess, workers = 10)
 
 render_report <- function(stp18cd, stp18nm, region_report) {
   capture.output({
@@ -20,7 +20,7 @@ render_report <- function(stp18cd, stp18nm, region_report) {
       filename <- paste0(stp18cd, "-", stp18nm)
     }
 
-    filename <- str_replace(filename, " ", "_")
+    filename <- str_replace_all(filename, " ", "_")
 
     file.copy("eol_report.Rmd", paste0(filename, ".Rmd"))
 
