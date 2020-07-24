@@ -653,12 +653,11 @@ utilisation_curve_plot <- function(pod_type, data, loess_span = 0.15) {
                 formula = y ~ x,
                 method = "loess",
                 fill = NA,
-                colour = after_scale(alpha(su_theme_cols()[["orange"]], 0.4)))
+                colour = su_theme_cols()[["orange"]])
   
   if (!params$region_report) {
     p <- p + 
       geom_smooth(aes(y = region),
-                linetype = "dotted",
                 span = loess_span,
                 formula = y ~ x,
                 method = "loess",
