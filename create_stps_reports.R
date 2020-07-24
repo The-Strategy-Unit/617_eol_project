@@ -10,7 +10,19 @@ if (!dir.exists("output")) {
   dir.create("output")
 }
 
-plan(multiprocess, workers = 10)
+cat("Starting R Sessions: ")
+tic()
+# disable renv starting up for each session
+tryCatch({
+  file.rename(".Rprofile", "~.Rprofile") ; file.create(".Rprofile")
+  # start sessions
+  plan(multiprocess, workers = 10)
+}, finally = {
+  # restore rprofile
+  unlink(".Rprofile") ; file.rename("~.Rprofile", ".Rprofile")
+})
+toc()
+cat("done: starting to render reports\n")
 
 render_report <- function(stp18cd, stp18nm, region_report) {
   capture.output({
