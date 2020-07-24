@@ -173,7 +173,7 @@ local({
                  stroke = 1.5) 
   }
   
-  p + geom_text(aes(label = percent(stp, accuracy = 1)),
+  p + geom_text(aes(y = 0, label = percent(stp, accuracy = 1)),
                 size = 3.5,
                 vjust = -.35)
 })
@@ -230,7 +230,7 @@ local({
                  fill = after_scale(alpha(colour, 0.4)))) +
     scale_x_discrete(labels = partial(str_wrap, width = 10)) +
     scale_y_continuous(labels = percent,
-                       expand = expansion(c(0, 0.05))) +
+                       expand = expansion(c(0.05, 0.05))) +
     expand_limits(y = c(0, 1)) +
     labs(x = "", y = "", colour = "", fill = "")  +
     theme(legend.position = "none",
@@ -250,9 +250,9 @@ local({
                  stroke = 1.5) 
   }
   
-  p + geom_text(aes(label = percent(stp, accuracy = 1)),
+  p + geom_text(aes(y = 0, label = percent(stp, accuracy = 1)),
                 size = 3.5,
-                vjust = -.35)
+                vjust = 1.35)
 })
 ```
 
