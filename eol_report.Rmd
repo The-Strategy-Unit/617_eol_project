@@ -77,6 +77,13 @@ mpi %>%
   place_of_death_fill()
 ```
 
+```{r place of death by gender}
+mpi %>%
+  filter(location_type != "Unknown") %>%
+  mekko_chart(sex, location_type) +
+  place_of_death_fill()
+```
+
 ```{r ethnicity place of death, message=FALSE, warning=FALSE}
 local({
   data <- mpi %>%
