@@ -676,7 +676,7 @@ utilisation_curve_plot <- function(pod_type, data, loess_span = 0.15) {
                colour = su_theme_cols()[["dark_charcoal"]]) +
     scale_x_proximity_to_death_days() +
     scale_y_continuous(sec.axis = dup_axis(labels = comma_format(scale = 1000,
-                                                                 accuracy = 0.1),
+                                                                 accuracy = 1),
                                            name = "Activity per 1,000 Decedants")) +
     theme(panel.grid.major = element_line(colour = "grey",
                                           size = 0.25,
@@ -741,7 +741,7 @@ utilisation_curve_plot_grouped <- function(pod_type, data, loess_span = 0.15) {
                colour = su_theme_cols()[["dark_charcoal"]]) +
     scale_x_proximity_to_death_days() +
     scale_y_continuous(sec.axis = dup_axis(labels = comma_format(scale = 1000,
-                                                                 accuracy = 0.1),
+                                                                 accuracy = 1),
                                            name = "Activity per 1,000 Decedants")) +
     theme(panel.grid.major = element_line(colour = "grey",
                                           size = 0.25,
