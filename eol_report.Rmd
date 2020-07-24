@@ -778,7 +778,7 @@ activity %>%
   mutate_at("n", ~n/p) %>%
   
   group_nest(pod_type) %>%
-  mutate(loess_span = c(0.05, 0.15, 0.15, 0.05, 0.05)) %>% 
+  mutate(loess_span = 0.05) %>% #c(0.05, 0.15, 0.15, 0.05, 0.05)) %>% 
   pmap(utilisation_curve_plot_grouped) %>%
   walk(plot)
 ```
