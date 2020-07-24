@@ -10,7 +10,7 @@ if (!dir.exists("output")) {
   dir.create("output")
 }
 
-#plan(multiprocess, workers = 10)
+plan(multiprocess, workers = 10)
 
 render_report <- function(stp18cd, stp18nm, region_report) {
   capture.output({
