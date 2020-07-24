@@ -808,40 +808,62 @@ activity %>%
 ### Utilisation Rates
 
 ```{r utilisation rates, message=FALSE,  echo=FALSE, results = "none"}
-activity %>%
-  inner_join(select(mpi, su_pat_id, age),
-             by = "su_pat_id") %>%
-  mutate(activity_year = as.numeric(proximity_to_death_days >= 365)) %>%
-  mutate_at("age", ~case_when(.x > 90 ~ 90,
-                              .x < 50 ~ 50,
-                              TRUE ~ .x)) %>%
-  mutate_if(is.factor, as.character) %>%
-  count(pod_type, pod_summary_group, activity_year, age,
-        name = "activity") %>%
-  arrange(pod_type, pod_summary_group, activity_year, age) %>%
+list(stp = activity,
+     region = activity_region) %>%
+  map_dfr(.id = "type", function(.x) {
+    .x %>%
+      inner_join(select(mpi_region, su_pat_id, age),
+                 by = "su_pat_id") %>%
+    mutate(activity_year = as.numeric(proximity_to_death_days >= 365)) %>%
+    mutate_at("age", ~case_when(.x > 90 ~ 90,
+                                .x < 50 ~ 50,
+                                TRUE ~ .x)) %>%
+    mutate_if(is.factor, as.character) %>%
+    count(pod_type, pod_summary_group, activity_year, age,
+          name = "activity")
+  }) %>%
+  arrange(type, pod_type, pod_summary_group, activity_year, age) %>%
   complete(nesting(pod_type, pod_summary_group),
            activity_year = 0:1,
            age = seq(50, 90),
            fill = list(activity = 0)) %>%
-  inner_join(mpi %>%
-               mutate_at("age",
-                         ~case_when(.x > 90 ~ 90,
-                                    .x < 50 ~ 50,
-                                    TRUE ~ .x)) %>%
-               count(age, name = "deaths"),
-             by = "age") %>%
+  inner_join(
+    bind_rows(
+      mpi %>%
+        mutate_at("age",
+                  ~case_when(.x > 90 ~ 90,
+                             .x < 50 ~ 50,
+                             TRUE ~ .x)) %>%
+        count(age, name = "deaths") %>%
+        mutate(type = "stp"),
+      mpi_region %>%
+        mutate_at("age",
+                  ~case_when(.x > 90 ~ 90,
+                             .x < 50 ~ 50,
+                             TRUE ~ .x)) %>%
+        count(age, name = "deaths") %>%
+        mutate(type = "region")
+    ),
+    by = c("type", "age")
+  ) %>%
   mutate(utilisation = activity / deaths) %>%
+  select(-activity, -deaths) %>%
+  pivot_wider(names_from = "type", values_from = "utilisation") %>%
   group_nest(pod_type) %>%
   pmap(function(pod_type, data) {
     data %>%
       mutate_at("pod_summary_group",
-                ~fct_reorder(.x, activity, .fun = sum)) %>%
+                ~fct_reorder(.x, region, .fun = sum)) %>%
       mutate_at("activity_year",
                 ifelse,
                 "Second year period (12-24 months before death)",
                 "First year period (0-12 months before death)") %>%
-      ggplot(aes(age, utilisation, colour = activity_year)) +
+      ggplot(aes(age, stp, colour = activity_year)) +
       geom_smooth(fill = NA, method = "loess", formula = y ~ x, na.rm = TRUE,
+                  lwd = 0.75) +
+      geom_smooth(aes(y = region, group = activity_year),
+                  fill = NA, method = "loess", formula = y ~ x, na.rm = TRUE,
+                  alpha = 0.4, linetype = "dashed",
                   lwd = 0.75) +
       geom_point(na.rm = TRUE) +
       expand_limits(y = 0) +
