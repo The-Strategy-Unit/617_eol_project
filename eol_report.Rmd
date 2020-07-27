@@ -386,8 +386,8 @@ forecast_deaths %>%
         legend.key = element_blank())
 ``` 
 
-```{r forecast activity 5 year bars, echo=FALSE, message=FALSE, results='hide'}
-forecast_activity %>%
+```{r forecast activity 5 year bars table}
+forecast_data <- forecast_activity %>%
   mutate_at("pod_type",
             ~ifelse(pod_summary_group == "Critical Care Bed Day",
                     "Critical Care Bed Day",
@@ -398,7 +398,24 @@ forecast_activity %>%
   filter(year %% 5 == 0) %>%
   group_by(age_band, year, pod_type) %>%
   summarise_at(vars(est_deaths, activity), sum) %>%
+  ungroup()
+
+forecast_data %>%
+  select(-est_deaths) %>%
+  mutate_at("activity", comma) %>%
+  pivot_wider(names_from = "year",
+              values_from = "activity") %>%
+  arrange(pod_type, age_band) %>%
+  group_by(pod_type) %>%
+  mutate(rn = row_number()) %>%
   ungroup() %>%
+  mutate_at("pod_type", ~if_else(rn == 1, as.character(.x), "")) %>%
+  select(pod_type, age_band, `2020`:`2040`)
+```
+
+```{r forecast activity 5 year bars plot, echo=FALSE, message=FALSE, results='hide'}
+
+forecast_data %>%
   group_nest(pod_type) %>%
   pwalk(function(pod_type, data) {
     lbls <- data %>%
