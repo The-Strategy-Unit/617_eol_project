@@ -90,33 +90,58 @@ stps <- file.path("data", "reference", "stps.csv") %>%
             head(., 1) %>%
               mutate(stp18nm = "Midlands", region_report = TRUE))
 
+# Run individually ----
+# {
+#   tic()
+#   res <- future_pmap(stps, safely(render_report)) %>%
+#     map_chr("result")
+#   toc()
+#
+#   errors <- stps %>% filter(!stp18cd %in% res)
+#   if (nrow(errors) == 0) {
+#     cat(col_green("All files generated successfully\n"))
+#   } else {
+#     cat(col_red("Errors:\n"))
+#     print(errors)
+#   }
+# }
+#
+# {
+#   tic()
+#   res <- future_pmap(stps, safely(render_costing)) %>%
+#     map_chr("result")
+#   toc()
+#
+#   errors <- stps %>% filter(!stp18cd %in% res)
+#   if (nrow(errors) == 0) {
+#     cat(col_green("All files generated successfully\n"))
+#   } else {
+#     cat(col_red("Errors:\n"))
+#     print(errors)
+#   }
+# }
+
+# Run Combined ----
 {
   tic()
-  res <- future_pmap(stps, safely(render_report)) %>%
-    map_chr("result")
+  res <- stps %>%
+    future_pmap(function(...) {
+      list(
+        report = do.call(safely(render_report), list(...))$error,
+        costing = do.call(safely(render_costing), list(...))$error
+      ) %>%
+        enframe(name = "report")
+    }) %>%
+    set_names(stps$stp18cd) %>%
+    bind_rows(.id = "stp")
   toc()
 
-  errors <- stps %>% filter(!stp18cd %in% res)
+  errors <- res %>% filter(!map_lgl(value, is.null))
   if (nrow(errors) == 0) {
     cat(col_green("All files generated successfully\n"))
   } else {
     cat(col_red("Errors:\n"))
-    print(errors)
-  }
-}
-
-{
-  tic()
-  res <- future_pmap(stps, safely(render_costing)) %>%
-    map_chr("result")
-  toc()
-
-  errors <- stps %>% filter(!stp18cd %in% res)
-  if (nrow(errors) == 0) {
-    cat(col_green("All files generated successfully\n"))
-  } else {
-    cat(col_red("Errors:\n"))
-    print(errors)
+    print(errors %>% mutate_at("value", map_chr, "message"))
   }
 }
 
