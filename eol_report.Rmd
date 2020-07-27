@@ -1123,7 +1123,7 @@ activity %>%
                     "Had chemo in last 4 weeks of life",
                     "Had chemo, but not in last 4 weeks of life")) %>%
   group_by(last_month) %>%
-  summarise(nd = n_distinct(su_pat_id)) %>%
+  summarise(nd = n_distinct(su_pat_id), .groups = "drop_last") %>%
   mutate(p = nd/sum(nd)) %>%
   ggplot(aes(last_month, p)) +
   geom_col(colour = su_theme_cols()[["orange"]],
@@ -1239,7 +1239,8 @@ activity %>%
   filter(chemotherapy_indicator == 1) %>%
   group_by(su_pat_id) %>%
   summarise(last_month = any(proximity_to_death_days <= 28),
-            proximity_to_death_days = max(proximity_to_death_days)) %>%
+            proximity_to_death_days = max(proximity_to_death_days),
+            .groups = "drop_last") %>%
   count(proximity_to_death_days, last_month) %>%
   complete(proximity_to_death_days, last_month, fill = list(n = 0)) %>%
   filter(last_month | proximity_to_death_days > 28) %>%
@@ -1352,7 +1353,7 @@ activity %>%
   mutate(utilisation = activity / nd) %>%
   ggplot(aes(age, utilisation, colour = year)) +
   geom_point() +
-  geom_smooth(fill = NA) +
+  geom_smooth(fill = NA, method = "loess", formula = y ~ x) +
   labs(x = "Age",
        y = "Chemo Usage per decedent who had chemo",
        colour = "") +
@@ -1385,7 +1386,7 @@ activity %>%
   mutate(utilisation = activity / nd) %>%
   ggplot(aes(age, utilisation, colour = year)) +
   geom_point() +
-  geom_smooth(fill = NA) +
+  geom_smooth(fill = NA, method = "loess", formula = y ~ x) +
   labs(x = "Age",
        y = "Chemo Usage per decedent",
        colour = "") +
@@ -1406,7 +1407,8 @@ activity %>%
   mutate(last_month = ifelse(proximity_to_death_days <= 28, su_pat_id, NA)) %>%
   group_by(cancer_site) %>%
   summarise(d = n_distinct(su_pat_id),
-            n = n_distinct(last_month, na.rm = TRUE)) %>%
+            n = n_distinct(last_month, na.rm = TRUE),
+            .groups = "drop_last") %>%
   mutate(ci = map2(n, d, compose(as_tibble, BinomCI))) %>%
   unnest(ci) %>%
   mutate(mean_est = sum(n) / sum(d),
@@ -1440,7 +1442,8 @@ activity %>%
   mutate(last_month = ifelse(proximity_to_death_days <= 28, su_pat_id, NA)) %>%
   group_by(age_band) %>%
   summarise(d = n_distinct(su_pat_id),
-            n = n_distinct(last_month, na.rm = TRUE)) %>%
+            n = n_distinct(last_month, na.rm = TRUE),
+            .groups = "drop_last") %>%
   mutate(ci = map2(n, d, compose(as_tibble, BinomCI))) %>%
   unnest(ci) %>%
   mutate(mean_est = sum(n) / sum(d),
