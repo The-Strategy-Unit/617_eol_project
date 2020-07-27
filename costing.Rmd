@@ -711,7 +711,7 @@ bind_rows(
       geom_text(data = lbls, aes(label = pcnt_change_lbl), vjust = 1.3, size = 3.5, na.rm = TRUE) +
       scale_fill_discrete(guide = guide_legend(reverse = TRUE),
                           reverse = TRUE) +
-      scale_y_continuous(labels = comma_format(prefix = "£", scale = 1e-6, suffix = "m"),
+      scale_y_continuous(labels = money_format,
                          expand = expansion(c(0, 0.15))) +
       labs(fill = "",
            y = "Specialist Services Spend",
@@ -719,6 +719,51 @@ bind_rows(
       theme(legend.position = "bottom")
   }) %>%
   walk(plot)
+```
+
+# Spend by activity type
+
+```{r}
+activity_costs %>%
+  filter(!pod_type %in% c("Bed", "Device", "Drug", "Other")) %>%
+  group_by(pod_type) %>%
+  summarise_at("cost", sum) %>%
+  ggplot(aes(pod_type, cost)) +
+  geom_col(aes(colour = pod_type,
+               fill = after_scale(alpha(colour, 0.4))), show.legend = FALSE) +
+  geom_text(aes(label = comma(cost, prefix = "£")),
+                vjust = -0.35) +
+  scale_y_continuous(labels = money_format,
+                     expand = expansion(c(0, 0.05))) +
+  labs(x = "", y = "")
+```
+
+# Average spend per STP
+
+```{r}
+mpi %>%
+  left_join(activity_costs_region, by = "su_pat_id") %>%
+  group_by(stp, su_pat_id) %>%
+  summarise_at("cost", sum) %>%
+  modify_at("cost", replace_na, 0) %>%
+  summarise(ci = list(cost) %>% map(DescTools::MeanCI), .groups = "drop") %>%
+  unnest_wider(ci) %>%
+  inner_join(as_tibble(stp_geo) %>% select(stp18cd, stp18nm), by = c("stp" = "stp18cd")) %>%
+  mutate_at("stp18nm", fct_reorder, quo(mean)) %>%
+  mutate(colour = ifelse(stp == params$stp, "orange", "charcoal")) %>%
+  mutate(region = sum(activity_costs_region$cost) / nrow(mpi_region)) %>%
+  ggplot(aes(mean, stp18nm)) +
+  geom_col(aes(colour = colour, fill = after_scale(alpha(colour, 0.4))),
+           show.legend = FALSE) +
+  geom_errorbar(aes(xmin = lwr.ci, xmax = upr.ci), width = 0.5) +
+  geom_text(aes(x = 0, label = comma(mean, prefix = "£", accuracy = 1)),
+            hjust = -0.15) +
+  geom_vline(aes(xintercept = region)) +
+  scale_colour_manual(values = su_theme_cols()) +
+  scale_x_continuous(labels = comma_format(prefix = "£", accuracy = 1)) +
+  labs(x = "Average spend per Decedent", y = "") +
+  theme(axis.line = element_blank(),
+        axis.ticks.y = element_blank())
 ```
 
 [//]: <> (URL's / References --------------------------------------------------)
