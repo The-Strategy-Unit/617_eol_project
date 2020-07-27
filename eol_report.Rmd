@@ -52,8 +52,6 @@ mpi %>%
             "OTI" = "Other Terminal Illness") %>%
   mekko_chart(group, location_type) +
   place_of_death_fill() 
-#+
-  #theme(axis.text.x = element_text(angle = 30, hjust = 1))
 ```
 OTI = Other Terminal Illness
 
@@ -442,8 +440,6 @@ pcnt_bar_comparison_plot <- function(mpi, category, value, reorder = TRUE) {
            !is.na({{category}})) %>%
     modify_at(vars({{value}}), replace_na, 0) %>%
     group_by({{category}}) %>%
-    #filter(group != "(Missing)") %>%
-    #modify_at("died_in_critical_care", replace_na, 0) %>%
     summarise_at(vars({{value}}), mean, na.rm = TRUE)
     
   if (reorder) {
@@ -497,7 +493,6 @@ pcnt_dot_comparison_plot <- function(mpi, mpi_region, category, value, reorder =
   }
   
   ggplot(data, aes({{category}}, {{value}}, fill = type)) +
-    #geom_segment(aes(xend = {{category}}, yend = 0)) +
     geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci),
                   na.rm = TRUE,
                   width = 0.2) +
@@ -735,7 +730,6 @@ utilisation_curve_plot_grouped <- function(pod_type, data, loess_span = 0.15) {
                 method = "loess",
                 size = 0.5,
                 fill = NA) +
-    # geom_point(size = 0.2, alpha = 0.2) +
     geom_vline(xintercept = 3*365/12,
                linetype = "dashed",
                colour = su_theme_cols()[["dark_charcoal"]]) +
@@ -1303,9 +1297,6 @@ bind_rows(
     mutate(type = "region")
 ) %>%
   modify_at("chemotherapy_indicator", replace_na, FALSE) %>%
-  # mutate_at("age", ~case_when(.x < 50 ~ 50,
-  #                             .x < 90 ~ .x,
-  #                             TRUE ~ 90)) %>%
   group_by(type, age) %>%
   summarise_at("chemotherapy_indicator", mean) %>%
   pivot_wider(names_from = type, values_from = chemotherapy_indicator) %>%
@@ -1541,7 +1532,6 @@ activity_ambulance %>%
   ungroup() %>%
   unnest(cols = c(ci)) %>%
   ggplot(aes(proximity_to_death_days, est, colour = group)) +
-  # geom_point(size = 1, alpha = 0.4) +
   geom_smooth(method = "loess",
               formula = y ~ x,
               span = 0.2,
@@ -1553,7 +1543,6 @@ activity_ambulance %>%
   labs(x = "Proximity to death (months)",
        y = "% of A&E arrivals by Ambulance",
        colour = "") +
-  #facet_wrap(vars(group), ncol = 1) +
   theme(legend.position = c(0, 0),
         legend.justification = c(0, 0),
         legend.direction = "horizontal",
