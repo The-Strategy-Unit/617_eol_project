@@ -1576,16 +1576,12 @@ tlos <- activity %>%
   filter(pod_summary_group %in% c("Emergency Admission",
                                   "Elective Admission")) %>%
   group_by(pod_summary_group) %>%
-  count(proximity_to_death_days) %>%
-  filter(proximity_to_death_days <= 70)
-
-tlos %>%
-  pivot_wider(names_from = pod_summary_group, values_from = n) %>%
-  modify_if(is.numeric, replace_na, 0)
+  count(proximity_to_death_days)
 ```
 
 ```{r tlos count plot}
 tlos %>%
+  filter(proximity_to_death_days <= 42) %>%
   ggplot(aes(proximity_to_death_days, n)) +
   geom_col(colour = su_theme_cols("orange"),
            fill = after_scale(alpha(su_theme_cols("orange"), 0.4)),
@@ -1595,14 +1591,15 @@ tlos %>%
   scale_y_continuous(expand = expansion(c(0, 0.05)),
                      position = "right") +
   facet_wrap(vars(pod_summary_group), ncol = 1, scales = "free") +
-  labs(x = "Proximity to Death (in days) = LoS",
+  labs(x = "Bed days for Terminal Spell",
        y = "Number of Terminal Spells")
 ```
 
 ```{r tlos pcnt bed days plot}
 tlos %>%
+  filter(proximity_to_death_days <= 42) %>%
   mutate(n = (proximity_to_death_days+1) * n,
-         p = n / sum(n)) %>%
+         p = n) %>% # / sum(n)) %>%
   ggplot(aes(proximity_to_death_days, p)) +
   geom_col(colour = su_theme_cols("orange"),
            fill = after_scale(alpha(su_theme_cols("orange"), 0.4)),
@@ -1610,9 +1607,29 @@ tlos %>%
   scale_x_continuous(trans = "reverse",
                      breaks = seq(0, 70, by = 7)) +
   scale_y_continuous(expand = expansion(c(0, 0.05)),
-                     labels = percent,
+                     # labels = percent,
                      position = "right") +
   facet_wrap(vars(pod_summary_group), ncol = 1, scales = "free") +
-  labs(x = "Proximity to Death (in days)",
-       y = "Bed days as % of all bed days for terminal spell")
+  labs(x = "Bed days for Terminal Spell",
+       y = "Total Number of Bed days for Terminal Spell")
+```
+
+```{r tlos pcnt bed days plot cumulative}
+tlos %>%
+  arrange(-proximity_to_death_days) %>%
+  mutate(n = (proximity_to_death_days+1) * n,
+         p = cumsum(n)/sum(n)) %>%
+  filter(proximity_to_death_days <= 140) %>%
+  ggplot(aes(proximity_to_death_days, p, colour = pod_summary_group)) +
+  geom_step() +
+  scale_x_continuous(trans = "reverse",
+                     breaks = seq(0, 140, by = 7)) +
+  scale_y_continuous(expand = expansion(c(0, 0.05)),
+                     labels = percent,
+                     position = "right") +
+  #facet_wrap(vars(pod_summary_group), ncol = 1, scales = "free") +
+  labs(x = "Bed days for Terminal Spell",
+       y = "Cumulative Bed days for Terminal Spell") +
+  theme(legend.position = "bottom",
+        legend.title = element_blank())
 ```
