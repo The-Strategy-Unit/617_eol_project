@@ -223,6 +223,10 @@ local({
     pivot_wider(names_from = "type", values_from = "n") %>%
     filter(pod_type != "Bed") %>% 
     ungroup() %>%
+    mutate_at("pod_type",
+              fct_relevel,
+              c(levels(activity$pod_type) %>% subset(., . != "Bed"),
+                "Critical Care Bed Day")) %>%
     ggplot(aes(pod_summary_group, stp)) +
     geom_col(aes(colour = pod_type,
                  fill = after_scale(alpha(colour, 0.4)))) +
