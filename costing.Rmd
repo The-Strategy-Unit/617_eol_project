@@ -1,10 +1,12 @@
 ---
 title: "EOL Report"
 author: "[The Strategy Unit][su_web]"
+date: "`r Sys.Date()`"
 output:
-  StrategyUnitTheme::su_document: default
+  StrategyUnitTheme::su_document:
+    toc: yes
 params:
-  stp: "E54000016"
+  stp: "E54000010"
   region_report: true
 ---
 

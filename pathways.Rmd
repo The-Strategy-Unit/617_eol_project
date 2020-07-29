@@ -1,17 +1,10 @@
 ---
 title: "End of Life - Pathways"
 author: '[T. Jemmett](mailto:thomas.jemmett@nhs.net)'
-date: "25/11/2019"
+date: "`r Sys.Date()`"
 output:
   StrategyUnitTheme::su_document:
     toc: yes
-  word_document:
-    reference_docx: su_template.docx
-    #toc: true
-  html_document:
-    fig_caption: true
-    toc: true
-    toc_float: true
 params:
   stp: "E54000010"
   region_report: true
