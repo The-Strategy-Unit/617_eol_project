@@ -877,7 +877,7 @@ activity_costs %>%
 # Average spend per STP
 
 ```{r}
-mpi %>%
+mpi_region %>%
   left_join(activity_costs_region, by = "su_pat_id") %>%
   group_by(stp, su_pat_id) %>%
   summarise_at("cost", sum) %>%
@@ -888,6 +888,10 @@ mpi %>%
   mutate_at("stp18nm", fct_reorder, quo(mean)) %>%
   mutate(colour = ifelse(stp == params$stp, "orange", "charcoal")) %>%
   mutate(region = sum(activity_costs_region$cost) / nrow(mpi_region)) %>%
+  mutate(region_text = ifelse(mean == min(mean),
+                              paste0("Midlands\n",
+                                     comma(region, prefix = "£", accuracy = 1)),
+                              NA)) %>%
   ggplot(aes(mean, stp18nm)) +
   geom_col(aes(colour = colour, fill = after_scale(alpha(colour, 0.4))),
            show.legend = FALSE) +
@@ -895,6 +899,12 @@ mpi %>%
   geom_text(aes(x = 0, label = comma(mean, prefix = "£", accuracy = 1)),
             hjust = -0.15) +
   geom_vline(aes(xintercept = region)) +
+  geom_text(aes(x = region, label = region_text),
+            na.rm = TRUE,
+            size = 3,
+            hjust = 0.6,
+            vjust = -0.2,
+            angle = 270) +
   scale_colour_manual(values = su_theme_cols()) +
   scale_x_continuous(labels = comma_format(prefix = "£", accuracy = 1)) +
   labs(x = "Average spend per Decedent", y = "") +
