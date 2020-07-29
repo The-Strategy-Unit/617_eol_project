@@ -831,7 +831,7 @@ bind_rows(
       group_by(year) %>%
       summarise_at("cost", sum) %>%
       arrange(year) %>%
-      mutate(act_sum_lbl = money_format(cost),
+      mutate(act_sum_lbl = comma(cost, prefix = "£", accuracy = 1),
              pcnt_change_lbl = percent(ifelse(year == 2020,
                                               NA,
                                               cost / first(cost) - 1),
