@@ -401,9 +401,10 @@ list(stp = activity_costs, region = activity_costs_region) %>%
   mutate_at("stp", `/`, nrow(mpi)) %>%
   mutate_at("region", `/`, nrow(mpi_region)) %>%
   ggplot(aes(proximity_to_death_days, stp)) +
-  # geom_point(colour = su_theme_cols("orange"),
-  #            fill = alpha(su_theme_cols("orange"), 0.4),
-  #            shape = "circle filled") +
+  geom_point(colour = su_theme_cols("orange"),
+             size = 1,
+             fill = alpha(su_theme_cols("orange"), 0.4),
+             shape = "circle filled") +
   geom_smooth(method = "loess",
               formula = y ~ x,
               span = 0.2,
