@@ -13,6 +13,8 @@ params:
 ```{r setup, include=FALSE}
 library(knitr)
 library(magrittr)
+library(ggridges)
+library(patchwork)
 # knitr options ----
 opts_chunk$set(echo = FALSE, eval.after = "fig.cap")
 
