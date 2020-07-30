@@ -76,30 +76,22 @@ mpi %>%
 ```
 
 ```{r ethnicity place of death, message=FALSE, warning=FALSE}
-local({
-  data <- mpi %>%
-    filter(ethnic_group != "Unknown")
-  
-  if (nrow(data) > 0) {
-    data %>%
-      count(ethnic_group, location_type, age_band) %>%
-      filter(location_type != "Unknown") %>%
-      group_by(ethnic_group, age_band) %>%
-      mutate_at("n", ~.x/sum(.x)) %>%
-      ggplot(aes(ethnic_group, n)) +
-      geom_col(aes(fill = location_type),
-               alpha = 0.4,
-               colour = "white") +
-      scale_y_continuous(labels = percent) +
-      place_of_death_fill(reverse = TRUE) +
-      facet_wrap(vars(age_band)) +
-      coord_flip() +
-      theme(legend.position = "bottom") +
-      labs(x = "", y = "", fill = "")
-  } else {
-    warning("Ethnicity is missing: plot not run")  
-  }
-})
+mpi %>%
+  filter(ethnic_group != "Unknown") %>%
+  count(ethnic_group, location_type, age_band) %>%
+  filter(location_type != "Unknown") %>%
+  group_by(ethnic_group, age_band) %>%
+  mutate_at("n", ~.x/sum(.x)) %>%
+  ggplot(aes(ethnic_group, n)) +
+  geom_col(aes(fill = location_type),
+           alpha = 0.4,
+           colour = "white") +
+  scale_y_continuous(labels = percent) +
+  place_of_death_fill(reverse = TRUE) +
+  facet_wrap(vars(age_band)) +
+  coord_flip() +
+  theme(legend.position = "bottom") +
+  labs(x = "", y = "", fill = "")
 ```
 
 # About Peoples' Healthcare
