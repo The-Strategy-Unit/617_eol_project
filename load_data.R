@@ -25,7 +25,7 @@ setup_env$load_data <- function(stp, region_report = FALSE) {
   # all codes from the region
   env$region <- region$stp18cd
 
-  env$pop_raw_all <- file.path("data", "reference", "population.csv") %>%
+  env$pop_raw_region <- file.path("data", "reference", "population.csv") %>%
     read_csv(col_types = cols(
       ccg18cd = col_character(),
       ccg18cdh = col_character(),
@@ -36,10 +36,10 @@ setup_env$load_data <- function(stp, region_report = FALSE) {
       count = col_double()
     )) %>%
     mutate(is_region_stp = stp18cd %in% env$region,
-           is_stp = stp18cd == stp)
+           is_stp = stp18cd == stp) %>%
+    filter(is_region_stp)
 
-  env$pop_raw_region <- filter(pop_raw_all, is_region_stp)
-  env$pop_raw <- filter(pop_raw_all, is_stp)
+  env$pop_raw <- filter(env$pop_raw_region, is_stp)
 
   # Get Geo Data ----
   # "https://opendata.arcgis.com/datasets/4669a971a0d94feb8d63fb0b28949998_4.geojson"
@@ -51,28 +51,23 @@ setup_env$load_data <- function(stp, region_report = FALSE) {
     mutate(is_stp = stp18cd == stp,
            is_region_stp = stp18cd %in% env$region)
 
-  # "https://ons-inspire.esriuk.com/arcgis/services/Administrative_Boundaries/Countries_December_2018_Boundaries_GB_BUC/MapServer/WFSServer?request=GetCapabilities&service=WFS"
-  env$countries <- file.path("data", "geo") %>%
-    st_read(layer = "countries",
-            quiet = TRUE,
-            stringsAsFactors = FALSE,
-            as_tibble = TRUE) %>%
-    st_transform(crs = 27700)
+  env$stps <- file.path("data", "reference", "stps.csv") %>%
+    read_csv(col_types = "cc")
 
-  env$stp_name <- filter(stp_geo, is_stp)$stp18nm
+  env$stp_name <- filter(stps, stp18cd == stp)$stp18nm
 
   # Load MPI
 
-  env$mpi_all <- file.path("data", "sensitive", "mpi.fst") %>%
+  env$mpi_region <- file.path("data", "sensitive", "mpi.fst") %>%
     read_fst() %>%
     as_tibble() %>%
     mutate(is_region_stp = stp %in% env$region,
            # use curly-curly from rlang to ensure we are using the functions
            # argument
-           is_stp = stp == {{stp}})
+           is_stp = stp == {{stp}}) %>%
+    filter(is_region_stp)
 
-  env$mpi_region <- filter(env$mpi_all, is_region_stp)
-  env$mpi <- filter(env$mpi_all, is_stp)
+  env$mpi <- filter(env$mpi_region, is_stp)
 
   env$activity_region <- file.path("data", "sensitive", "activity.fst") %>%
     read_fst() %>%

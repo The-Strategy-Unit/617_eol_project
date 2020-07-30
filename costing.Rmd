@@ -886,7 +886,7 @@ mpi_region %>%
   modify_at("cost", replace_na, 0) %>%
   summarise(ci = list(cost) %>% map(DescTools::MeanCI), .groups = "drop") %>%
   unnest_wider(ci) %>%
-  inner_join(as_tibble(stp_geo) %>% select(stp18cd, stp18nm), by = c("stp" = "stp18cd")) %>%
+  inner_join(stps, by = c("stp" = "stp18cd")) %>%
   mutate_at("stp18nm", fct_reorder, quo(mean)) %>%
   mutate(colour = ifelse(stp == params$stp, "orange", "charcoal")) %>%
   mutate(region = sum(activity_costs_region$cost) / nrow(mpi_region)) %>%
