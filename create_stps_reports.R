@@ -12,15 +12,7 @@ if (!dir.exists("output")) {
 
 cat("Starting R Sessions: ")
 tic()
-# disable renv starting up for each session
-tryCatch({
-  file.rename(".Rprofile", "~.Rprofile") ; file.create(".Rprofile")
-  # start sessions
-  plan(multiprocess, workers = 10)
-}, finally = {
-  # restore rprofile
-  unlink(".Rprofile") ; file.rename("~.Rprofile", ".Rprofile")
-})
+plan(multiprocess, workers = 10)
 toc()
 cat("done: starting to render reports\n")
 
