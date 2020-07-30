@@ -7,7 +7,7 @@ output:
     toc: yes
 params:
   stp: "E54000010"
-  region_report: true
+  region_report: false
 ---
 
 ```{r setup, include=FALSE}
