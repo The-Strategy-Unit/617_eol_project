@@ -41,16 +41,6 @@ setup_env$load_data <- function(stp, region_report = FALSE) {
 
   env$pop_raw <- filter(env$pop_raw_region, is_stp)
 
-  # Get Geo Data ----
-  # "https://opendata.arcgis.com/datasets/4669a971a0d94feb8d63fb0b28949998_4.geojson"
-  env$stp_geo <- file.path("data", "geo") %>%
-    st_read(layer = "stp",
-            quiet = TRUE,
-            stringsAsFactors = FALSE,
-            as_tibble = TRUE) %>%
-    mutate(is_stp = stp18cd == stp,
-           is_region_stp = stp18cd %in% env$region)
-
   env$stps <- file.path("data", "reference", "stps.csv") %>%
     read_csv(col_types = "cc")
 
