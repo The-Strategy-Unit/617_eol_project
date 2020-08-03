@@ -311,7 +311,6 @@ local({
 
 ```{r forecast deaths}
 forecast_deaths %>%
-  mutate(age = age_group) %>%
   mutate_at("age_group",
             cut,
             breaks = c(0,18,65,75,85,Inf),
