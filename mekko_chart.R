@@ -5,7 +5,9 @@ if (!exists("setup_env")) {
 setup_env$mekko_chart <- function(data, x, y,
                         show_labels = TRUE,
                         lab_min_x = 0.05,
-                        lab_min_y = 0.05) {
+                        lab_min_y = 0.05,
+                        x_labels = NULL,
+                        x_breaks = NULL) {
   data.c <- count(data, {{x}}, {{y}})
 
   data.x <- data.c %>%
@@ -35,6 +37,14 @@ setup_env$mekko_chart <- function(data, x, y,
     filter(xmin == 0) %>%
     mutate(y = (ymax+ymin) / 2)
 
+  if (is.null(x_labels)) {
+    x_labels <- pull(data.x, {{x}})
+  }
+
+  if (is.null(x_breaks)) {
+    x_breaks <- (pull(data.x, xmax) + pull(data.x, xmin)) / 2
+  }
+
   data.f %>%
     ggplot(aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,
                fill = {{y}})) +
@@ -42,8 +52,8 @@ setup_env$mekko_chart <- function(data, x, y,
     geom_text(aes(x = lab_x, y = lab_y, label = lab_v),
               colour = "white",
               na.rm = TRUE) +
-    scale_x_continuous(breaks = (pull(data.x, xmax)+pull(data.x, xmin))/2,
-                       labels = pull(data.x, {{x}}),
+    scale_x_continuous(breaks = x_breaks,
+                       labels = x_labels,
                        sec.axis = dup_axis(
                          breaks = seq(0,.9,.2),
                          labels = percent_format(accuracy = 1)

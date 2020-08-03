@@ -52,19 +52,10 @@ OTI = Other Terminal Illness
 mpi %>%
   filter(location_type != "Unknown",
          !is.na(imd_quintile)) %>%
-  mutate_at("imd_quintile",
-            compose(.dir = "forward",
-              as.factor,
-              partial(fct_recode,
-                      "Most Deprived" = "1",
-                      # we still need unique labels, so let's just increase the
-                      # number of spaces each time
-                      " " = "2", 
-                      "  " = "3",
-                      "   " = "4",
-                      "Least Deprived" = "5")
-              )) %>%
-  mekko_chart(imd_quintile, location_type) +
+  mutate(across(imd_quintile, as.factor)) %>%
+  mekko_chart(imd_quintile, location_type,
+              x_labels = c("Most Deprived", "Least Deprived"),
+              x_breaks = c(0.075, 0.925)) +
   place_of_death_fill()
 ```
 
