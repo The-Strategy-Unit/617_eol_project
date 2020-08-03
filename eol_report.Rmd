@@ -385,8 +385,8 @@ forecast_data %>%
   mutate(across(activity, ~round((.x - first(.x)) / (365*.9)))) %>%
   filter(year > 2020) %>%
   pivot_wider(names_from = year, values_from = activity) %>%
-  mutate(type = "Extra Beds") %>%
-  relocate(type, .before = everything())
+  mutate(year = "Extra Beds") %>%
+  relocate(year, .before = everything())
 ```
 
 ```{r forecast activity 5 year bars plot, echo=FALSE, message=FALSE, results='hide'}
