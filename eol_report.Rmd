@@ -68,9 +68,8 @@ mpi %>%
 
 ```{r ethnicity place of death, message=FALSE, warning=FALSE}
 mpi %>%
-  filter(ethnic_group != "Unknown") %>%
+  filter(location_type != "Unknown", ethnic_group != "Unknown") %>%
   count(ethnic_group, location_type, age_band) %>%
-  filter(location_type != "Unknown") %>%
   group_by(ethnic_group, age_band) %>%
   mutate_at("n", ~.x/sum(.x)) %>%
   ggplot(aes(ethnic_group, n)) +
