@@ -74,7 +74,6 @@ mpi %>%
   mutate_at("n", ~.x/sum(.x)) %>%
   ggplot(aes(ethnic_group, n)) +
   geom_col(aes(fill = location_type),
-           alpha = 0.4,
            colour = "white") +
   scale_y_continuous(labels = percent) +
   place_of_death_fill(reverse = TRUE) +
