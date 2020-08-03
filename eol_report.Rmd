@@ -1406,10 +1406,13 @@ activity %>%
   unnest(ci) %>%
   mutate(mean_est = sum(n) / sum(d),
          colour = case_when(
-           upr.ci < mean_est ~ "orange",
-           lwr.ci > mean_est ~ "red",
-           TRUE ~ "charcoal"
-         )) %>%
+           upr.ci < mean_est ~ "significantly lower",
+           lwr.ci > mean_est ~ "significantly higher",
+           TRUE ~ "no significant difference",
+         ) %>%
+           factor(levels = c("significantly lower",
+                             "no significant difference",
+                             "significantly higher"))) %>%
   mutate_at("cancer_site", fct_reorder, quo(-est)) %>%
   ggplot(aes(fct_rev(cancer_site), est, colour = colour)) +
   geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci)) +
@@ -1417,14 +1420,18 @@ activity %>%
   geom_hline(aes(yintercept = mean_est),
              linetype = "dashed") +
   coord_flip() +
-  scale_colour_manual(values = su_theme_cols()) +
+  scale_colour_discrete(drop = FALSE,
+                        guide = guide_legend(reverse = TRUE)) +
   scale_y_continuous(labels = percent) +
   labs(x = "", y = "% of patients who have chemo in last month before death") +
   theme(axis.line.y = element_blank(),
         axis.ticks.y = element_blank(),
         panel.grid.major.x = element_line(colour = "lightgrey",
                                           linetype = "dotted"),
-        legend.position = "none")
+        legend.position = c(1, 0),
+        legend.justification = c(1, 0),
+        legend.background = element_blank(),
+        legend.title = element_blank())
 ```
 
 ```{r chemo in last month of life binomial ci plot by age band}
@@ -1441,24 +1448,31 @@ activity %>%
   unnest(ci) %>%
   mutate(mean_est = sum(n) / sum(d),
          colour = case_when(
-           upr.ci < mean_est ~ "orange",
-           lwr.ci > mean_est ~ "red",
-           TRUE ~ "charcoal"
-         )) %>%
+           upr.ci < mean_est ~ "significantly lower",
+           lwr.ci > mean_est ~ "significantly higher",
+           TRUE ~ "no significant difference",
+         ) %>%
+           factor(levels = c("significantly lower",
+                             "no significant difference",
+                             "significantly higher"))) %>%
   ggplot(aes(fct_rev(age_band), est, colour = colour)) +
   geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci)) +
   geom_point(aes(fill = after_scale(alpha(colour, 0.4)))) +
   geom_hline(aes(yintercept = mean_est),
              linetype = "dashed") +
   coord_flip() +
-  scale_colour_manual(values = su_theme_cols()) +
-  scale_y_continuous(labels = percent) +
+  scale_colour_discrete(drop = FALSE,
+                        guide = guide_legend(reverse = TRUE)) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
   labs(x = "", y = "% of patients who have chemo in last month before death") +
   theme(axis.line.y = element_blank(),
         axis.ticks.y = element_blank(),
         panel.grid.major.x = element_line(colour = "lightgrey",
                                           linetype = "dotted"),
-        legend.position = "none")
+        legend.position = c(0, 1),
+        legend.justification = c(0, 1),
+        legend.background = element_blank(),
+        legend.title = element_blank())
 ```
 
 # Critical care bed days
