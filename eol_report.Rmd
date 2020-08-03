@@ -458,31 +458,26 @@ pcnt_bar_comparison_plot <- function(mpi, category, value, reorder = TRUE) {
 }
 
 pcnt_dot_comparison_plot <- function(mpi, mpi_region, category, value, reorder = TRUE) {
-  data <- bind_rows(
-    mutate(mpi, type = stp_name),
-    mutate(mpi_region, type = region_name)
+  data <- list(
+    stp = mpi,
+    region = mpi_region
   ) %>%
-    filter({{category}} != "(Missing)",
-           !is.na({{category}})) %>%
-    mutate_at(vars({{value}}), replace_na, 0) %>%
-    group_by({{category}}, type) %>%
-    summarise(numerator = sum({{value}}),
-              denominator = n(),
-              .groups = "drop_last") %>%
-    ungroup() %>%
-    arrange(type == region_name) %>%
-    mutate_at(vars(type), fct_relevel, stp_name, region_name) %>%
-    mutate(x = map2(numerator, denominator,
-                    compose(as_tibble, BinomCI))) %>%
-    unnest(cols = c(x)) %>%
+    map(filter, {{category}} != "(Missing)", !is.na({{category}})) %>%
+    map(group_by, {{category}}) %>%
+    map_dfr(summarise,
+            numerator = sum({{value}}, na.rm = TRUE),
+            denominator = n(),
+            .groups = "drop",
+            .id = "type") %>%
+    mutate(across(type, fct_relevel, "stp", "region"),
+           x = map2(numerator, denominator, compose(as_tibble, BinomCI))) %>%
+    unnest_wider(x) %>%
     rename({{value}} := est) %>%
-    mutate_at(vars(lwr.ci, upr.ci), ~ifelse(type == region_name, NA, .x))
+    mutate_at(vars(lwr.ci, upr.ci), ~ifelse(type == "region", NA, .x))
+
   
   if (reorder) {
-    data <- mutate_at(data,
-                      vars({{category}}),
-                      fct_reorder,
-                      quo({{value}}))
+    data <- mutate(data, across({{category}}, fct_reorder, {{value}}))
   }
   
   ggplot(data, aes({{category}}, {{value}}, fill = type)) +
@@ -503,7 +498,7 @@ pcnt_dot_comparison_plot <- function(mpi, mpi_region, category, value, reorder =
                                             linetype = "dotted"),
           legend.position = c(1, 0),
           legend.justification = c(1, 0),
-          legend.direction = "horizontal") +
+          legend.direction = "vertical") +
     labs(x = "", y = "", fill = "", size = "")
 }
 ```
