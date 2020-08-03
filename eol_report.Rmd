@@ -1498,7 +1498,9 @@ mpi %>%
             "Sudden\nDeath" = "Sudden Death",
             "OTI" = "Other Terminal Illness") %>%
   drop_na(died_in_critical_care) %>%
-  mutate_at("died_in_critical_care", ~ifelse(.x == 1, "Yes", "No")) %>%
+  mutate_at("died_in_critical_care", ~ifelse(.x == 1,
+                                             "Died in critical care",
+                                             "Did not die in critical care")) %>%
   mekko_chart(group, died_in_critical_care)
 
 ```
