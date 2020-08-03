@@ -1197,7 +1197,14 @@ activity %>%
                                             colour = "lightgrey")) +
       labs(x = "Proximity to death (Months)",
            y = name,
-           colour = "")
+           colour = "") +
+      annotate("text",
+               x = 28,
+               y = 0,
+               label = "4 weeks prior to death",
+               hjust = 1.05,
+               vjust = -0.5,
+               size = 3)
   }) %>%
   walk(plot)
 ```
@@ -1259,7 +1266,14 @@ activity %>%
   theme(legend.position = "bottom",
         panel.grid.major = element_line(linetype = "dashed",
                                         colour = "lightgrey"),
-        axis.title.y.right = element_text(margin = margin(l = 10)))
+        axis.title.y.right = element_text(margin = margin(l = 10))) +
+  annotate("text",
+           x = 28,
+           y = 0,
+           label = "4 weeks prior to death",
+           hjust = 1.05,
+           vjust = -0.5,
+           size = 3)
 ```
 
 ```{r chemo utilisation}
