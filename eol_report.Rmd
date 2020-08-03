@@ -72,14 +72,15 @@ mpi %>%
   count(ethnic_group, location_type, age_band) %>%
   group_by(ethnic_group, age_band) %>%
   mutate_at("n", ~.x/sum(.x)) %>%
-  ggplot(aes(ethnic_group, n)) +
+  ggplot(aes(n, ethnic_group)) +
   geom_col(aes(fill = location_type),
            colour = "white") +
-  scale_y_continuous(labels = percent) +
+  scale_x_continuous(labels = percent) +
   place_of_death_fill(reverse = TRUE) +
   facet_wrap(vars(age_band)) +
-  coord_flip() +
-  theme(legend.position = "bottom") +
+  theme(legend.position = "bottom",
+        axis.line = element_blank(),
+        axis.ticks.y = element_blank()) +
   labs(x = "", y = "", fill = "")
 ```
 
