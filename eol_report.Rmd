@@ -1327,7 +1327,7 @@ bind_rows(
               formula = y ~ x,
               fill = NA,
               colour = su_theme_cols("charcoal")) +
-  scale_y_continuous(labels = percent) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
   labs(x = "Age",
        y = "Percentage of decedents who had chemo") +
   theme(legend.position = "none")
