@@ -857,13 +857,9 @@ list(stp = activity,
       ggplot(aes(age, stp, colour = activity_year)) +
       geom_smooth(fill = NA, method = "loess", formula = y ~ x, na.rm = TRUE,
                   lwd = 0.75) +
-      geom_smooth(aes(y = region, group = activity_year),
-                  fill = NA, method = "loess", formula = y ~ x, na.rm = TRUE,
-                  alpha = 0.4, linetype = "dashed",
-                  lwd = 0.75) +
       geom_point(na.rm = TRUE) +
       expand_limits(y = 0) +
-      facet_wrap(vars(fct_rev(pod_summary_group)), scales = "free") +
+      facet_wrap(vars(fct_rev(pod_summary_group))) +
       theme(legend.position = "bottom") +
       labs(title = ifelse(pod_type == "Bed", "Bed Days", as.character(pod_type)),
            colour = "")
