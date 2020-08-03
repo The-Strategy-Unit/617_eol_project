@@ -1463,7 +1463,10 @@ activity %>%
         legend.position = "none")
 ```
 
-# Extra mekko charts
+# Critical care bed days
+
+What % of critical care bed days are used by people who died in critical care
+versus those who did not die in critical care?
 
 ```{r cc mekko - died in CC}
 mpi %>%
@@ -1478,12 +1481,16 @@ mpi %>%
 
 ```
 
+What % of critical care bed days are used by elective admissions versus
+emergency admissions?
+
 ```{r cc mekko - admission method split}
 activity %>%
   inner_join(select(mpi, su_pat_id, group),
              by = "su_pat_id") %>%
   filter(group != "(Missing)",
          pod_summary_group == "Critical Care Bed Day") %>%
+  distinct(bb5008_pseudo_apcs_ident_pseudo, group, cc_pod_summary_group) %>%
   mutate_at(vars(group),
             compose(fct_rev, fct_recode),
             "Sudden\nDeath" = "Sudden Death",
