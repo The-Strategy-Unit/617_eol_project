@@ -1445,7 +1445,10 @@ activity %>%
   scale_colour_discrete(drop = FALSE,
                         guide = guide_legend(reverse = TRUE)) +
   scale_y_continuous(labels = percent) +
-  labs(x = "", y = "% of patients who have chemo in last month before death") +
+  labs(x = "",
+       y = paste("% of patients who have chemo in last month before death",
+                 "Dashed line = average %",
+                 sep = "\n")) +
   theme(axis.line.y = element_blank(),
         axis.ticks.y = element_blank(),
         panel.grid.major.x = element_line(colour = "lightgrey",
@@ -1486,7 +1489,10 @@ activity %>%
   scale_colour_discrete(drop = FALSE,
                         guide = guide_legend(reverse = TRUE)) +
   scale_y_continuous(labels = percent_format(accuracy = 1)) +
-  labs(x = "", y = "% of patients who have chemo in last month before death") +
+  labs(x = "",
+       y = paste("% of patients who have chemo in last month before death",
+                 "Dashed line = average %",
+                 sep = "\n")) +
   theme(axis.line.y = element_blank(),
         axis.ticks.y = element_blank(),
         panel.grid.major.x = element_line(colour = "lightgrey",
