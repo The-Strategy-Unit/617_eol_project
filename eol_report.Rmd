@@ -1593,7 +1593,8 @@ activity_ambulance %>%
   geom_smooth(method = "loess",
               formula = y ~ x,
               span = 0.2,
-              fill = NA) +
+              fill = NA,
+              na.rm = TRUE) +
   scale_x_proximity_to_death_days() +
   scale_y_continuous(labels = percent_format(accuracy = 1),
                      position = "right") +
