@@ -1662,6 +1662,7 @@ tlos %>%
   ggplot(aes(proximity_to_death_days, p, colour = pod_summary_group)) +
   geom_step() +
   scale_x_continuous(trans = "reverse",
+                     expand = expansion(c(0.05, 0)),
                      breaks = seq(0, 140, by = 7)) +
   scale_y_continuous(expand = expansion(c(0, 0.05)),
                      labels = percent,
