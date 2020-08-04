@@ -633,9 +633,10 @@ local({
     annotate("text",
              x = min(df$year),
              y = max(df$deaths),
-             label = "Historic") +
+             label = "Historic",
+             hjust = 0) +
     annotate("text",
-             x = 2019.5,
+             x = 2020,
              y = max(df$deaths),
              label = "Forecast",
              hjust = 0) +
