@@ -397,37 +397,58 @@ activity_costs %>%
 
 # Average spend per decedent
 
-```{r}
-list(stp = activity_costs, region = activity_costs_region) %>%
-  map(group_by, proximity_to_death_days) %>%
-  map_dfr(summarise_at, "cost", sum, .id = "type") %>%
-  pivot_wider(names_from = type, values_from = cost) %>%
-  mutate_at("stp", `/`, nrow(mpi)) %>%
-  mutate_at("region", `/`, nrow(mpi_region)) %>%
-  ggplot(aes(proximity_to_death_days, stp)) +
-  geom_point(colour = su_theme_cols("orange"),
-             size = 1,
-             fill = alpha(su_theme_cols("orange"), 0.4),
-             shape = "circle filled") +
-  geom_smooth(method = "loess",
-              formula = y ~ x,
-              span = 0.2,
-              colour = su_theme_cols("orange"),
-              fill = NA) +
-  geom_smooth(aes(y = region),
-              method = "loess",
-              formula = y ~ x,
-              span = 0.2,
-              colour = after_scale(alpha(su_theme_cols("charcoal"), 0.4)),
-              linetype = "dashed",
-              fill = NA) +
-  scale_x_proximity_to_death_days() +
-  scale_y_continuous(labels = number_format(prefix = "£"),
-                     position = "right") +
-  theme(axis.title.y.right = element_text(margin = margin(l = 10))) +
-  labs(x = "Proximity to Death (Months)",
-       y = "Average cost per decedent",
-       title = "")
+```{r, results = "none"}
+local({
+  df <- list(
+    stp = activity_costs,
+    region = activity_costs_region
+  ) %>%
+    map(group_by, proximity_to_death_days) %>%
+    map_dfr(summarise_at, "cost", sum, .id = "type") %>%
+    pivot_wider(names_from = type, values_from = cost) %>%
+    mutate_at("stp", `/`, nrow(mpi)) %>%
+    mutate_at("region", `/`, nrow(mpi_region))
+  
+  c(Inf, 31) %>%
+    walk(function(.x) {
+      p <- df %>%
+        filter(proximity_to_death_days < .x) %>%
+        ggplot(aes(proximity_to_death_days, stp)) +
+        geom_point(colour = su_theme_cols("orange"),
+                   size = 1,
+                   fill = alpha(su_theme_cols("orange"), 0.4),
+                   shape = "circle filled") +
+        geom_smooth(method = "loess",
+                    formula = y ~ x,
+                    span = 0.2,
+                    colour = su_theme_cols("orange"),
+                    fill = NA) +
+        geom_smooth(aes(y = region),
+                    method = "loess",
+                    formula = y ~ x,
+                    span = 0.2,
+                    colour = after_scale(alpha(su_theme_cols("charcoal"), 0.4)),
+                    linetype = "solid",
+                    fill = NA) +
+        scale_y_continuous(labels = number_format(prefix = "£"),
+                           position = "right") +
+        theme(axis.title.y.right = element_text(margin = margin(l = 10))) +
+        ylab("Average cost per decedent")
+      
+      if(is.finite(.x)) {
+        p <- p +
+          scale_x_continuous(trans = "reverse",
+                             breaks = seq(0, 31, by = 7)) +
+          coord_cartesian(xlim = c(.x, 0)) +
+          xlab("Proximity to Death (Days)")
+      } else {
+        p <- p +
+          scale_x_proximity_to_death_days() +
+          xlab("Proximity to Death (Months)")
+      }
+      print(p)
+    })
+})
 ```
 
 # All spend
