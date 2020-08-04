@@ -856,7 +856,7 @@ bind_rows(
       group_by(year) %>%
       summarise_at("cost", sum) %>%
       arrange(year) %>%
-      mutate(act_sum_lbl = comma(cost, prefix = "£", accuracy = 1),
+      mutate(act_sum_lbl = comma(cost, prefix = "£", accuracy = .1, scale = 1e-6, suffix = "m"),
              pcnt_change_lbl = percent(ifelse(year == 2020,
                                               NA,
                                               cost / first(cost) - 1),
@@ -892,7 +892,7 @@ activity_costs %>%
   ggplot(aes(pod_type, cost)) +
   geom_col(aes(colour = pod_type,
                fill = after_scale(alpha(colour, 0.4))), show.legend = FALSE) +
-  geom_text(aes(label = comma(cost, prefix = "£")),
+  geom_text(aes(label = money_format(cost)),
                 vjust = -0.35) +
   scale_y_continuous(labels = money_format,
                      expand = expansion(c(0, 0.05))) +
