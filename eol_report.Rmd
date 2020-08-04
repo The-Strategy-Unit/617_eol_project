@@ -870,7 +870,9 @@ list(stp = activity,
       ggplot(aes(age, stp, colour = activity_year)) +
       geom_smooth(fill = NA, method = "loess", formula = y ~ x, na.rm = TRUE,
                   lwd = 0.75) +
-      geom_point(na.rm = TRUE) +
+      geom_point(aes(fill = after_scale(alpha(colour, 0.4))),
+                 shape = "circle filled",
+                 na.rm = TRUE) +
       expand_limits(y = 0) +
       facet_wrap(vars(fct_rev(pod_summary_group))) +
       theme(legend.position = "bottom") +
@@ -1368,7 +1370,8 @@ activity %>%
              by = "age") %>%
   mutate(utilisation = activity / nd) %>%
   ggplot(aes(age, utilisation, colour = year)) +
-  geom_point() +
+  geom_point(aes(fill = after_scale(alpha(colour, 0.4))),
+             shape = "circle filled") +
   geom_smooth(fill = NA, method = "loess", formula = y ~ x) +
   labs(x = "Age",
        y = "Chemo Usage per decedent who had chemo",
@@ -1401,7 +1404,8 @@ activity %>%
              by = "age") %>%
   mutate(utilisation = activity / nd) %>%
   ggplot(aes(age, utilisation, colour = year)) +
-  geom_point() +
+  geom_point(aes(fill = after_scale(alpha(colour, 0.4))),
+             shape = "circle filled") +
   geom_smooth(fill = NA, method = "loess", formula = y ~ x) +
   labs(x = "Age",
        y = "Chemo Usage per decedent",
