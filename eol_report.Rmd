@@ -12,6 +12,9 @@ params:
 
 ```{r setup, include=FALSE}
 library(knitr)
+suppressMessages(
+  library(cowplot, quietly = TRUE)
+)
 # knitr options ----
 opts_chunk$set(echo = FALSE, eval.after = "fig.cap")
 
@@ -1513,37 +1516,49 @@ activity %>%
 What % of critical care bed days are used by people who died in critical care
 versus those who did not die in critical care?
 
-```{r cc mekko - died in CC}
-mpi %>%
-  filter(group != "(Missing)") %>%
-  mutate_at(vars(group),
-            compose(fct_rev, fct_recode),
-            "Sudden\nDeath" = "Sudden Death",
-            "OTI" = "Other Terminal Illness") %>%
-  drop_na(died_in_critical_care) %>%
-  mutate_at("died_in_critical_care", ~ifelse(.x == 1,
-                                             "Died in critical care",
-                                             "Did not die in critical care")) %>%
-  mekko_chart(group, died_in_critical_care)
+```{r cc mekko plots, message=FALSE, warning=FALSE}
+aligned <- local({
+  loadfonts(device = "win", quiet = TRUE)
+  p1 <- mpi %>%
+    filter(group != "(Missing)") %>%
+    mutate_at(vars(group),
+              compose(fct_rev, fct_recode),
+              "Sudden\nDeath" = "Sudden Death",
+              "OTI" = "Other Terminal Illness") %>%
+    drop_na(died_in_critical_care) %>%
+    mutate_at("died_in_critical_care", ~ifelse(.x == 1,
+                                               "Died in\ncritical care",
+                                               "Did not die in\ncritical care")) %>%
+    mekko_chart(group, died_in_critical_care)
+  
+  p2 <- activity %>%
+    inner_join(select(mpi, su_pat_id, group),
+               by = "su_pat_id") %>%
+    filter(group != "(Missing)",
+           pod_summary_group == "Critical Care Bed Day") %>%
+    distinct(bb5008_pseudo_apcs_ident_pseudo, group, cc_pod_summary_group) %>%
+    mutate_at(vars(group),
+              compose(fct_rev, fct_recode),
+              "Sudden\nDeath" = "Sudden Death",
+              "OTI" = "Other Terminal Illness") %>%
+    mutate_at("cc_pod_summary_group", str_replace, " ", "\n") %>%
+    mekko_chart(group, cc_pod_summary_group)
+  
+  suppressWarnings(
+    align_plots(p1, p2, align = "v")
+  )
+})
+```
 
+```{r cc mekko - died in CC}
+ggdraw(aligned[[1]])
 ```
 
 What % of critical care bed days are used by elective admissions versus
 emergency admissions?
 
 ```{r cc mekko - admission method split}
-activity %>%
-  inner_join(select(mpi, su_pat_id, group),
-             by = "su_pat_id") %>%
-  filter(group != "(Missing)",
-         pod_summary_group == "Critical Care Bed Day") %>%
-  distinct(bb5008_pseudo_apcs_ident_pseudo, group, cc_pod_summary_group) %>%
-  mutate_at(vars(group),
-            compose(fct_rev, fct_recode),
-            "Sudden\nDeath" = "Sudden Death",
-            "OTI" = "Other Terminal Illness") %>%
-  mutate_at("cc_pod_summary_group", str_replace, " ", "\n") %>%
-  mekko_chart(group, cc_pod_summary_group)
+ggdraw(aligned[[2]])
 ```
 
 # Ambulance Arrivals
