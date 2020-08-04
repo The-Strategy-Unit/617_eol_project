@@ -5,6 +5,7 @@ library(rmarkdown)
 library(cli)
 library(tictoc)
 library(furrr)
+library(parallel)
 
 if (!dir.exists("output")) {
   dir.create("output")
@@ -12,7 +13,10 @@ if (!dir.exists("output")) {
 
 cat("Starting R Sessions: ")
 tic()
-plan(multiprocess, workers = 10)
+
+cl <- makePSOCKcluster(10, rscript_args = "--no-init-file")
+plan(cluster, workers = cl)
+
 toc()
 cat("done: starting to render reports\n")
 
@@ -138,3 +142,4 @@ stps <- file.path("data", "reference", "stps.csv") %>%
 }
 
 plan(sequential)
+stopCluster(cl)
