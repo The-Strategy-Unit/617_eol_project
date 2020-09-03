@@ -1692,6 +1692,5 @@ tlos %>%
                      position = "right") +
   labs(x = "Bed days for Terminal Spell",
        y = "Cumulative Bed days for Terminal Spell") +
-  theme(legend.position = "bottom",
-        legend.title = element_blank())
+  theme(legend.position = "none")
 ```
