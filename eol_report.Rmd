@@ -880,7 +880,9 @@ list(stp = activity,
       facet_wrap(vars(fct_rev(pod_summary_group))) +
       theme(legend.position = "bottom") +
       labs(title = ifelse(pod_type == "Bed", "Bed Days", as.character(pod_type)),
-           colour = "")
+           colour = "",
+           x = "Age of decedent",
+           y = "Average use")
   }) %>%
   walk(plot)
 ```
