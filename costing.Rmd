@@ -422,14 +422,20 @@ local({
                     formula = y ~ x,
                     span = 0.2,
                     colour = su_theme_cols("orange"),
-                    fill = NA) +
-        geom_smooth(aes(y = region),
-                    method = "loess",
-                    formula = y ~ x,
-                    span = 0.2,
-                    colour = after_scale(alpha(su_theme_cols("charcoal"), 0.4)),
-                    linetype = "solid",
-                    fill = NA) +
+                    fill = NA)
+      
+      if (!params$region_report) {
+        p <- p +
+          geom_smooth(aes(y = region),
+                      method = "loess",
+                      formula = y ~ x,
+                      span = 0.2,
+                      colour = after_scale(alpha(su_theme_cols("charcoal"), 0.4)),
+                      linetype = "solid",
+                      fill = NA)
+      }
+      
+      p <- p +
         scale_y_continuous(labels = number_format(prefix = "£"),
                            position = "right") +
         theme(axis.title.y.right = element_text(margin = margin(l = 10))) +
@@ -485,6 +491,7 @@ activity_costs_ex_bed %>%
   pmap(spend_plot) %>%
   walk(plot)
 ```
+
 # Specialised services spend
 
 ```{r}
@@ -499,6 +506,7 @@ activity_costs_ex_bed %>%
   pmap(spend_plot) %>%
   walk(plot)
 ```
+
 # Daily % split of Specialised Services to All Spend
 
 ```{r}
