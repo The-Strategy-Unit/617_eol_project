@@ -229,7 +229,7 @@ activity_costs %>%
   mutate_at("pod_summary_group", paste0, "\n", quo(simple_ss_flag)) %>%
   group_by(pod_type) %>%
   mutate(n_pt = n()) %>%
-  group_by(pod_summary_group, add = TRUE) %>%
+  group_by(pod_summary_group, .add = TRUE) %>%
   mutate(n_psg = n()) %>%
   filter(n_psg > 1000 | (n_psg/n_pt) > 0.01) %>%
   ggplot(aes(cost, pod_summary_group, colour = simple_ss_flag)) +
@@ -737,7 +737,7 @@ average_costs_per_person_sum <- forecast_deaths %>%
 bind_rows(
   average_costs_per_person_sum,
   average_costs_per_person_sum %>%
-    group_by(est_deaths, decedents, add = TRUE) %>%
+    group_by(est_deaths, decedents, .add = TRUE) %>%
     summarise_at("cost", sum) %>%
     mutate(pod_type = "All Activity")
 ) %>%
@@ -840,7 +840,7 @@ average_costs_per_person_sum <- forecast_deaths %>%
 bind_rows(
   average_costs_per_person_sum,
   average_costs_per_person_sum %>%
-    group_by(est_deaths, decedents, add = TRUE) %>%
+    group_by(est_deaths, decedents, .add = TRUE) %>%
     summarise_at("cost", sum) %>%
     mutate(pod_type = "All Activity")
 ) %>%
