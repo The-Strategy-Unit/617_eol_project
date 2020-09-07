@@ -883,7 +883,7 @@ bind_rows(
       scale_y_continuous(labels = money_format,
                          expand = expansion(c(0, 0.15))) +
       labs(fill = "",
-           y = "Average Spend per Decedent",
+           y = "Spend (£million)",
            title = pod_type) +
       theme(legend.position = "bottom")
   }) %>%
