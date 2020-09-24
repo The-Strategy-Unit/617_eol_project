@@ -492,6 +492,42 @@ activity_costs_ex_bed %>%
   walk(plot)
 ```
 
+## Average activity cost
+
+```{r}
+
+bind_rows(
+  activity_costs %>%
+    filter(pod_type != "Bed", cost > 0) %>%
+    group_by(proximity_to_death_days) %>%
+    summarise(across(cost, mean), pod_type = "All Activity", .groups = "drop"),
+  activity_costs %>%
+    filter(pod_type != "Bed", cost > 0) %>%
+    group_by(pod_type, proximity_to_death_days) %>%
+    summarise(across(cost, mean), .groups = "drop")
+) %>%
+  nest_by(pod_type) %>%
+  pmap(function(pod_type, data) {
+    data %>%
+      ggplot(aes(proximity_to_death_days, cost)) +
+      geom_point(colour = su_theme_cols("orange"),
+                 fill = after_scale(alpha(su_theme_cols("orange"), .4)),
+                 shape = "circle filled") +
+      geom_smooth(formula = y ~ x,
+                  method = "loess",
+                  fill = NA,
+                  colour = su_theme_cols("orange")) +
+      scale_x_proximity_to_death_days() +
+      scale_y_continuous(position = "right",
+                         labels = comma_format(accuracy = 1, prefix = "£")) +
+      labs(x = "Proximity to Death (Months)",
+           y = "Average Activity Cost",
+           title = pod_type)
+  }) %>%
+  walk(print)
+
+```
+
 # Specialised services spend
 
 ```{r}
@@ -712,8 +748,8 @@ plots <- average_costs_per_person %>%
     data %>%
       mutate_at("activity_year",
                 ifelse,
-                "Second year period (12-24 months before death)",
-                "First year period (0-12 months before death)") %>%
+                "Penultimate year of life (12-24 months before death)",
+                "Final year of life (0-12 months before death)") %>%
       ggplot(aes(age, avg_cost, colour = activity_year)) +
       geom_smooth(fill = NA, method = "loess", formula = y ~ x, na.rm = TRUE,
                   lwd = 0.75) +
