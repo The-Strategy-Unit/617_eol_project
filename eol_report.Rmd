@@ -392,7 +392,7 @@ forecast_data %>%
   relocate(year, .before = everything())
 ```
 
-```{r forecast activity 5 year bars plot, echo=FALSE, message=FALSE, results='hide'}
+```{r forecast activity 5 year bars plot, echo=FALSE, message=FALSE, results='asis'}
 
 forecast_data %>%
   group_nest(pod_type) %>%
@@ -406,6 +406,7 @@ forecast_data %>%
                                               NA,
                                               activity / first(activity) - 1),
                                        accuracy = .1))
+    cat("##", as.character(pod_type), "\n\n")
     
     p <- data %>%
       ggplot(aes(year, activity)) +
@@ -420,10 +421,12 @@ forecast_data %>%
       scale_fill_discrete(guide = guide_legend(reverse = TRUE),
                           reverse = TRUE) +
       labs(fill = "",
-           y = "Activity (1,000's)",
-           title = pod_type) +
+           y = "Activity (1,000's)") +
       theme(legend.position = "bottom")
+    
     plot(p)
+    
+    cat("\n\n")
   })
 ```
 
@@ -658,8 +661,10 @@ local({
 
 # Utilisation
 
-```{r utilisation curve, message=FALSE,  echo=FALSE, results = "none"}
+```{r utilisation curve, message=FALSE,  echo=FALSE, results = "asis"}
 utilisation_curve_plot <- function(pod_type, data, loess_span = 0.15) {
+  cat("##", ifelse(pod_type == "Bed", "Bed Days", as.character(pod_type)), "\n\n")
+  
   p <- data %>%
     ggplot(aes(proximity_to_death_days, stp)) +
     geom_smooth(span = loess_span,
@@ -678,7 +683,7 @@ utilisation_curve_plot <- function(pod_type, data, loess_span = 0.15) {
                 colour = after_scale(alpha(su_theme_cols()[["charcoal"]], 0.4)))
   }
   
-  p +
+  p <- p +
     geom_point(size = 0.2,
                shape = "circle filled",
                colour = su_theme_cols()[["orange"]],
@@ -688,9 +693,8 @@ utilisation_curve_plot <- function(pod_type, data, loess_span = 0.15) {
                linetype = "dashed",
                colour = su_theme_cols()[["dark_charcoal"]]) +
     scale_x_proximity_to_death_days() +
-    scale_y_continuous(sec.axis = dup_axis(labels = comma_format(scale = 1000,
-                                                                 accuracy = 1),
-                                           name = "Activity per 1,000 Decedants")) +
+    scale_y_continuous(labels = comma_format(scale = 1000, accuracy = 1),
+                       position = "right") +
     theme(panel.grid.major = element_line(colour = "grey",
                                           size = 0.25,
                                           linetype = "dotted"),
@@ -698,9 +702,8 @@ utilisation_curve_plot <- function(pod_type, data, loess_span = 0.15) {
           axis.title.y.right = element_text(margin = margin(0, 0, 0, 10)),
           axis.ticks.y.left = element_blank(),
           legend.position = "bottom") +
-    labs(title = ifelse(pod_type == "Bed", "Bed Days", as.character(pod_type)),
-         x = "Proximity to Death (Months)",
-         y = "",
+    labs(x = "Proximity to Death (Months)",
+         y = "Activity per 1,000 Decedants",
          colour = "") +
     annotate("text",
              x = 3*365/12+10,
@@ -708,6 +711,10 @@ utilisation_curve_plot <- function(pod_type, data, loess_span = 0.15) {
              label = "3 months prior to death",
              hjust = 1,
              size = 3)
+  
+  plot(p)
+  
+  cat("\n\n")
 }
 
 list(
@@ -735,13 +742,14 @@ list(
   modify_at(vars(region, stp), replace_na, 0) %>%
   group_nest(pod_type) %>%
   mutate(loess_span = c(0.05, 0.15, 0.15, 0.05, 0.05)) %>% 
-  pmap(utilisation_curve_plot) %>%
-  walk(plot)
+  pwalk(utilisation_curve_plot)
 ```
 
-```{r utilisation curve grouped, message=FALSE,  echo=FALSE, results = "none"}
+```{r utilisation curve grouped, message=FALSE,  echo=FALSE, results = "asis"}
 utilisation_curve_plot_grouped <- function(pod_type, data, loess_span = 0.15) {
-  data %>%
+  cat("##", ifelse(pod_type == "Bed", "Bed Days", as.character(pod_type)), "\n\n")
+  
+  p <- data %>%
     ggplot(aes(proximity_to_death_days, n, colour = group)) +
     geom_smooth(span = loess_span,
                 formula = y ~ x,
@@ -752,9 +760,8 @@ utilisation_curve_plot_grouped <- function(pod_type, data, loess_span = 0.15) {
                linetype = "dashed",
                colour = su_theme_cols()[["dark_charcoal"]]) +
     scale_x_proximity_to_death_days() +
-    scale_y_continuous(sec.axis = dup_axis(labels = comma_format(scale = 1000,
-                                                                 accuracy = 1),
-                                           name = "Activity per 1,000 Decedants")) +
+    scale_y_continuous(labels = comma_format(scale = 1000, accuracy = 1),
+                       position = "right") +
     theme(panel.grid.major = element_line(colour = "grey",
                                           size = 0.25,
                                           linetype = "dotted"),
@@ -762,9 +769,8 @@ utilisation_curve_plot_grouped <- function(pod_type, data, loess_span = 0.15) {
           axis.title.y.right = element_text(margin = margin(0, 0, 0, 10)),
           axis.ticks.y.left = element_blank(),
           legend.position = "bottom") +
-    labs(title = ifelse(pod_type == "Bed", "Bed Days", as.character(pod_type)),
-         x = "Proximity to Death (Months)",
-         y = "",
+    labs(x = "Proximity to Death (Months)",
+         y = "Activity per 1,000 Decedants",
          colour = "") +
     annotate("text",
              x = 3*365/12+10,
@@ -772,6 +778,10 @@ utilisation_curve_plot_grouped <- function(pod_type, data, loess_span = 0.15) {
              label = "3 months prior to death",
              hjust = 1,
              size = 3)
+
+  plot(p)
+  
+  cat("\n\n")
 }
 
 activity %>%
@@ -791,11 +801,10 @@ activity %>%
   
   group_nest(pod_type) %>%
   mutate(loess_span = c(0.05, 0.15, 0.15, 0.05, 0.05)) %>% 
-  pmap(utilisation_curve_plot_grouped) %>%
-  walk(plot)
+  pwalk(utilisation_curve_plot_grouped)
 ```
 
-```{r utilisation curve location, message=FALSE,  echo=FALSE, results = "none"}
+```{r utilisation curve location, message=FALSE, echo=FALSE, results = "asis"}
 activity %>%
   mutate_at("pod_type",
             ~ifelse(pod_summary_group == "Critical Care Bed Day",
@@ -813,13 +822,12 @@ activity %>%
   mutate_at("n", ~n/p) %>%
   
   group_nest(pod_type) %>%
-  pmap(utilisation_curve_plot_grouped) %>%
-  walk(plot)
+  pwalk(utilisation_curve_plot_grouped)
 ```
 
-### Utilisation Rates
+# Utilisation Rates
 
-```{r utilisation rates, message=FALSE,  echo=FALSE, results = "none"}
+```{r utilisation rates, message=FALSE, echo=FALSE, results = "asis"}
 list(stp = activity,
      region = activity_region) %>%
   map_dfr(.id = "type", function(.x) {
@@ -862,14 +870,16 @@ list(stp = activity,
   select(-activity, -deaths) %>%
   pivot_wider(names_from = "type", values_from = "utilisation") %>%
   group_nest(pod_type) %>%
-  pmap(function(pod_type, data) {
-    data %>%
+  pwalk(function(pod_type, data) {
+    cat("##", ifelse(pod_type == "Bed", "Bed Days", as.character(pod_type)), "\n\n")
+    
+    p <- data %>%
       mutate_at("pod_summary_group",
                 ~fct_reorder(.x, region, .fun = sum)) %>%
       mutate_at("activity_year",
                 ifelse,
-                "Second year period (12-24 months before death)",
-                "First year period (0-12 months before death)") %>%
+                "Penultimate year of life (12-24 months before death)",
+                "Final year of life (0-12 months before death)") %>%
       ggplot(aes(age, stp, colour = activity_year)) +
       geom_smooth(fill = NA, method = "loess", formula = y ~ x, na.rm = TRUE,
                   lwd = 0.75) +
@@ -879,12 +889,14 @@ list(stp = activity,
       expand_limits(y = 0) +
       facet_wrap(vars(fct_rev(pod_summary_group))) +
       theme(legend.position = "bottom") +
-      labs(title = ifelse(pod_type == "Bed", "Bed Days", as.character(pod_type)),
-           colour = "",
+      labs(colour = "",
            x = "Age of decedent",
            y = "Average use")
-  }) %>%
-  walk(plot)
+    
+    plot(p)
+    
+    cat("\n\n")
+  })
 ```
 
 # Critical Care LoS
@@ -1014,7 +1026,7 @@ activity %>%
   labs(x = "", y = "Mean Critical Care Bed Days")
 ```
 
-```{r critical care LoS boxplot age line by cod, message = FALSE, echo = FALSE, results = "none"}
+```{r critical care LoS boxplot age line by cod, message = FALSE, echo = FALSE, results = "asis"}
 activity %>%
   inner_join(select(mpi, su_pat_id, age, group), by = "su_pat_id") %>%
   filter(pod_summary_group == "Critical Care Bed Day",
@@ -1037,17 +1049,22 @@ activity %>%
   mutate(overall_mean = sum(s)/sum(n)) %>%
   group_nest() %>%
   filter(group != "(Missing)") %>%
-  pmap(function(group, data) {
-    data %>%
+  pwalk(function(group, data) {
+    cat("##", as.character(group), "\n\n")
+    
+    p <- data %>%
       ggplot(aes(age, mean)) +
       geom_hline(aes(yintercept = overall_mean),
                  linetype = "dashed") +
       geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci), na.rm = TRUE) +
       geom_point(na.rm = TRUE) +
-      labs(title = group, x = "", y = "Mean Critical Care Bed Days") +
+      labs(x = "", y = "Mean Critical Care Bed Days") +
       theme(legend.position = "none")
-  }) %>%
-  walk(plot)
+    
+    plot(p)
+    
+    cat("\n\n")
+  })
 ```
 
 ```{r critical care LoS boxplot group admission type}
@@ -1085,14 +1102,16 @@ is then further ordered within the "died" and "did not die" in CC groups by how
 long the patient spent in critical care in total, so those who had more CC days
 are at the top.
 
-```{r critical care stay theographs, echo = FALSE, message = FALSE, results = "none"}
+```{r critical care stay theographs, echo = FALSE, message = FALSE, results = "asis"}
 activity %>%
   inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
   filter(pod_summary_group == "Critical Care Bed Day",
          group != "(Missing)") %>%
   group_nest(group) %>%
-  pmap(function(group, data) {
-    data %>%
+  pwalk(function(group, data) {
+    cat("##", as.character(group), "\n\n")
+    
+    p <- data %>%
       mutate_at("su_pat_id", as.character) %>%
       group_by(su_pat_id) %>%
       mutate(order = any(died_in_critical_care)*10000 + n()) %>%
@@ -1108,9 +1127,12 @@ activity %>%
             axis.line.y = element_blank(),
             axis.ticks.y = element_blank(),
             legend.position = "none") +
-      labs(title = group, x = "", y = "", fill = "")
-  }) %>%
-  walk(plot)
+      labs(x = "", y = "", fill = "")
+    
+    plot(p)
+    
+    cat("\n\n")
+  })
 ```
 
 * Cancer and Frailty look very similar, a lot of elective, but short admissions
@@ -1123,7 +1145,7 @@ little activity other than in the 6 months before death.
 
 # Chemotherapy
 
-Number of patients who have chemo in last month of life
+## Who had chemotherapy in their last 4 weeks of life
 
 ```{r chemo last month}
 activity %>%
@@ -1143,8 +1165,7 @@ activity %>%
   geom_label(aes(y = 0, label = comma(nd)),
              vjust = -0.5) +
   scale_y_continuous(expand = expansion(c(0, 0.05))) +
-  labs(title = "Who had chemotherapy in their last 4 weeks of life",
-       x = "",
+  labs(x = "",
        y = "")
 ```
 
@@ -1195,10 +1216,10 @@ activity %>%
          "Daily chemo activity\nper 1,000 decedents who had chemo" = nd) %>%
   pivot_longer(cols = -c("proximity_to_death_days", "last_month")) %>%
   group_nest(name) %>%
-  pmap(function(name, data) {
+  pwalk(function(name, data) {
     s <- ifelse(name != "Number", 1000, 1)
     
-    data %>%
+    p <- data %>%
       mutate_at("last_month",
                 ifelse,
                 "later - received in last 4 weeks",
@@ -1225,8 +1246,9 @@ activity %>%
                hjust = 1.05,
                vjust = -0.5,
                size = 3)
-  }) %>%
-  walk(plot)
+    
+    plot(p)
+  })
 ```
 
 ```{r chemo when do people have first chemo}
@@ -1676,14 +1698,22 @@ tlos %>%
        y = "Total Number of Bed days for Terminal Spell")
 ```
 
+## cumulative bed days for terminal spells
+
 ```{r tlos pcnt bed days plot cumulative}
 tlos %>%
+  pivot_longer(c(stp, region)) %>%
+  group_by(name) %>%
   arrange(-proximity_to_death_days) %>%
-  mutate(n = (proximity_to_death_days+1) * stp,
-         p = cumsum(n)/sum(n)) %>%
+  mutate(n = (proximity_to_death_days+1) * value,
+         p = cumsum(n) / sum(n),
+         dropline = ifelse(proximity_to_death_days == 7, p, NA)) %>%
   filter(proximity_to_death_days <= 140) %>%
-  ggplot(aes(proximity_to_death_days, p, colour = pod_summary_group)) +
-  geom_step() +
+  ggplot(aes(proximity_to_death_days, p)) +
+  geom_segment(aes(xend = proximity_to_death_days, y = dropline, yend = 0),
+               na.rm = TRUE,
+               linetype = "dashed") +
+  geom_step(aes(colour = name)) +
   scale_x_continuous(trans = "reverse",
                      expand = expansion(c(0.05, 0)),
                      breaks = seq(0, 140, by = 7)) +
@@ -1692,5 +1722,42 @@ tlos %>%
                      position = "right") +
   labs(x = "Bed days for Terminal Spell",
        y = "Cumulative Bed days for Terminal Spell") +
-  theme(legend.position = "none")
+  theme(legend.position = c(0, 1),
+        legend.justification = c(0, 1),
+        legend.title = element_blank())
+```
+
+## cumulative bed days as a percentage of all emergency bed days
+
+```{r tlos pcnt bed days plot cumulative - all activity}
+tlos %>%
+  pivot_longer(c(stp, region)) %>%
+  inner_join(by = "name",
+             list(stp = activity, region = activity_region) %>% 
+               map(filter, pod_summary_group %in% c(#"Elective Admission Bed Day", 
+                                                    "Emergency Admission Bed Day")) %>% 
+               map_dbl(nrow) %>% 
+               enframe(value = "total_beddays")) %>%
+  group_by(name) %>%
+  arrange(-proximity_to_death_days) %>%
+  mutate(n = (proximity_to_death_days+1) * value,
+         p = cumsum(n) / total_beddays, #sum(n),
+         dropline = ifelse(proximity_to_death_days == 7, p, NA)) %>%
+  filter(proximity_to_death_days <= 140) %>%
+  ggplot(aes(proximity_to_death_days, p)) +
+  geom_segment(aes(xend = proximity_to_death_days, y = dropline, yend = 0),
+               na.rm = TRUE,
+               linetype = "dashed") +
+  geom_step(aes(colour = name)) +
+  scale_x_continuous(trans = "reverse",
+                     expand = expansion(c(0.05, 0)),
+                     breaks = seq(0, 140, by = 7)) +
+  scale_y_continuous(expand = expansion(c(0, 0.05)),
+                     labels = percent,
+                     position = "right") +
+  labs(x = "Bed days for Terminal Spell",
+       y = "Cumulative Bed days for Terminal Spell") +
+  theme(legend.position = c(0, 1),
+        legend.justification = c(0, 1),
+        legend.title = element_blank())
 ```
