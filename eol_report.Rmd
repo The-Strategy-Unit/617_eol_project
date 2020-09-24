@@ -1162,9 +1162,10 @@ activity %>%
   ggplot(aes(last_month, p)) +
   geom_col(colour = su_theme_cols()[["orange"]],
            fill = after_scale(alpha(su_theme_cols()[["orange"]], 0.4))) +
-  geom_label(aes(y = 0, label = comma(nd)),
+  geom_label(aes(y = 0, label = paste0(percent(p, accuracy = 1), " (", comma(nd), ")")),
              vjust = -0.5) +
-  scale_y_continuous(expand = expansion(c(0, 0.05))) +
+  scale_y_continuous(expand = expansion(c(0, 0.05)),
+                     labels = percent_format(accuracy = 1)) +
   labs(x = "",
        y = "")
 ```
