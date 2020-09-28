@@ -7,29 +7,18 @@ library(extrafont)
 library(tidyverse)
 library(scales)
 library(DescTools)
-library(Cairo) # not needed to be library'd, but needed for rendering
-library(sf)
 library(glue)
 library(shadowtext)
 library(fst)
-library(treemapify)
 library(ggrepel)
-library(patchwork)
 library(rlang)
-library(ggridges)
+library(StrategyUnitTheme)
 
 # load fonts ----
-#loadfonts(device = "win", quiet = TRUE)
 
 if (!"Segoe UI" %in% fonts()) {
   extrafont::font_import(prompt = FALSE, pattern = "(?i).*segoe.*")
 }
-
-# Set up Strategy Unit Theme ----
-
-# Install the Strategy Unit Theme from
-#devtools::install_local(file.path(path, "StrategyUnitTheme", sep = "\\"))
-library(StrategyUnitTheme)
 
 # reset the default ggplot colour/fill scales with the su theme.
 setup_env$scale_fill_continuous <- partial(scale_fill_su, discrete = FALSE)
@@ -63,6 +52,7 @@ setup_env$theme_report <- theme_get() +
         panel.background = element_blank(),
         panel.grid = element_blank(),
         axis.line = element_line(colour = su_theme_cols("charcoal")),
+        axis.title.y.right = element_text(margin = margin(0, 0, 0, 10)),
         strip.background = element_blank(),
         legend.key = element_blank())
 

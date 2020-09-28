@@ -1,15 +1,20 @@
 ---
 title: "EOL Report"
 author: "[The Strategy Unit][su_web]"
+date: "`r Sys.Date()`"
 output:
-  StrategyUnitTheme::su_document: default
+  StrategyUnitTheme::su_document:
+    toc: yes
 params:
-  stp: "E54000016"
-  region_report: true
+  stp: "E54000010"
+  region_report: false
 ---
 
 ```{r setup, include=FALSE}
 library(knitr)
+library(magrittr)
+library(ggridges)
+library(patchwork)
 # knitr options ----
 opts_chunk$set(echo = FALSE, eval.after = "fig.cap")
 
@@ -24,10 +29,9 @@ invisible(local({
   load_data(params$stp, params$region_report)
 }))
 
-activity_costs <- file.path("data", "sensitive", "activity_costs.fst") %>%
+activity_costs_region <- file.path("data", "sensitive", "activity_costs.fst") %>%
   read_fst() %>%
   as_tibble() %>%
-  semi_join(mpi, by = "su_pat_id") %>%
   mutate_at("ss_flag", fct_recode, "Spec. Services" = "SS") %>%
   mutate_at("pod_type",
             fct_recode,
@@ -89,10 +93,9 @@ activity_costs <- file.path("data", "sensitive", "activity_costs.fst") %>%
   rename(cost = final_cost) %>%
   modify_at("cost", replace_na, 0)
 
-library(magrittr)
 # update levels of ss_flag
-activity_costs %<>%
-  mutate("simple_ss_flag" = fct_collapse(ss_flag, "Other" = activity_costs %>%
+activity_costs_region %<>%
+  mutate("simple_ss_flag" = fct_collapse(ss_flag, "Other" = activity_costs_region %>%
            group_by(ss_flag) %>% 
            summarise_at("cost", sum) %>% 
            filter((cost / sum(cost)) <= 0.01) %>% 
@@ -103,6 +106,11 @@ activity_costs %<>%
             "Critical Care" = "CC",
             "Other" = "Unknown",
             "Other" = "(Missing)")
+
+activity_costs <- activity_costs_region %>%
+  semi_join(mpi, by = "su_pat_id")
+
+money_format <- comma_format(prefix = "£", scale = 1e-6, suffix = "m", accuracy =  1)
 ```
 
 # Costing
@@ -195,7 +203,8 @@ activity_costs %>%
   filter(pod_type != "Bed", simple_ss_flag != "Other") %>%
   ggplot(aes(cost, fct_rev(pod_type), colour = fct_rev(simple_ss_flag))) +
   geom_col(aes(fill = after_scale(alpha(colour, 0.4))),
-           position = "dodge") +
+           position = "dodge",
+           na.rm = TRUE) +
   scale_colour_manual(values = c(
     "CCG" = su_theme_cols("red")[[1]],
     "Spec. Services" = su_theme_cols("orange")[[1]],
@@ -221,7 +230,7 @@ activity_costs %>%
   mutate_at("pod_summary_group", paste0, "\n", quo(simple_ss_flag)) %>%
   group_by(pod_type) %>%
   mutate(n_pt = n()) %>%
-  group_by(pod_summary_group, add = TRUE) %>%
+  group_by(pod_summary_group, .add = TRUE) %>%
   mutate(n_psg = n()) %>%
   filter(n_psg > 1000 | (n_psg/n_pt) > 0.01) %>%
   ggplot(aes(cost, pod_summary_group, colour = simple_ss_flag)) +
@@ -253,7 +262,7 @@ p <- activity_costs %>%
 suppressMessages(print(p))
 ```
 
-```{r}
+```{r, results = "asis"}
 local({
   df <- activity_costs %>%
     group_by(pod_type) %>%
@@ -285,22 +294,31 @@ local({
              pod_type = "Other",
              pod_summary_group = "Spec. Services") %>%
       group_nest(pod_type, pod_summary_group)
-  )
+  ) %>%
+    nest_by(pod_type)
     
   df %>%
-    pmap(function(pod_type, pod_summary_group, data) {
-      ggplot(data, aes(cost, simple_ss_flag, colour = simple_ss_flag)) +
-        geom_density_ridges(aes(fill = after_scale(alpha(colour, 0.4)))) +
-        scale_x_continuous(labels = comma_format(prefix = "£"),
-                     trans = "log10",
-                     expand = expansion(c(0.1, 0.05))) +
-        scale_y_discrete(labels = partial(str_wrap, width = 15)) +
-        theme(legend.position = "none") +
-        labs(x = "", y = "", colour = "", title = pod_type,
-             subtitle = pod_summary_group)
+    pwalk(function(pod_type, data) {
+      cat("##", as.character(pod_type), "\n\n")
+      
+      pwalk(data, function(pod_summary_group, data) {
+        cat ("###", as.character(pod_summary_group), "\n\n")
+        
+        p <- ggplot(data, aes(cost, simple_ss_flag, colour = simple_ss_flag)) +
+          geom_density_ridges(aes(fill = after_scale(alpha(colour, 0.4)))) +
+          scale_x_continuous(labels = comma_format(prefix = "£"),
+                       trans = "log10",
+                       expand = expansion(c(0.1, 0.05))) +
+          scale_y_discrete(labels = partial(str_wrap, width = 15)) +
+          theme(legend.position = "none") +
+          labs(x = "", y = "", colour = "")
+        
+        plot(p)
+        
+        cat("\n\n")
     })
-}) %>%
-  walk(quietly(print))
+  })
+})
 ```
 
 # Specialised Services spend per person
@@ -312,7 +330,7 @@ $$
 
 includes all decedents, whether they had Spec. Services or not.
 
-```{r}
+```{r, results = "asis"}
 
 activity_costs %>%
   filter(ss_flag == "Spec. Services",
@@ -333,8 +351,10 @@ activity_costs %>%
   modify_at("cost", replace_na, 0) %>%
   mutate_at("cost", `/`, nrow(mpi)) %>%
   group_nest(pod_type) %>%
-  pmap(function(pod_type, data) {
-    data %>%
+  pwalk(function(pod_type, data) {
+    cat("##", as.character(pod_type), "\n\n")
+    
+    p <- data %>%
       ggplot(aes(proximity_to_death_days, cost)) +
       geom_smooth(span = 0.15,
                   formula = y ~ x,
@@ -347,7 +367,11 @@ activity_costs %>%
                  fill = after_scale(alpha(su_theme_cols()[["orange"]], 0.4))) +
       scale_x_proximity_to_death_days() +
       scale_y_continuous(labels = comma_format(prefix = "£")) +
-      labs(x = "", y = "", title = pod_type)
+      labs(x = "", y = "")
+    
+    plot(p)
+    
+    cat("\n\n")
   })
 ```
 
@@ -387,11 +411,75 @@ activity_costs %>%
         legend.position = "none")
 ```
 
+# Average spend per decedent
+
+```{r, results = "none"}
+local({
+  df <- list(
+    stp = activity_costs,
+    region = activity_costs_region
+  ) %>%
+    map(group_by, proximity_to_death_days) %>%
+    map_dfr(summarise_at, "cost", sum, .id = "type") %>%
+    pivot_wider(names_from = type, values_from = cost) %>%
+    mutate_at("stp", `/`, nrow(mpi)) %>%
+    mutate_at("region", `/`, nrow(mpi_region))
+  
+  c(Inf, 31) %>%
+    walk(function(.x) {
+      p <- df %>%
+        filter(proximity_to_death_days < .x) %>%
+        ggplot(aes(proximity_to_death_days, stp)) +
+        geom_point(colour = su_theme_cols("orange"),
+                   size = 1,
+                   fill = alpha(su_theme_cols("orange"), 0.4),
+                   shape = "circle filled") +
+        geom_smooth(method = "loess",
+                    formula = y ~ x,
+                    span = 0.2,
+                    colour = su_theme_cols("orange"),
+                    fill = NA)
+      
+      if (!params$region_report) {
+        p <- p +
+          geom_smooth(aes(y = region),
+                      method = "loess",
+                      formula = y ~ x,
+                      span = 0.2,
+                      colour = after_scale(alpha(su_theme_cols("charcoal"), 0.4)),
+                      linetype = "solid",
+                      fill = NA)
+      }
+      
+      p <- p +
+        scale_y_continuous(labels = number_format(prefix = "£"),
+                           position = "right") +
+        theme(axis.title.y.right = element_text(margin = margin(l = 10))) +
+        ylab("Average cost per decedent")
+      
+      if(is.finite(.x)) {
+        p <- p +
+          scale_x_continuous(trans = "reverse",
+                             breaks = seq(0, 31, by = 7)) +
+          coord_cartesian(xlim = c(.x, 0)) +
+          xlab("Proximity to Death (Days)")
+      } else {
+        p <- p +
+          scale_x_proximity_to_death_days() +
+          xlab("Proximity to Death (Months)")
+      }
+      print(p)
+    })
+})
+```
+
 # All spend
 
-```{r}
+```{r, results = "asis"}
 spend_plot <- function(pod_type, data) {
-  data %>%
+  cat("##", as.character(pod_type), "\n\n")
+  
+  p <- data %>%
     group_by(proximity_to_death_days) %>%
     summarise_at("cost", sum) %>%
     ggplot(aes(proximity_to_death_days, cost)) +
@@ -404,14 +492,15 @@ spend_plot <- function(pod_type, data) {
                 colour = su_theme_cols("orange"),
                 fill = NA) +
     scale_x_proximity_to_death_days() +
-    scale_y_continuous(labels = number_format(prefix = "£",
-                                              suffix = "m",
-                                              scale = 1e-6),
+    scale_y_continuous(labels = money_format,
                        position = "right") +
     theme(axis.title.y.right = element_text(margin = margin(l = 10))) +
     labs(x = "Proximity to Death (Months)",
-         y = "Spend",
-         title = pod_type)
+         y = "Spend")
+  
+  plot(p)
+  
+  cat("\n\n")
 }
 
 activity_costs_ex_bed <- filter(activity_costs, pod_type != "Bed")
@@ -420,12 +509,51 @@ spend_plot("All Activity", activity_costs_ex_bed)
 
 activity_costs_ex_bed %>%
   group_nest(pod_type) %>%
-  pmap(spend_plot) %>%
-  walk(plot)
+  pwalk(spend_plot)
 ```
+
+## Average activity cost
+
+```{r, results = "asis"}
+
+bind_rows(
+  activity_costs %>%
+    filter(pod_type != "Bed", cost > 0) %>%
+    group_by(proximity_to_death_days) %>%
+    summarise(across(cost, mean), pod_type = "All Activity", .groups = "drop"),
+  activity_costs %>%
+    filter(pod_type != "Bed", cost > 0) %>%
+    group_by(pod_type, proximity_to_death_days) %>%
+    summarise(across(cost, mean), .groups = "drop")
+) %>%
+  nest_by(pod_type) %>%
+  pwalk(function(pod_type, data) {
+    cat("##", as.character(pod_type), "\n\n")
+    
+    p <- data %>%
+      ggplot(aes(proximity_to_death_days, cost)) +
+      geom_point(colour = su_theme_cols("orange"),
+                 fill = after_scale(alpha(su_theme_cols("orange"), .4)),
+                 shape = "circle filled") +
+      geom_smooth(formula = y ~ x,
+                  method = "loess",
+                  fill = NA,
+                  colour = su_theme_cols("orange")) +
+      scale_x_proximity_to_death_days() +
+      scale_y_continuous(position = "right",
+                         labels = comma_format(accuracy = 1, prefix = "£")) +
+      labs(x = "Proximity to Death (Months)",
+           y = "Average Activity Cost")
+    
+    plot(p)
+    
+    cat("\n\n")
+  })
+```
+
 # Specialised services spend
 
-```{r}
+```{r, results = "asis"}
 spend_plot("All Activity",
            activity_costs_ex_bed %>%
              filter(ss_flag == "Spec. Services",
@@ -434,9 +562,9 @@ spend_plot("All Activity",
 activity_costs_ex_bed %>%
   filter(ss_flag == "Spec. Services", proximity_to_death_days > 0) %>%
   group_nest(pod_type) %>%
-  pmap(spend_plot) %>%
-  walk(plot)
+  pwalk(spend_plot)
 ```
+
 # Daily % split of Specialised Services to All Spend
 
 ```{r}
@@ -642,8 +770,8 @@ plots <- average_costs_per_person %>%
     data %>%
       mutate_at("activity_year",
                 ifelse,
-                "Second year period (12-24 months before death)",
-                "First year period (0-12 months before death)") %>%
+                "Penultimate year of life (12-24 months before death)",
+                "Final year of life (0-12 months before death)") %>%
       ggplot(aes(age, avg_cost, colour = activity_year)) +
       geom_smooth(fill = NA, method = "loess", formula = y ~ x, na.rm = TRUE,
                   lwd = 0.75) +
@@ -658,7 +786,7 @@ reduce(plots[1:3], `+`) / guide_area() + plot_layout(guides = 'collect', heights
 reduce(plots[4:6], `+`) / guide_area() + plot_layout(guides = 'collect', heights = c(10, 1))
 ```
 
-```{r}
+```{r, results = "asis"}
 average_costs_per_person_sum <- forecast_deaths %>%
   inner_join(average_costs_per_person, by = c("sex", "age_group" = "age")) %>%
   mutate_at("year", ~.x - activity_year) %>%
@@ -675,7 +803,7 @@ average_costs_per_person_sum <- forecast_deaths %>%
 bind_rows(
   average_costs_per_person_sum,
   average_costs_per_person_sum %>%
-    group_by(est_deaths, decedents, add = TRUE) %>%
+    group_by(est_deaths, decedents, .add = TRUE) %>%
     summarise_at("cost", sum) %>%
     mutate(pod_type = "All Activity")
 ) %>%
@@ -686,18 +814,20 @@ bind_rows(
               levels(activity_costs$pod_type) %>% subset(., . != "Bed"))) %>%
   mutate(cost = ifelse(decedents, cost / decedents * est_deaths, 0)) %>%
   group_nest(pod_type) %>%
-  pmap(function(pod_type, data) {
+  pwalk(function(pod_type, data) {
+    cat("##", as.character(pod_type), "\n\n")
+    
     lbls <- data %>%
       group_by(year) %>%
       summarise_at("cost", sum) %>%
       arrange(year) %>%
-      mutate(act_sum_lbl = comma(cost, accuracy = 1, prefix = "£"),
+      mutate(act_sum_lbl = comma(cost, prefix = "£", accuracy = 1),
              pcnt_change_lbl = percent(ifelse(year == 2020,
                                               NA,
                                               cost / first(cost) - 1),
                                        accuracy = .1))
   
-    data %>%
+    p <- data %>%
       ggplot(aes(year, cost)) +
       geom_col(aes(fill = fct_rev(age_group)),
                alpha = 0.4,
@@ -707,14 +837,177 @@ bind_rows(
       geom_text(data = lbls, aes(label = pcnt_change_lbl), vjust = 1.3, size = 3.5, na.rm = TRUE) +
       scale_fill_discrete(guide = guide_legend(reverse = TRUE),
                           reverse = TRUE) +
-      scale_y_continuous(labels = comma_format(prefix = "£", scale = 1e-6, suffix = "m"),
+      scale_y_continuous(labels = money_format,
                          expand = expansion(c(0, 0.15))) +
       labs(fill = "",
-           y = "Specialist Services Spend",
-           title = pod_type) +
+           y = "Specialist Services Spend") +
       theme(legend.position = "bottom")
-  }) %>%
-  walk(plot)
+    
+    plot(p)
+    
+    cat("\n\n")
+  })
+```
+
+# Forecast STP Spend
+
+```{r}
+average_costs_per_person <- activity_costs %>%
+  filter(pod_type != "Bed") %>%
+  inner_join(mpi, by = "su_pat_id") %>%
+  mutate_at("age", pmin, 90) %>%
+  mutate(activity_year = as.numeric(proximity_to_death_days >= 365)) %>%
+  group_by(activity_year, pod_type, age, sex) %>%
+  summarise(cost = sum(cost), .groups = "drop") %>%
+  complete(nesting(pod_type),
+           activity_year = 0:1,
+           age = seq(18, 90),
+           sex,
+           fill = list(cost = 0)) %>%
+  inner_join(count(mpi, age, sex, name = "decedents"), by = c("age", "sex"))
+
+plots <- average_costs_per_person %>%
+  mutate_at("age", ~case_when(.x > 90 ~ 90,
+                              .x < 50 ~ 50,
+                              TRUE ~ .x)) %>%
+  group_by(pod_type, activity_year, age) %>%
+  summarise(avg_cost = sum(cost) / sum(decedents), .groups = "drop") %>%
+  group_nest(pod_type) %>%
+  pmap(function(pod_type, data) {
+    data %>%
+      mutate_at("activity_year",
+                ifelse,
+                "Second year period (12-24 months before death)",
+                "First year period (0-12 months before death)") %>%
+      ggplot(aes(age, avg_cost, colour = activity_year)) +
+      geom_smooth(fill = NA, method = "loess", formula = y ~ x, na.rm = TRUE,
+                  lwd = 0.75) +
+      geom_point(na.rm = TRUE) +
+      expand_limits(y = 0) +
+      scale_y_continuous(labels = comma_format(prefix = "£")) +
+      theme(legend.position = "bottom") +
+      labs(title = pod_type, colour = "", y = "Average Spend Per Person")
+  })
+
+reduce(plots[1:3], `+`) / guide_area() + plot_layout(guides = 'collect', heights = c(10, 1))
+reduce(plots[4:6], `+`) / guide_area() + plot_layout(guides = 'collect', heights = c(10, 1))
+```
+
+```{r, results = "asis"}
+average_costs_per_person_sum <- forecast_deaths %>%
+  inner_join(average_costs_per_person, by = c("sex", "age_group" = "age")) %>%
+  mutate_at("year", ~.x - activity_year) %>%
+  filter(!year %% 5) %>%
+  filter(age_group >= 18) %>%
+  mutate_at("age_group",
+            cut,
+            c(0, 18, 65, 75, 85, Inf),
+            labels = levels(mpi$age_band),
+            right = FALSE) %>%
+  group_by(year, age_group, pod_type) %>%
+  summarise(across(c("est_deaths", "cost", "decedents"), sum), .groups = "drop_last")
+
+bind_rows(
+  average_costs_per_person_sum,
+  average_costs_per_person_sum %>%
+    group_by(est_deaths, decedents, .add = TRUE) %>%
+    summarise_at("cost", sum) %>%
+    mutate(pod_type = "All Activity")
+) %>%
+  ungroup() %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c("All Activity",
+              levels(activity_costs$pod_type) %>% subset(., . != "Bed"))) %>%
+  mutate(cost = ifelse(decedents, cost / decedents * est_deaths, 0)) %>%
+  group_nest(pod_type) %>%
+  pwalk(function(pod_type, data) {
+    cat("##", as.character(pod_type), "\n\n")
+    
+    lbls <- data %>%
+      group_by(year) %>%
+      summarise_at("cost", sum) %>%
+      arrange(year) %>%
+      mutate(act_sum_lbl = comma(cost, prefix = "£", accuracy = .1, scale = 1e-6, suffix = "m"),
+             pcnt_change_lbl = percent(ifelse(year == 2020,
+                                              NA,
+                                              cost / first(cost) - 1),
+                                       accuracy = .1))
+  
+    p <- data %>%
+      ggplot(aes(year, cost)) +
+      geom_col(aes(fill = fct_rev(age_group)),
+               alpha = 0.4,
+               colour = "white",
+               position = "stack") +
+      geom_text(data = lbls, aes(label = act_sum_lbl), vjust = -.3, size = 3.5, na.rm = TRUE) +
+      geom_text(data = lbls, aes(label = pcnt_change_lbl), vjust = 1.3, size = 3.5, na.rm = TRUE) +
+      scale_fill_discrete(guide = guide_legend(reverse = TRUE),
+                          reverse = TRUE) +
+      scale_y_continuous(labels = money_format,
+                         expand = expansion(c(0, 0.15))) +
+      labs(fill = "", y = "Spend (£million)") +
+      theme(legend.position = "bottom")
+    
+    plot(p)
+    
+    cat("\n\n")
+  })
+```
+
+# Spend by activity type
+
+```{r}
+activity_costs %>%
+  filter(!pod_type %in% c("Bed", "Device", "Drug", "Other")) %>%
+  group_by(pod_type) %>%
+  summarise_at("cost", sum) %>%
+  ggplot(aes(pod_type, cost)) +
+  geom_col(aes(colour = pod_type,
+               fill = after_scale(alpha(colour, 0.4))), show.legend = FALSE) +
+  geom_text(aes(label = money_format(cost)),
+                vjust = -0.35) +
+  scale_y_continuous(labels = money_format,
+                     expand = expansion(c(0, 0.05))) +
+  labs(x = "", y = "")
+```
+
+# Average spend per STP
+
+```{r}
+mpi_region %>%
+  left_join(activity_costs_region, by = "su_pat_id") %>%
+  group_by(stp, su_pat_id) %>%
+  summarise_at("cost", sum) %>%
+  modify_at("cost", replace_na, 0) %>%
+  summarise(ci = list(cost) %>% map(DescTools::MeanCI), .groups = "drop") %>%
+  unnest_wider(ci) %>%
+  inner_join(stps, by = c("stp" = "stp18cd")) %>%
+  mutate_at("stp18nm", fct_reorder, quo(mean)) %>%
+  mutate(colour = ifelse(stp == params$stp, "orange", "charcoal")) %>%
+  mutate(region = sum(activity_costs_region$cost) / nrow(mpi_region)) %>%
+  mutate(region_text = ifelse(mean == min(mean),
+                              paste0("Midlands\n",
+                                     comma(region, prefix = "£", accuracy = 1)),
+                              NA)) %>%
+  ggplot(aes(mean, stp18nm)) +
+  geom_col(aes(colour = colour, fill = after_scale(alpha(colour, 0.4))),
+           show.legend = FALSE) +
+  geom_errorbar(aes(xmin = lwr.ci, xmax = upr.ci), width = 0.5) +
+  geom_text(aes(x = 0, label = comma(mean, prefix = "£", accuracy = 1)),
+            hjust = -0.15) +
+  geom_vline(aes(xintercept = region)) +
+  geom_text(aes(x = region, label = region_text),
+            na.rm = TRUE,
+            size = 3,
+            hjust = 0.6,
+            vjust = -0.2,
+            angle = 270) +
+  scale_colour_manual(values = su_theme_cols()) +
+  scale_x_continuous(labels = comma_format(prefix = "£", accuracy = 1)) +
+  labs(x = "Average spend per Decedent", y = "") +
+  theme(axis.line = element_blank(),
+        axis.ticks.y = element_blank())
 ```
 
 [//]: <> (URL's / References --------------------------------------------------)
