@@ -876,6 +876,11 @@ list(stp = activity,
     p <- data %>%
       mutate_at("pod_summary_group",
                 ~fct_reorder(.x, region, .fun = sum)) %>%
+      group_by(pod_summary_group) %>%
+      # make sure we have a sensible number of rows per pod_summary_group, we should have 82 rows
+      # 2*(90-50+1)
+      filter(sum(is.na(stp)) < 82*.75) %>%
+      ungroup() %>%
       mutate_at("activity_year",
                 ifelse,
                 "Penultimate year of life (12-24 months before death)",
@@ -887,7 +892,7 @@ list(stp = activity,
                  shape = "circle filled",
                  na.rm = TRUE) +
       expand_limits(y = 0) +
-      facet_wrap(vars(fct_rev(pod_summary_group))) +
+      facet_wrap(vars(fct_rev(pod_summary_group)), drop = FALSE) +
       theme(legend.position = "bottom") +
       labs(colour = "",
            x = "Age of decedent",
