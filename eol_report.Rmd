@@ -1,16 +1,18 @@
 ---
-title: "End of Life"
-author: '[T. Jemmett](mailto:thomas.jemmett@nhs.net)'
-date: "`r Sys.Date()`"
+title: "Health service use in the last two years of life"
+author: "The Strategy Unit"
 output:
-  StrategyUnitTheme::su_document:
-    toc: yes
+  StrategyUnitTheme::su_document: default
 params:
-  stp: "E54000010"
-  region_report: false
+  stp: E54000016
+  region_report: no
 ---
 
 ```{r setup, include=FALSE}
+
+# NOTE: this Rmarkdown report generates a report that is close to the final published report. There are a number of
+# figures, tables, text and charts that need to be manually inserted
+
 library(knitr)
 suppressMessages(
   library(cowplot, quietly = TRUE)
@@ -30,15 +32,289 @@ invisible(local({
 }))
 ```
 
-This report is about the people in `r stp_name` STP who died between April 2018
-and March 2019 and were 18 years or older at their date of death.
+# Introduction
 
-Comparisons are made between this STP and the others `r nrow(region)`
-in the `r region_name`.
+Health and care services get just one opportunity to support people at the end of their life. When
+this support is compassionate and appropriate, unnecessary suffering can be avoided and grieving
+can be eased. When this is not the case, harm and distress can result. The difference in these
+experiences can be profound.
 
-# Place of death
+Providing the best possible end of life care, within the limited resources available, is not a simple
+task. It requires a dispassionate assessment of the current situation; it demands detailed insight
+into the local population; and it needs the perspectives of professionals and the people they serve.
+Good care is founded on the intelligent use of this information.
 
-```{r place of death by cause of death mekko}
+This report gives decision makers an understanding of death and dying in `r stp_name`
+Sustainability and Transformation Partnership (STP) area. It looks at how services
+are currently used in the last two years of people’s lives; it shows how the future might evolve.
+The report was produced by the Strategy Unit and jointly funded by NHS England/Improvement
+(Midlands) and NHS Midlands and Lancashire Commissioning Support Unit. Individual reports have
+been produced for every STP area in the Midlands – and for the region as a whole. The aim is to
+provide insights that can be used to improve care.
+
+The analysis presented here is based on linking different datasets. These datasets cover hospital
+care (including critical care), mental health contacts, psychological therapies and 111 calls. Data are
+drawn from the national register of all people who died in `r stp_name`
+STP in 2018/19. Each deceased person is linked to their service use in the two-year period prior to
+their death. In all, this data linkage involved processing 4.2 million records across thirteen different
+datasets.
+
+This analysis advances the conversation, but it is not exhaustive. For reasons of availability it
+excludes data on community services, social care, GP practices, and ambulance services. Data used
+in the analysis also precedes the Covid-19 pandemic. At the time of writing, this had claimed over
+40,000 lives in the UK - predominantly of older people. This is a terrible toll. It will have some effect
+on the size of population groups considered in this analysis and the Strategy Unit is doing further
+work to understand this. But the broader context – of around 600,000 deaths annually in the UK –
+and the long-term nature of the issues considered means that the conclusions of the analysis
+stand.
+
+The report is structured to set out the story of the population who die and their journey through
+services. Analysis therefore starts by describing all deaths, before progressing in increasing detail 
+towards the final weeks and days of life; it ends by considering what resources future decedent
+populations will require.
+
+Broad conclusions are drawn, but no recommendations are made. Analysts can show ‘what is’, but
+they have no special standing in saying what ought to be. This requires the expert inputs of those
+providing and commissioning care, blended with the insights of the population supported. The aim
+of what follows is therefore to inform conversations about improving the deaths of people in 
+`r stp_name`.
+
+# Summary of Key Findings
+
+This report provides a description of end of life care in the `r stp_name`
+Sustainability and Transformation Partnership (STP). It is part of a suite of reports produced by the
+Strategy Unit for all STPs in the `r region_name` region.
+
+Drawing on an analysis of individual level linked datasets, the report outlines the current and likely
+future situation. The aim is to equip decision makers – in all parts of the STP – with insight that can
+be used to improve outcomes.
+
+The value of this analysis is therefore in its detail. Nonetheless, several main points emerge that
+help provide a broad sense of the findings. These are that: 
+
+*[insert text]*
+
+# How many deaths have there been? How many will there be?
+
+Trends in the number of expected deaths and age at death are driven by broader demographic
+changes, including the gains in life expectancy seen throughout the 20th century. While dramatic in
+a broader historical context, these changes have unfolded slowly over decades. It is possible to
+predict and plan for deaths in the local population. This section therefore provides a basic scaling
+of historic and forecast numbers of deaths by gender and age group. 
+
+##	Having declined for decades, deaths are set to increase
+
+The population of England has grown almost every year since the end of the Second World War.
+Figure 1 shows that until the late 1970s the number of deaths per annum also grew although at a
+slower rate than the population. Since the early 1980s the number of deaths per year has fallen and
+the number of deaths in 2009 were the lowest that had been seen since 1952. This continued until
+2010 when the trend reversed sharply.
+
+#### Figure 1: Deaths in England, long term trends and forecasts
+
+*[Insert figure]*
+
+## Deaths will increase for both males and females
+
+```{r 3.2 numbers}
+stp_deaths_18 <- nrow(mpi)
+stp_deaths_20 <- forecast_deaths %>%
+  filter(year == 2020, age_group >= 18) %>%
+  pull(est_deaths) %>%
+  sum()
+stp_deaths_30 <- forecast_deaths %>%
+  filter(year == 2030, age_group >= 18) %>%
+  pull(est_deaths) %>%
+  sum()
+stp_deaths_pcnt <- (stp_deaths_30 / stp_deaths_18) - 1
+```
+
+Trends and forecasts in `r stp_name` reflect those in England. Figure 2 shows the annual increase in deaths over the last decade. In 2018/19 `r comma(stp_deaths_18)` adults died in `r stp_name`. Between 2020 and 2030 the number of deaths is expected to grow `r percent(stp_deaths_pcnt)` to `r comma(stp_deaths_30)` per annum. As the size of the decedent population grows so too will demand on services.
+
+There has also been a shift towards increasing numbers of deaths in males, narrowing the gap between genders. In future years deaths for males are predicted to be consistently higher than deaths for females.
+
+#### Figure 2: Historical and forecast deaths by gender - `r stp_name`
+
+```{r historic and forecast deaths}
+local({
+  df <- list(
+    historical = historical_deaths %>%
+      select(-stp) %>%
+      mutate(point_val = deaths),
+    forecast = forecast_deaths %>%
+      group_by(year, sex) %>%
+      summarise_at("est_deaths", sum) %>%
+      rename(deaths = est_deaths) %>%
+      filter(year > 2019)
+  ) %>%
+    bind_rows(.id = "type") %>%
+    mutate_at("type", fct_rev)
+  
+  df %>%
+    ggplot(aes(year, deaths, colour = sex)) +
+    geom_line(aes(linetype = type)) +
+    geom_point(aes(y = point_val), na.rm = TRUE, show.legend = FALSE) +
+    geom_vline(xintercept = 2019,
+               colour = su_theme_cols("grey"),
+               linetype = "dotted") +
+    scale_x_continuous(breaks = seq(2010, 2040, 5)) +
+    annotate("text",
+             x = min(df$year),
+             y = max(df$deaths),
+             label = "Historical",
+             hjust = 0) +
+    annotate("text",
+             x = 2020,
+             y = max(df$deaths),
+             label = "Forecast",
+             hjust = 0) +
+    scale_y_continuous(labels = comma_format(accuracy = 1)) +
+    scale_linetype_manual(values = c("forecast" = "dashed",
+                                     "historical" = "solid"),
+                          guide = "none") +
+    labs(colour = "gender", x = "", y = "") +
+    theme(legend.position = c(1, 0),
+          legend.justification = c(1, 0),
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          legend.title = element_blank())
+})
+```
+
+## The oldest decedents account for most of the increase
+
+Figure 3 shows forecast deaths by age group. The greatest number of deaths is in those aged 85+.
+This is also the age group with the most significant expected increase. The needs of these older
+decedents will therefore have a greater impact on future demand.
+
+#### Figure 3 : Forecast deaths by age group - `r stp_name`
+
+```{r forecast deaths}
+forecast_deaths %>%
+  mutate_at("age_group",
+            cut,
+            breaks = c(0,18,65,75,85,Inf),
+            labels = c("0-17", "18-64","65-74","75-85","85+"),
+            right = FALSE) %>%
+  arrange(age_group, year) %>%
+  group_by(age_group, year) %>%
+  filter(year >= 2020) %>%
+  summarise_at("est_deaths", sum) %>%
+  mutate(first_year = ifelse(year == min(year),
+                             comma(est_deaths, accuracy = 1),
+                             NA),
+         last_year  = ifelse(year == max(year),
+                             paste0(comma(est_deaths, accuracy = 1),
+                                    " (",
+                                    percent(est_deaths / first(est_deaths) - 1,
+                                           accuracy = 1),
+                                   ")"),
+                             NA)) %>%
+  ungroup() %>%
+  ggplot(aes(year, est_deaths, colour = age_group)) +
+  geom_line(linetype = "dashed") +
+  geom_text_repel(aes(year-1, est_deaths, label = first_year),
+                  na.rm = TRUE,
+                  direction = "y",
+                  hjust = 1,
+                  size = 3,
+                  segment.colour = NA,
+                  point.padding = NA,
+                  show.legend = FALSE) +
+  geom_text_repel(aes(year+1, est_deaths, label = last_year),
+                  na.rm = TRUE,
+                  direction = "y",
+                  hjust = 0,
+                  size = 3,
+                  segment.colour = NA,
+                  point.padding = NA,
+                  show.legend = FALSE) +
+  labs(colour = "",
+       x = "",
+       y = "") +
+  scale_x_continuous(breaks = seq(2020, 2040, 5),
+                     expand = expansion(c(0.10, 0.15))) +
+  scale_colour_manual(values = su_theme_cols("slate",
+                                             "orange",
+                                             "charcoal",
+                                             "blue",
+                                             "red") %>% unname()) +
+  scale_y_continuous(labels = comma) +
+  theme(legend.position = "bottom",
+        legend.key = element_blank())
+``` 
+
+# Where do people die?
+
+The previous section described historic and forecast numbers of deaths. Yet *where* people die is
+important to the quality and experience of their death. This section therefore examines place of
+death. It begins by considering how place of death varies by cause, before moving on to consider
+differences by deprivation and by gender. It also considers the length of stay in hospital for those
+who die in hospital. Concluding by exploring how place of death is a factor in the level of
+unrelieved pain for palliative patients, calculating the number of palliative patients dying with their
+pain not fully relieved.
+
+## How place and cause of death are recorded and assigned
+
+When a person dies a doctor involved in their care completes a medical death certificate which is
+used to formally register the death. This contains detailed information about the individual, their
+place of death and underlying cause of death.
+
+For the purposes of this report place of death is assigned to one of the five categories defined by
+the National End of Life Care Intelligence Network. They are:
+- Home;
+- Care home;
+- Hospice;
+- Hospital; and,
+- Elsewhere.
+
+The underlying cause of death is assigned to one of the five cause groups below. These groups are
+based on research by Dr June Lunney and Dr Joanne Lynn
+
+- Cancer;
+- Frailty;
+- Organ failure;
+- Sudden death; and,
+- Other terminal illness.
+
+It can however be difficult to assign deceased patients to the frailty group based on cause of death
+alone. To define frailty we therefore utilise work done by Whole Systems Partnership for the
+National End of Life Care Intelligence Network (NEoLCIN). This work additionally assigns patients
+by age groups on the following basis:
+
+- aged 65-74 then 10% of deaths are frailty related;
+- aged 75-84 then 30% of deaths are frailty related; and,
+- aged 85+ then 80% of deaths are frailty related.  
+
+## Fewer die at home than would like to
+
+```{r 4.2 figures}
+die_home_pcnt <- nrow(filter(mpi, location_type == "Home")) / stp_deaths_18
+```
+Although 66%9 of people say they would like to die at home, just `r percent(die_home_pcnt)` of people in 
+`r stp_name` do so.
+
+Figure 4 shows that place of death differs significantly by cause, in that:
+
+- Frailty is the single largest underlying cause of death, accounting for close to half of all deaths.
+Frailty has the largest proportion of deaths in a care home setting;
+- Cancer is the cause of death for around a fifth of the population. 22% of cancer patients die in
+a hospice setting. This is considerably higher than other causes;
+- Organ failure and sudden death have a large proportion of deaths in a hospital setting
+although there are still a substantial number of deaths occurring at home for both these
+groups; and,
+- Other terminal illness (OTI) represent the smallest cause of death group within the population,
+but this category has a large proportion of deaths in a hospital setting.
+
+If hospice care for organ failure patients could be organised along similar lines as for cancer care
+an additional 252 people could die in a hospice rather than a hospital.
+
+When compared to the `r region_name` (Figure 5) profiles by cause are generally similar. However, in
+`r stp_name` there are a lower proportion of deaths in hospital for all causes.
+
+#### Figure 4 : Proportion of decedent population by cause and place of death - `r stp_name`
+
+```{r place of death by cause of death mekko (stp)}
 mpi %>%
   filter(location_type != "Unknown",
          group != "(Missing)") %>%
@@ -49,9 +325,30 @@ mpi %>%
   mekko_chart(group, location_type) +
   place_of_death_fill() 
 ```
-OTI = Other Terminal Illness
 
-```{r place of death by deprivation mekko}
+#### Figure 5 : Proportion of decedent population by cause and place of death - `r region_name` region
+
+```{r place of death by cause of death mekko (region)}
+mpi_region %>%
+  filter(location_type != "Unknown",
+         group != "(Missing)") %>%
+  mutate_at(vars(group),
+            compose(fct_rev, fct_recode),
+            "Sudden\nDeath" = "Sudden Death",
+            "OTI" = "Other Terminal Illness") %>%
+  mekko_chart(group, location_type) +
+  place_of_death_fill() 
+```
+
+## People from deprived areas are more likely to die in hospital
+
+Figure 6 shows that for decedents living in more deprived areas there were a higher proportion of
+deaths in hospital. This is offset by smaller proportion of deaths taking place in care homes for
+these decedents. Proportions differ but this is the same profile seen for the `r region_name` in Figure 7.
+
+#### Figure 6 : Proportion of decedent population by deprivation quintile and place of death - `r stp_name`
+
+```{r place of death by deprivation mekko (stp)}
 mpi %>%
   filter(location_type != "Unknown",
          !is.na(imd_quintile)) %>%
@@ -62,34 +359,149 @@ mpi %>%
   place_of_death_fill()
 ```
 
-```{r place of death by gender}
+#### Figure 7 : Proportion of decedent population by deprivation quintile and place of death - `r region_name` region
+
+```{r place of death by deprivation mekko (region)}
+mpi_region %>%
+  filter(location_type != "Unknown",
+         !is.na(imd_quintile)) %>%
+  mutate(across(imd_quintile, as.factor)) %>%
+  mekko_chart(imd_quintile, location_type,
+              x_labels = c("Most Deprived", "Least Deprived"),
+              x_breaks = c(0.075, 0.925)) +
+  place_of_death_fill()
+```
+
+## Fewer male deaths take place in care homes
+
+Comparing between genders in Figure 8 there were a higher proportion of males dying either in
+hospital or at home. The proportion of males dying in a care home was much lower when
+compared to females. Proportions differ but again this is the same profile seen for the `r region_name` in
+Figure 9.
+
+#### Figure 8 : Proportion of decedent population by gender and place of death - `r stp_name`
+
+```{r place of death by gender (stp)}
 mpi %>%
   filter(location_type != "Unknown") %>%
   mekko_chart(sex, location_type) +
   place_of_death_fill()
 ```
 
-```{r ethnicity place of death, message=FALSE, warning=FALSE}
-mpi %>%
-  filter(location_type != "Unknown", ethnic_group != "Unknown") %>%
-  count(ethnic_group, location_type, age_band) %>%
-  group_by(ethnic_group, age_band) %>%
-  mutate_at("n", ~.x/sum(.x)) %>%
-  ggplot(aes(n, ethnic_group)) +
-  geom_col(aes(fill = location_type),
-           colour = "white") +
-  scale_x_continuous(labels = percent) +
-  place_of_death_fill(reverse = TRUE) +
-  facet_wrap(vars(age_band)) +
-  theme(legend.position = "bottom",
-        axis.line = element_blank(),
-        axis.ticks.y = element_blank()) +
-  labs(x = "", y = "", fill = "")
+#### Figure 9 : Proportion of decedent population by gender and place of death - `r region_name` region
+
+```{r place of death by gender (region)}
+mpi_region %>%
+  filter(location_type != "Unknown") %>%
+  mekko_chart(sex, location_type) +
+  place_of_death_fill()
 ```
 
-# About Peoples' Healthcare
+## For deaths in hospital length of stay is often short
 
-## Activity types per person
+```{r 4.5 figures}
+die_hosp_pcnt_stp <- activity %>%
+  inner_join(mpi, by = "su_pat_id") %>%
+  filter(pod_summary_group == "Emergency Admission", discharge_date == dod) %>%
+  nrow() / nrow(mpi)
+die_hosp_pcnt_region <- activity_region %>%
+  inner_join(mpi_region, by = "su_pat_id") %>%
+  filter(pod_summary_group == "Emergency Admission", discharge_date == dod) %>%
+  nrow() / nrow(mpi_region)
+```
+
+Of all decedents in `r stp_name` `r percent(die_hosp_pcnt_stp, accuracy = 1)` die in hospital after being admitted as an
+emergency. For the `r region_name` the same figure is `r percent(die_hosp_pcnt_region, accuracy = 1)`.
+Figure 10 shows, for entire decedent populations, the proportions by terminal episode length of stay.
+Proportions for `r stp_name` are shown as bars. Proportions for the `r region_name` are shown as dots.
+The length of stay for a terminal episode is often short. In `r stp_name`, as in the `r region_name`,
+there are a higher proportion of decedents with the shortest stays (terminal episodes of 6 days or less).
+Proportions are similar compared to the `r region_name`.
+
+#### Figure 10 : Proportion of decedent population by emergency terminal episode length of stay - `r stp_name` indicated by bars, `r region_name` region indicated by dots
+
+```{r tlos count plot}
+tlos <- list(
+  stp = activity,
+  region = activity_region
+) %>%
+  map(semi_join, mpi_region, by = c("su_pat_id", "discharge_date" = "dod")) %>%
+  map(filter, pod_summary_group == "Emergency Admission") %>%
+  map(group_by, pod_summary_group) %>%
+  map_dfr(count, proximity_to_death_days, .id = "type") %>%
+  pivot_wider(names_from = type, values_from = n) %>%
+  mutate(across(stp, replace_na, 0))
+
+tlos %>%
+  filter(proximity_to_death_days <= 42) %>%
+  mutate(across(stp, `/`, nrow(mpi)),
+         across(region, `/`, nrow(mpi_region))) %>%
+  ggplot(aes(proximity_to_death_days, stp)) +
+  geom_col(colour = su_theme_cols("orange"),
+           fill = after_scale(alpha(su_theme_cols("orange"), 0.4)),
+           width = 1) +
+  geom_point(aes(y = region),
+             colour = su_theme_cols("charcoal"),
+             fill = after_scale(alpha(su_theme_cols("charcoal"), 0.4)),
+             shape = "circle filled") +
+  scale_x_continuous(breaks = seq(0, 70, by = 7)) +
+  scale_y_continuous(expand = expansion(c(0, 0.05)),
+                     labels = percent_format(accuracy = 1)) +
+  labs(x = "Bed days for Terminal Spell",
+       y = "% of Decedents")
+```
+
+## Place of death influences the likelihood of experiencing pain
+
+Previous research has found a relationship between place of death and experience of pain11. People
+who die in a hospice report the lowest level of pain at end of life compared to other settings.
+Applying research from the Office of Health Economics12 to those receiving, or in need of, palliative
+care in Coventry and Warwickshire (Table 1 and Table 2) suggests that in total a third of palliative
+patients (2,048 people - using central estimate) may have died with their pain uncontrolled.
+From these estimates; rates of unrelieved pain are highest for those palliative patients who die at
+home; they are lowest for those who die in a hospice setting. This represents an opportunity to
+explore the local picture of palliative care service provision and patient end of life experience to
+ensure interventions to maximise pain control for people wherever they die.
+
+#### Table 1 : By setting, the number of people at end of life whose pain is not relieved
+
+*[insert table 1*
+
+#### Table 2 : By setting, the number of people at end of life whose pain is only partially relieved
+
+*[insert table 2]*
+
+# Which services are accessed before death?
+
+In the two years before they die most people access some form of healthcare. In this section we
+describe these patterns of use and how they vary by cause of death.
+The datasets used in this section have been grouped into four different healthcare activity types:
+
+|  ACTIVITY TYPE        | SERVICE GROUP                  |
+|-----------------------|--------------------------------|
+| Urgent service event  | Emergency Admissions           |
+|                       | A&E Attendances                |
+|                       | Calls to 111                   |
+| Planned contact       | Planned Outpatient Attendances |
+|                       | Mental Health Contact          |
+|                       | IAPT Appointments              |
+| Planned admission     | Daycases                       |
+|                       | Elective Admissions            |
+|                       | Regular Day/Night Admissions   |
+| Bed days              | Critical Care                  |
+|                       | All Other Bed Types            |
+
+## Nearly all decedents access urgent care
+
+Figure 11 shows that 9 in 10 people dying in `r stp_name` access urgent care
+services in the two years prior to death. A similar but slightly smaller proportion also access
+planned care. Access is lower for planned admissions (4 in 10) and much lower for critical care (1 in
+10).
+
+Access levels for `r stp_name` are shown as bars. Access levels for the `r region_name` are
+shown as dots. Proportions are similar compared to the `r region_name`.
+
+#### Figure 11 : Proportion of decedent population accessing healthcare activity types in two years prior to death - `r stp_name` STP indicated by bars (with percentage at bottom), `r region_name` region indicated by dots
 
 ```{r activity pcnt}
 local({
@@ -154,6 +566,15 @@ local({
                 vjust = 1.35)
 })
 ```
+
+## Most decedents access emergency admissions, A&E and outpatient clinics; few access mental health services 
+
+The proportion of people accessing different types of care in the last two years of life is shown in
+Figure 12. It highlights radical differences by service type:
+
+*[insert summary bullet points]*
+
+#### Figure 12 : Proportion of decedent population accessing healthcare service types in two years prior to death - `r stp_name` STP indicated by bars (with percentage at bottom), `r region_name` region indicated by dots
 
 ```{r activity pcnt pod summary group}
 local({
@@ -236,6 +657,18 @@ local({
 })
 ```
 
+## Most cancer patients access planned admissions
+
+Figure 13 looks at access to different service types by cause. This shows that:
+
+- People dying from cancer access all types of service (except critical care) more than those
+dying of other causes. Their access to planned admissions is significantly higher;
+- Critical care access is much lower for people dying from frailty than from other causes; and,
+- Access to urgent service events and planned contacts are broadly similar between causes of
+death.
+
+#### Figure 13 : Proportion of decedent population accessing healthcare activity types by cause in two years prior to death - `r stp_name` STP indicated by bars, `r region_name` region indicated by dots
+
 ```{r activity pcnt cod}
 local({
   p <- list(
@@ -310,65 +743,194 @@ local({
 })
 ```
 
-# Forecast Activity
+## Service use differs radically by cause of death
 
-```{r forecast deaths}
-forecast_deaths %>%
-  mutate_at("age_group",
-            cut,
-            breaks = c(0,18,65,75,85,Inf),
-            labels = c("0-17", "18-64","65-74","75-85","85+"),
-            right = FALSE) %>%
-  arrange(age_group, year) %>%
-  group_by(age_group, year) %>%
-  filter(year >= 2020) %>%
-  summarise_at("est_deaths", sum) %>%
-  mutate(first_year = ifelse(year == min(year),
-                             comma(est_deaths, accuracy = 1),
-                             NA),
-         last_year  = ifelse(year == max(year),
-                             paste0(comma(est_deaths, accuracy = 1),
-                                    " (",
-                                    percent(est_deaths / first(est_deaths) - 1,
-                                           accuracy = 1),
-                                   ")"),
-                             NA)) %>%
-  ungroup() %>%
-  ggplot(aes(year, est_deaths, colour = age_group)) +
-  geom_line(linetype = "dashed") +
-  geom_text_repel(aes(year-1, est_deaths, label = first_year),
-                  na.rm = TRUE,
-                  direction = "y",
-                  hjust = 1,
-                  size = 3,
-                  segment.colour = NA,
-                  point.padding = NA,
-                  show.legend = FALSE) +
-  geom_text_repel(aes(year+1, est_deaths, label = last_year),
-                  na.rm = TRUE,
-                  direction = "y",
-                  hjust = 0,
-                  size = 3,
-                  segment.colour = NA,
-                  point.padding = NA,
-                  show.legend = FALSE) +
-  labs(colour = "",
-       x = "",
-       y = "") +
-  scale_x_continuous(breaks = seq(2020, 2040, 5),
-                     expand = expansion(c(0.10, 0.15))) +
-  scale_colour_manual(values = su_theme_cols("slate",
-                                             "orange",
-                                             "charcoal",
-                                             "blue",
-                                             "red") %>% unname()) +
-  scale_y_continuous(labels = comma) +
-  theme(legend.position = "bottom",
-        legend.key = element_blank())
-``` 
+Behind headline levels of access examining patients’ interactions with services can reveal
+significantly different patterns. These patterns can then suggest specific areas for improvement. To
+illustrate this, we now investigate the service interactions of a small sample of fifteen random
+decedents. We do so for each cause of death, focusing on their last year of life.
 
-```{r forecast activity 5 year bars table}
-forecast_data <- forecast_activity %>%
+Figure 14 shows the format used for this analysis. It does so here using a ‘fictional’ example of a
+decedent’s service use in the last year of life. The chart shows different service events, starting at
+day 365 and ending at death. This format is applied below to look at samples of decedents for
+different causes of death. 
+
+#### Figure 14 : Fictional example explaining patterns of service use charts
+
+*[insert figure 14]*
+
+### Most of those dying from frailty access urgent care
+
+Analysis of the sample of those dying from frailty (Figure 15) suggests that a large proportion of
+people experience an emergency admission, plus an associated bed stay, at some point in their last
+year. The likelihood of this increases the closer people are to death.
+
+#### Figure 15 : Patterns of service use for people dying from frailty
+
+*[insert figure 15]*
+
+### Planned care features highly for those dying of cancer
+
+Analysis of the sample of those dying from cancer (Figure 16) suggests frequent planned contacts
+and planned admissions. This group is also more likely to have a planned stay in hospital and
+experience more planned bed days than other cause of death groups. Urgent events and
+associated urgent bed stays are more likely to occur in the last six months of life.
+
+#### Figure 16 : Patterns of service use for people dying from cancer
+
+*[insert figure 16]*
+
+### People dying from organ failure experience multiple urgent stays
+
+Figure 17 illustrates service use for people dying of organ failure. Here there are multiple urgent
+events with an associated bed stay in the last year of life. The closer this population are to death,
+the longer these stays tend to become.
+
+#### Figure 17 : Patterns of service use for people dying from organ failure
+
+*[insert figure 17]*
+
+### People dying a sudden death tend to experience urgent care
+
+Figure 18 shows the sample of people experiencing sudden death. Here there are planned contacts
+throughout the last year of life. A large proportion experience an urgent event with associated
+urgent bed stay in their final month - often then going on to die in hospital after a short period.
+
+#### Figure 18 : Patterns of service use for people dying a sudden death
+
+*[insert figure 18]*
+
+### Those dying from other terminal illness experience long lengths of stay
+
+Analysis for people dying of ‘other terminal illness’ (Figure 19) presents a mixed picture. A large
+proportion experience an urgent service event with long bed stays. When charts show urgent bed
+days intersected by another urgent event this represents patients being transferred between
+different hospitals.
+
+#### Figure 19 : Patterns of service use for people dying from other terminal illness
+
+*[insert figure 19]*
+
+# How and when is care used by the dying?
+
+The previous section showed which services people accessed. We now consider how much
+healthcare is used. We consider this by proximity to death, by cause and by age.
+
+## How much care and when; service use by proximity to death
+
+```{r utilisation curve}
+utilisation_curve_plot <- function(data, loess_span = 0.15) {
+  p <- data %>%
+    ggplot(aes(proximity_to_death_days, stp)) +
+    geom_smooth(span = loess_span,
+                formula = y ~ x,
+                method = "loess",
+                fill = NA,
+                colour = su_theme_cols()[["orange"]])
+  
+  if (!params$region_report) {
+    p <- p + 
+      geom_smooth(aes(y = region),
+                span = loess_span,
+                formula = y ~ x,
+                method = "loess",
+                fill = NA,
+                colour = after_scale(alpha(su_theme_cols()[["charcoal"]], 0.4)))
+  }
+  
+  p +
+    geom_point(size = 0.2,
+               shape = "circle filled",
+               colour = su_theme_cols()[["orange"]],
+               fill = after_scale(alpha(su_theme_cols()[["orange"]], 0.4))) +
+    
+    geom_vline(xintercept = 3*365/12,
+               linetype = "dashed",
+               colour = su_theme_cols()[["dark_charcoal"]]) +
+    scale_x_proximity_to_death_days() +
+    scale_y_continuous(labels = comma_format(scale = 1000, accuracy = 1),
+                       position = "right") +
+    theme(panel.grid.major = element_line(colour = "grey",
+                                          size = 0.25,
+                                          linetype = "dotted"),
+          axis.text.y.left = element_blank(),
+          axis.title.y.right = element_text(margin = margin(0, 0, 0, 10)),
+          axis.ticks.y.left = element_blank(),
+          legend.position = "bottom") +
+    labs(x = "Proximity to Death (Months)",
+         y = "Activity per 1,000 Decedants",
+         colour = "") +
+    annotate("text",
+             x = 3*365/12+10,
+             y = max(c(data$stp, data$region)),
+             label = "3 months prior to death",
+             hjust = 1,
+             size = 3)
+}
+
+utilisation_plots <- list(
+  stp = activity,
+  region = activity_region
+) %>%
+  map_dfr(.id = "type", function(.x) {
+    .x %>%
+      mutate_at("pod_type",
+                ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                        "Critical Care Bed Day",
+                        as.character(.x))) %>%
+      mutate_at("pod_type",
+                fct_relevel,
+                c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
+      count(pod_type, proximity_to_death_days)
+  }) %>%
+  inner_join(tribble(~type, ~p,
+                     "stp", nrow(mpi),
+                     "region", nrow(mpi_region)),
+             by = "type") %>%
+  mutate_at("n", ~n / p) %>%
+  select(-p) %>%
+  pivot_wider(names_from = type, values_from = n) %>%
+  modify_at(vars(region, stp), replace_na, 0) %>%
+  group_nest(pod_type) %>%
+  mutate(plot = pmap(list(data = data,
+                          loess_span = c(0.05, 0.15, 0.15, 0.05, 0.05)),
+                     utilisation_curve_plot))
+```
+
+```{r utilisation curve grouped, message=FALSE,  echo=FALSE, results = "asis"}
+utilisation_curve_plot_grouped <- function(pod_type, data, loess_span = 0.15) {
+  data %>%
+    ggplot(aes(proximity_to_death_days, n, colour = group)) +
+    geom_smooth(span = loess_span,
+                formula = y ~ x,
+                method = "loess",
+                size = 0.5,
+                fill = NA) +
+    geom_vline(xintercept = 3*365/12,
+               linetype = "dashed",
+               colour = su_theme_cols()[["dark_charcoal"]]) +
+    scale_x_proximity_to_death_days() +
+    scale_y_continuous(labels = comma_format(scale = 1000, accuracy = 1),
+                       position = "right") +
+    theme(panel.grid.major = element_line(colour = "grey",
+                                          size = 0.25,
+                                          linetype = "dotted"),
+          axis.text.y.left = element_blank(),
+          axis.title.y.right = element_text(margin = margin(0, 0, 0, 10)),
+          axis.ticks.y.left = element_blank(),
+          legend.position = "bottom") +
+    labs(x = "Proximity to Death (Months)",
+         y = "Activity per 1,000 Decedants",
+         colour = "") +
+    annotate("text",
+             x = 3*365/12+10,
+             y = max(data$n),
+             label = "3 months prior to death",
+             hjust = 1,
+             size = 3)
+}
+
+utilisation_plots_grouped <- activity %>%
   mutate_at("pod_type",
             ~ifelse(pod_summary_group == "Critical Care Bed Day",
                     "Critical Care Bed Day",
@@ -376,93 +938,745 @@ forecast_data <- forecast_activity %>%
   mutate_at("pod_type",
             fct_relevel,
             c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
-  filter(year %% 5 == 0) %>%
-  group_by(age_band, year, pod_type) %>%
-  summarise_at(vars(est_deaths, activity), sum) %>%
-  ungroup()
+  inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
+  filter(group != "(Missing)") %>%
+  count(pod_type, group, proximity_to_death_days) %>%
 
-forecast_data %>%
-  filter(pod_type == "Bed") %>%
-  group_by(year) %>%
-  summarise(across(activity, sum), .groups = "drop") %>%
-  mutate(across(activity, ~round((.x - first(.x)) / (365*.9)))) %>%
-  filter(year > 2020) %>%
-  pivot_wider(names_from = year, values_from = activity) %>%
-  mutate(year = "Extra Beds") %>%
-  relocate(year, .before = everything())
-```
-
-```{r forecast activity 5 year bars plot, echo=FALSE, message=FALSE, results='asis'}
-
-forecast_data %>%
+  inner_join(count(mpi, group, name = "p"), by = "group") %>%
+  mutate_at("n", ~n/p) %>%
+  
   group_nest(pod_type) %>%
-  pwalk(function(pod_type, data) {
-    lbls <- data %>%
-      group_by(year) %>%
-      summarise_at("activity", sum) %>%
-      arrange(year) %>%
-      mutate(act_sum_lbl = comma(activity, accuracy = 1),
-             pcnt_change_lbl = percent(ifelse(year == 2020,
-                                              NA,
-                                              activity / first(activity) - 1),
-                                       accuracy = .1))
-    cat("##", as.character(pod_type), "\n\n")
-    
-    p <- data %>%
-      ggplot(aes(year, activity)) +
-      geom_col(aes(fill = fct_rev(age_band)),
-               alpha = 0.4,
-               colour = "white",
-               position = "stack") +
-      geom_text(data = lbls, aes(label = act_sum_lbl), vjust = -.3, na.rm = TRUE) +
-      geom_text(data = lbls, aes(label = pcnt_change_lbl), vjust = 1.3, size = 3.5, na.rm = TRUE) +
-      scale_y_continuous(labels = scales::comma_format(scale = .001),
-                         expand = expansion(c(0, 0.15))) +
-      scale_fill_discrete(guide = guide_legend(reverse = TRUE),
-                          reverse = TRUE) +
-      labs(fill = "",
-           y = "Activity (1,000's)") +
-      theme(legend.position = "bottom")
-    
-    plot(p)
-    
-    cat("\n\n")
-  })
+  mutate(plot = pmap(list(data = data,
+                          loess_span = c(0.05, 0.15, 0.15, 0.05, 0.05)),
+                     utilisation_curve_plot_grouped))
 ```
 
-# Death Comparison Charts
+In this sub-section we consider how use of care changes over time, as people approach death. For
+each type of activity, we show how service use increases, decreases and at what point a peak is
+reached. Time here means ‘time before death’, regardless of any actual calendar date. Activity
+taking place on the day of death is a time of 0 days, taking place the day before death is 1 day etc.
+In the two year period prior to death we show rates of service use for those dying in the `r stp_name`
+(yellow dots); the utilisation curve for the `r stp_name` (yellow line); and the utilisation curve
+for the `r region_name` as a whole (dashed grey line). 
 
-```{r pcnt_dot_comparison_plot}
-pcnt_bar_comparison_plot <- function(mpi, category, value, reorder = TRUE) {
-  data <- mpi %>%
-    filter({{category}} != "(Missing)",
-           !is.na({{category}})) %>%
-    modify_at(vars({{value}}), replace_na, 0) %>%
-    group_by({{category}}) %>%
-    summarise_at(vars({{value}}), mean, na.rm = TRUE)
-    
-  if (reorder) {
-    data <- mutate_at(data,
-                      vars({{category}}),
-                      fct_reorder,
-                      quo({{value}}))
-  }
-    
-  data %>%
-    ggplot(aes({{value}}, {{category}})) +
-    geom_col(colour = su_theme_cols("orange"),
-             fill = after_scale(alpha(su_theme_cols("orange"), 0.4))) +
-    scale_x_continuous(labels = percent,
-                       expand = expansion(c(0, 0.05))) +
-    scale_y_discrete(expand = expansion()) +
-    labs(x = "", y = "") +
-    theme(axis.title.y = element_blank(),
-          axis.ticks = element_blank(),
-          axis.line = element_blank(),
-          panel.grid.major.x = element_line(colour = "lightgrey",
-                                            linetype = "dotted"))  
+### Urgent care use rises rapidly and peaks on day of death
+
+Urgent service events start low and increase slowly for much of the period until a few months prior
+to death when there is a rapid rate of increase, rising to a sharp peak at the point of death. The rate
+and pattern of service use in the `r stp_name` STP is the same as the `r region_name`.
+
+#### Figure 20 : Urgent service events per 1,000 decedents by proximity to death in days - `r stp_name` (yellow dots and line) relative to `r region_name` region (grey line)
+
+```{r utilisation_plots - urgent service events}
+utilisation_plots$plot[[which(utilisation_plots$pod_type == "Urgent Service Event")]]
+```
+
+### Use of planned contacts increase steadily, peaking in weeks before death
+
+Planned contacts rise steadily throughout the period until a sharp peak in the weeks prior to death,
+at which point they decline. Although the pattern of service use is similar there is a consistently
+higher rate in the `r stp_name` when compared to the `r region_name`.
+
+#### Figure 21 : Planned contacts per 1,000 decedents by proximity to death in days - `r stp_name`. STP (yellow dots and line) relative to `r region_name` region (grey line)
+
+```{r utilisation_plots - planned contacts}
+utilisation_plots$plot[[which(utilisation_plots$pod_type == "Planned Contact")]]
+```
+
+### Use of planned admissions increases steadily, peaking in months before death
+
+Planned admissions also rise steadily throughout the period with a rounded peak a matter of
+months prior to death, at which point they decline. There is a higher rate of utilisation in the 
+`r stp_name` further away from death. In the last year of life rates start to
+converge and eventually drop lower those seen in the `r region_name`.
+
+#### Figure 22 : Planned admissions per 1,000 decedents by proximity to death in days - `r stp_name` STP (yellow dots and line) relative to `r region_name` region (grey line)
+
+```{r utilisation_plots - planned admissions}
+utilisation_plots$plot[[which(utilisation_plots$pod_type == "Planned Admission")]]
+```
+
+## Use of hospital beds rises rapidly and peaks on day of death
+
+Use of bed days, created when an admission to a bed takes place, closely follows the pattern seen
+in urgent service events. This is because, as seen in analysis of patterns of service use (in subsection 5.4), bed occupancy for the decedent population usually follows an emergency admission.
+Therefore, these patterns of service use are intrinsically linked. The rate and pattern of service use
+in the `r stp_name` is the same as the `r region_name`.
+
+#### Figure 23 : Bed days per 1,000 decedents by proximity to death in days - `r stp_name` STP (yellow dots and line) relative to `r region_name` region (grey line)
+
+```{r utilisation_plots - bed days}
+utilisation_plots$plot[[which(utilisation_plots$pod_type == "Bed")]]
+```
+
+## Critical care days are concentrated in the last month of life
+
+Again, this closely follows the pattern seen in urgent service events. The rate and pattern of service
+use in the `r stp_name` is the same as the `r region_name`.
+
+#### Figure 24 : Critical care days per 1,000 decedents by proximity to death in days - `r stp_name` STP (yellow dots and line) relative to `r region_name` region (grey line)
+
+```{r utilisation_plots - critical care bed days}
+utilisation_plots$plot[[which(utilisation_plots$pod_type == "Critical Care Bed Day")]]
+```
+
+### Use of urgent service events show similar patterns by cause
+
+Utilisation curves by cause show patterns which are very similar for urgent service events (Figure
+25). Where curves do diverge, this occurs in the last 3 months of life.
+
+#### Figure 25 : Urgent service events per 1,000 by cause and proximity to death in days - `r region_name` STP
+
+```{r utilisation_plots_grouped - urgent service events}
+utilisation_plots_grouped$plot[[which(utilisation_plots_grouped$pod_type == "Urgent Service Event")]]
+```
+
+### Use of planned contacts and admissions is much higher for those dying from cancer
+
+Utilisation curves by cause of death in Figure 26 show that those dying from cancer dominate use
+of planned contacts. Whilst only a fifth of deaths are due to cancer we have seen that people in this
+group experience a relatively high volume of planned contacts (sub-section 5.4.2).
+
+Cancer patients will experience a high volume of planned care due to cancer treatment regimens.
+These regimens require a regular sequence of multiple hospital visits, leading to the high volumes
+of planned care for cancer patients. Many planned contacts are outpatient attendances, a setting
+used for delivering radiotherapy regimens.
+
+#### Figure 26 : Planned contacts per 1,000 by cause and proximity to death in days - `r stp_name` STP
+
+```{r utilisation_plots_grouped - planned contact}
+utilisation_plots_grouped$plot[[which(utilisation_plots_grouped$pod_type == "Planned Contact")]]
+```
+
+Utilisation curves by cause of death in Figure 27 show that those dying from cancer also dominate
+the use of planned admissions. We have seen that people in this group also experience a relatively
+high volume of planned admissions (again, in sub-section 5.4.2).
+
+As mentioned in above, cancer patients will experience a high volume of planned care due to
+cancer treatment regimens. These regimens require a regular sequence of multiple hospital visits,
+leading to the high volumes of planned care for cancer patients. Many planned admissions are
+daycases, a setting used for delivering chemotherapy regimens.
+
+#### Figure 27 : Planned admissions per 1,000 by cause and proximity to death in days - `r stp_name` STP
+
+```{r utilisation_plots_grouped - planned admissions}
+utilisation_plots_grouped$plot[[which(utilisation_plots_grouped$pod_type == "Planned Admission")]]
+```
+
+### Use of bed days – and critical care bed days - show similar patterns by cause
+
+Utilisation curves by cause show patterns which are very similar for bed days (Figure 28). Where
+curves do diverge, this occurs in the last 6 months of life.
+
+#### Figure 28 : Bed days per 1,000 by cause and proximity to death in days - `r stp_name` STP
+
+```{r utilisation_plots_grouped - bed}
+utilisation_plots_grouped$plot[[which(utilisation_plots_grouped$pod_type == "Bed")]]
+```
+
+Utilisation curves by cause also show patterns which are very similar for critical care bed days
+(Figure 29). Where curves do diverge, this occurs in the last 3 months of life.
+
+#### Figure 29 : Critical care days per 1,000 by cause and proximity to death in days - `r stp_name` STP
+
+```{r utilisation_plots_grouped - critical care bed days}
+utilisation_plots_grouped$plot[[which(utilisation_plots_grouped$pod_type == "Critical Care Bed Day")]]
+```
+
+## Does age at death influence service use?
+
+In this sub-section we consider the use of care by age at death. We do this for each service
+within an activity type.
+
+We consider this for two periods:
+
+- the final year of life (0-12 months before death); and,
+- the penultimate year of life (12 – 24 months before death).
+
+```{r utilisation rates}
+utilisation_rates <- list(stp = activity,
+     region = activity_region) %>%
+  map_dfr(.id = "type", function(.x) {
+    .x %>%
+      inner_join(select(mpi_region, su_pat_id, age),
+                 by = "su_pat_id") %>%
+    mutate(activity_year = as.numeric(proximity_to_death_days >= 365)) %>%
+    mutate_at("age", ~case_when(.x > 90 ~ 90,
+                                .x < 50 ~ 50,
+                                TRUE ~ .x)) %>%
+    mutate_if(is.factor, as.character) %>%
+    count(pod_type, pod_summary_group, activity_year, age,
+          name = "activity")
+  }) %>%
+  arrange(type, pod_type, pod_summary_group, activity_year, age) %>%
+  complete(nesting(pod_type, pod_summary_group),
+           activity_year = 0:1,
+           age = seq(50, 90),
+           fill = list(activity = 0)) %>%
+  inner_join(
+    bind_rows(
+      mpi %>%
+        mutate_at("age",
+                  ~case_when(.x > 90 ~ 90,
+                             .x < 50 ~ 50,
+                             TRUE ~ .x)) %>%
+        count(age, name = "deaths") %>%
+        mutate(type = "stp"),
+      mpi_region %>%
+        mutate_at("age",
+                  ~case_when(.x > 90 ~ 90,
+                             .x < 50 ~ 50,
+                             TRUE ~ .x)) %>%
+        count(age, name = "deaths") %>%
+        mutate(type = "region")
+    ),
+    by = c("type", "age")
+  ) %>%
+  mutate(utilisation = activity / deaths) %>%
+  select(-activity, -deaths) %>%
+  pivot_wider(names_from = "type", values_from = "utilisation") %>%
+  mutate_at("pod_summary_group", ~fct_reorder(.x, region, .fun = sum)) %>%
+  pivot_longer(c(region, stp), names_to = "type", values_to = "value") %>%
+  group_nest(pod_type, type) %>%
+  mutate(plot = map(data, function(data) {
+    data %>%
+      mutate_at("pod_summary_group", fct_drop) %>%
+      group_by(pod_summary_group) %>%
+      # make sure we have a sensible number of rows per pod_summary_group, we should have 82 rows
+      # 2*(90-50+1)
+      filter(sum(is.na(value)) < 82*.75) %>%
+      ungroup() %>%
+      mutate_at("activity_year",
+                ifelse,
+                "Penultimate year of life (12-24 months before death)",
+                "Final year of life (0-12 months before death)") %>%
+      ggplot(aes(age, value, colour = activity_year)) +
+      geom_smooth(fill = NA, method = "loess", formula = y ~ x, na.rm = TRUE,
+                  lwd = 0.75) +
+      geom_point(aes(fill = after_scale(alpha(colour, 0.4))),
+                 shape = "circle filled",
+                 na.rm = TRUE) +
+      expand_limits(y = 0) +
+      facet_wrap(vars(fct_rev(pod_summary_group)), drop = FALSE) +
+      theme(legend.position = "bottom") +
+      labs(colour = "",
+           x = "Age of decedent",
+           y = "Average use")
+  }))
+```
+
+### Use of urgent service events is not influenced by age at death
+
+Age specific use of urgent service events in Figure 30 shows that:
+
+- Largest areas of use are emergency admissions and A&E attendances. Use of these services
+does not differ greatly by age at death. Use is however much higher in the final year of life than
+in the penultimate year of life. This signifies that what drives utilisation of these services is not
+age, but proximity to death;
+- Calls to 111 are used less often than the other urgent services. For those dying aged 70 and
+over, as age increases so does use of 111. Use is again higher in the final year of life; and,
+- There is less use of 111 compared to the `r region_name` (Figure 31). Age patterns are similar.
+
+#### Figure 30 : Urgent service event use by age at death in final and penultimate year of life - `r stp_name` STP
+
+```{r utilisation rates - Urgent Service Events (stp)}
+filter(utilisation_rates, pod_type == "Urgent Service Event", type == "stp")$plot[[1]]
+```
+
+#### Figure 31 : Urgent service event use by age at death in final and penultimate year of life - `r region_name` region
+
+```{r utilisation rates - Urgent Service Events (region)}
+filter(utilisation_rates, pod_type == "Urgent Service Event", type == "region")$plot[[1]]
+```
+
+### Use of planned contacts decreases for older decedents
+
+Age specific use of planned contacts in Figure 32 shows that:
+
+- Largest use is for outpatient attendances. As age at death increases use of outpatient
+attendances decrease;
+- Use of outpatient attendances is higher in final year of life than in the penultimate year.
+However, the difference between years diminishes as age increases;
+- There is less use of mental health compared to the `r region_name` (Figure 33). Age patterns are
+similar.
+
+#### Figure 32 : Planned contact use by age at death in final and penultimate year of life - `r stp_name` STP
+
+```{r utilisation rates - Planned Contacts (stp)}
+filter(utilisation_rates, pod_type == "Planned Contact", type == "stp")$plot[[1]]
+```
+
+#### Figure 33 : Planned contact use by age at death in final and penultimate year of life – `r region_name` region
+
+```{r utilisation rates - Planned Contacts (region)}
+filter(utilisation_rates, pod_type == "Planned Contact", type == "region")$plot[[1]]
+```
+
+### Use of planned admissions also decreases for older decedents
+
+Age specific use of planned admissions in Figure 34 shows that:
+
+- Largest areas of use are day case admissions and regular attendances. Generally, as age at
+death increases use of these services decreases;
+- There is more use of regular attendances compared to the `r region_name` (Figure 35). Age patterns
+are similar.
+
+#### Figure 34 : Planned admission use by age at death in final and penultimate year of life - `r stp_name` STP
+
+```{r utilisation rates - Planned Admissions (stp)}
+filter(utilisation_rates, pod_type == "Planned Admission", type == "stp")$plot[[1]]
+```
+
+#### Figure 35 : Planned admission use by age at death in final and penultimate year of life - `r region_name` region
+
+```{r utilisation rates - Planned Admissions (region)}
+filter(utilisation_rates, pod_type == "Planned Admission", type == "region")$plot[[1]]
+```
+
+### Older decedents stay in hospital longer
+
+Age specific use of bed days in Figure 36 shows that:
+
+- Use of bed days is dominated by emergency admission bed stays. Use of emergency bed days
+increases as age at death increases. We have seen in earlier sub-section (6.2.1) that age does
+not influence use of emergency admissions. However, we see here that age does influence
+length of stay. And that when admitted, the older the decedent the longer the length of stay;
+- In the final year of life, the oldest decedents spend approximately an additional seven days in
+hospital than the youngest decedents; and,
+- Volume and age patterns of use are similar to the `r region_name` (Figure 37).
+
+#### Figure 36 : Bed day use by age at death in final and penultimate year of life - `r stp_name`
+
+```{r utilisation rates - Bed Days (stp)}
+filter(utilisation_rates, pod_type == "Bed", type == "stp")$plot[[1]]
+```
+
+#### Figure 37 : Bed day use by age at death in final and penultimate year of life - `r region_name`
+
+```{r utilisation rates - Bed Days (region)}
+filter(utilisation_rates, pod_type == "Bed", type == "region")$plot[[1]]
+```
+
+# Is there evidence of non-beneficial treatment in the final few weeks of life?
+
+For those who are dying time is an increasingly precious and scarce resource. What happens in the
+final few weeks of life is of paramount importance. In this section we consider non-beneficial
+treatments in the final few weeks of life. A systematic review of non-beneficial treatments,
+describes these as “a treatment that was administered with little or no hope of it having an effect,
+largely because of the underlying state of the patient’s health and the known or expected poor
+prognosis regardless of treatment”. In this section we consider non-beneficial treatments in the
+following two areas:
+
+- chemotherapy in the period four weeks prior to death
+- use of critical care by the decedent population
+
+## Is there evidence of non-beneficial use of chemotherapy?
+
+Chemotherapy overuse close to the time of death has been suggested as a potential indicator of
+poor quality of care. Additionally, a recent study found that palliative chemotherapy can in some
+cases both shorten and reduce quality of life.
+
+In the following sub-sections we consider chemotherapy decedents (those decedents who received
+chemotherapy treatment in the two years prior to death). We consider how many received
+chemotherapy close to death, where ‘close to death’ is defined as the period four weeks prior to
+death. Moving on to consider patterns of chemotherapy service use and start date of treatment
+before investigating differences by demographic and clinical subgroups.
+
+### One in six of those receiving chemotherapy did so in the last month of life
+
+```{r 7.1.1 figures}
+chemo_last_month <- mpi %>%
+  inner_join(filter(activity, chemotherapy_indicator == 1), by = "su_pat_id") %>%
+  group_by(su_pat_id) %>%
+  summarise(last_month = any(proximity_to_death_days <= 28), .groups = "drop") %>%
+  summarise(n = n(), across(last_month, sum), p = last_month / n)
+```
+
+Of `r comma(chemo_last_month$n)` chemotherapy decedents in the `r stp_name` `r comma(chemo_last_month$last_month)`
+(`r percent(chemo_last_month$p, accuracy = 1)`) received chemotherapy in the last four weeks of life.
+The remaining `r comma(chemo_last_month$n - chemo_last_month$last_month)`
+(`r percent(1 - chemo_last_month$p, accuracy = 1)`) did not receive chemotherapy
+their last four weeks. Characteristics of these two groups are compared in the following subsections.
+
+### Pattern of service use differs for those who have chemotherapy close to death
+
+Patterns differ significantly between the two groups. Figure 38 shows that for much of the two
+years those receiving chemotherapy in the last four weeks of life use comparatively less
+chemotherapy than those who do not. Their use of chemotherapy starts to increase more rapidly
+around the same time that use by the other group declines. It then peaks close to death. This is the
+same pattern as seen in the `r region_name` (Figure 39).
+
+#### Figure 38 : Chemotherapy use per 1,000 chemotherapy decedents by proximity to death in days - `r stp_name` STP
+
+```{r chemo activity split last month plot (stp)}
+chemo_activity_split_plot <- function(activity) {
+  activity %>%
+    filter(chemotherapy_indicator == 1) %>%
+    group_by(su_pat_id) %>%
+    mutate(last_month = any(proximity_to_death_days <= 28)) %>%
+    group_by(last_month) %>%
+    mutate(nd = n_distinct(su_pat_id)) %>%
+    count(proximity_to_death_days, nd) %>%
+    ungroup() %>%
+    mutate_at("nd", ~n / nd) %>%
+    complete(last_month, proximity_to_death_days, fill = list(nd = 0, n = 0)) %>%
+    filter(last_month | proximity_to_death_days > 28)  %>%
+    mutate_at("last_month",
+              ifelse,
+              "later - received in last 4 weeks",
+              "earlier - did not receive in last 4 weeks") %>%
+    ggplot(aes(proximity_to_death_days, nd, colour = last_month)) +
+    geom_smooth(fill = NA,
+                method = "loess",
+                formula = y ~ x) +
+    geom_vline(xintercept = 28, linetype = "dashed") +
+    scale_x_proximity_to_death_days() +
+    scale_y_continuous(labels = comma_format(scale = 1000),
+                       position = "right") +
+    theme(legend.position = "bottom",
+          axis.title.y.right = element_text(margin = margin(0, 0, 0, 10)),
+          panel.grid.major = element_line(linetype = "dotted",
+                                          colour = "lightgrey")) +
+    labs(x = "Proximity to death (Months)",
+         y = "Daily chemo activity\nper 1,000 decedents who had chemo",
+         colour = "") +
+    annotate("text",
+             x = 28,
+             y = 0,
+             label = "4 weeks prior to death",
+             hjust = 1.05,
+             vjust = -0.5,
+             size = 3)
 }
 
+chemo_activity_split_plot(activity)
+```
+
+#### Figure 39 : Chemotherapy use per 1,000 chemotherapy decedents by proximity to death in days - `r region_name` region
+
+```{r chemo activity split last month plot (region)}
+chemo_activity_split_plot(activity_region)
+```
+
+### People having chemotherapy close to death start treatment later
+
+```{r chemo when do people have first chemo split last month}
+first_chemo_split_plot <- function(activity) {
+  activity %>%
+    filter(chemotherapy_indicator == 1) %>%
+    group_by(su_pat_id) %>%
+    summarise(last_month = any(proximity_to_death_days <= 28),
+              proximity_to_death_days = max(proximity_to_death_days),
+              .groups = "drop_last") %>%
+    count(proximity_to_death_days, last_month) %>%
+    complete(proximity_to_death_days, last_month, fill = list(n = 0)) %>%
+    filter(last_month | proximity_to_death_days > 28) %>%
+    mutate_at("last_month",
+              ifelse,
+              "later - received in last 4 weeks",
+              "earlier - did not receive in last 4 weeks") %>%
+    group_by(last_month) %>%
+    arrange(desc(proximity_to_death_days)) %>%
+    mutate_at("n", cumsum) %>%
+    mutate(p = n / max(n)) %>%
+    # there is a slight dip in the first couple of days of data - this "cleans"
+    # the chart up a little
+    filter(proximity_to_death_days < 365*1.95) %>%
+    ggplot(aes(proximity_to_death_days, p, colour = last_month)) +
+    geom_step(lwd = 1) +
+    geom_vline(xintercept = 28, linetype = "dashed") +
+    scale_y_continuous(labels = percent,
+                       position = "right") +
+    scale_x_proximity_to_death_days() +
+    labs(x = "Proximity to death (Months)",
+         y = "Cumulative % of when people had\ntheir first chemo",
+         colour = "") +
+    theme(legend.position = "bottom",
+          panel.grid.major = element_line(linetype = "dashed",
+                                          colour = "lightgrey"),
+          axis.title.y.right = element_text(margin = margin(l = 10))) +
+    annotate("text",
+             x = 28,
+             y = 0,
+             label = "4 weeks prior to death",
+             hjust = 1.05,
+             vjust = -0.5,
+             size = 3)
+}
+```
+
+Those receiving chemotherapy in the last four weeks of life start chemotherapy much later. Figure
+40 shows the cumulative proportion of chemotherapy decedents by start of chemotherapy date. *[insert text]*. 
+
+#### Figure 40 : Cumulative proportion of chemotherapy decedents by start date - `r stp_name` STP
+
+```{r chemo when do people have first chemo split last month (stp)}
+first_chemo_split_plot(activity)
+```
+
+#### Figure 41 : Cumulative proportion of chemotherapy decedents by start date - `r region_name` region
+
+```{r chemo when do people have first chemo split last month (region)}
+first_chemo_split_plot(activity_region)
+```
+
+### People having late chemotherapy tend to be younger
+
+Figure 42 shows composition by age group of those in `r stp_name`
+receiving chemotherapy in the last four weeks of life. *[insert text]*.
+
+```{r chemo in last month of life binomial ci plot by age band}
+chemo_last_month_binomial_ci_plot_age <- function(activity) {
+  activity %>%
+    filter(chemotherapy_indicator == 1) %>%
+    inner_join(select(mpi_region, su_pat_id, age_band), by = "su_pat_id") %>%
+    mutate(last_month = ifelse(proximity_to_death_days <= 28, su_pat_id, NA)) %>%
+    group_by(age_band) %>%
+    summarise(d = n_distinct(su_pat_id),
+              n = n_distinct(last_month, na.rm = TRUE),
+              .groups = "drop_last") %>%
+    mutate(ci = map2(n, d, compose(as_tibble, BinomCI))) %>%
+    unnest(ci) %>%
+    mutate(mean_est = sum(n) / sum(d),
+           colour = case_when(
+             upr.ci < mean_est ~ "significantly lower",
+             lwr.ci > mean_est ~ "significantly higher",
+             TRUE ~ "no significant difference",
+           ) %>%
+             factor(levels = c("significantly lower",
+                               "no significant difference",
+                               "significantly higher"))) %>%
+    ggplot(aes(fct_rev(age_band), est, colour = colour)) +
+    geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci)) +
+    geom_point(aes(fill = after_scale(alpha(colour, 0.4)))) +
+    geom_hline(aes(yintercept = mean_est),
+               linetype = "dashed") +
+    coord_flip() +
+    scale_colour_discrete(drop = FALSE,
+                          guide = guide_legend(reverse = TRUE)) +
+    scale_y_continuous(labels = percent_format(accuracy = 1)) +
+    labs(x = "",
+         y = paste("% of patients who have chemo in last month before death",
+                   "Dashed line = average %",
+                   sep = "\n")) +
+    theme(axis.line.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          panel.grid.major.x = element_line(colour = "lightgrey",
+                                            linetype = "dotted"),
+          legend.position = c(0, 1),
+          legend.justification = c(0, 1),
+          legend.background = element_blank(),
+          legend.title = element_blank())
+}
+```
+
+#### Figure 42 : Proportion by age group receiving chemotherapy in the last four weeks of life - `r stp_name` STP
+
+```{r chemo in last month of life binomial ci plot by age band (stp)}
+chemo_last_month_binomial_ci_plot_age(activity)
+```
+
+#### Figure 43 : Proportion by age group receiving chemotherapy in the last four weeks of life - `r region_name` region
+
+```{r chemo in last month of life binomial ci plot by age band (region)}
+chemo_last_month_binomial_ci_plot_age(activity_region)
+```
+
+### People having late chemotherapy have certain types of cancer
+
+Figure 44 shows composition by cancer type of those in the `r stp_name`
+receiving chemotherapy in the last four weeks of life. *[insert text]*
+
+```{r chemo in last month of life binomial ci plot by cwt site}
+cwt_groups <- file.path("data","reference","cwt_groups.csv") %>%
+  read_csv(col_types = "cc")
+
+chemo_last_month_binomial_ci_plot_cwt <- function(activity) {
+  activity %>%
+    filter(chemotherapy_indicator == 1) %>%
+    inner_join(select(mpi_region, su_pat_id, primary_cod), by = "su_pat_id") %>%
+    mutate_at("primary_cod", ~ifelse(.x == "C770", .x, str_sub(.x, 1, 3))) %>%
+    inner_join(cwt_groups, by = c("primary_cod" = "icd10")) %>%
+    mutate(last_month = ifelse(proximity_to_death_days <= 28, su_pat_id, NA)) %>%
+    group_by(cancer_site) %>%
+    summarise(d = n_distinct(su_pat_id),
+              n = n_distinct(last_month, na.rm = TRUE),
+              .groups = "drop_last") %>%
+    mutate(ci = map2(n, d, compose(as_tibble, BinomCI))) %>%
+    unnest(ci) %>%
+    mutate(mean_est = sum(n) / sum(d),
+           colour = case_when(
+             upr.ci < mean_est ~ "significantly lower",
+             lwr.ci > mean_est ~ "significantly higher",
+             TRUE ~ "no significant difference",
+           ) %>%
+             factor(levels = c("significantly lower",
+                               "no significant difference",
+                               "significantly higher"))) %>%
+    mutate_at("cancer_site", fct_reorder, quo(-est)) %>%
+    ggplot(aes(fct_rev(cancer_site), est, colour = colour)) +
+    geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci)) +
+    geom_point(aes(fill = after_scale(alpha(colour, 0.4)))) +
+    geom_hline(aes(yintercept = mean_est),
+               linetype = "dashed") +
+    coord_flip() +
+    scale_colour_discrete(drop = FALSE,
+                          guide = guide_legend(reverse = TRUE)) +
+    scale_y_continuous(labels = percent_format(accuracy = 1)) +
+    labs(x = "",
+         y = paste("% of patients who have chemo in last month before death",
+                   "Dashed line = average %",
+                   sep = "\n")) +
+    theme(axis.line.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          panel.grid.major.x = element_line(colour = "lightgrey",
+                                            linetype = "dotted"),
+          legend.position = c(1, 0),
+          legend.justification = c(1, 0),
+          legend.background = element_blank(),
+          legend.title = element_blank())
+}
+```
+
+#### Figure 44 : Proportion by cancer type receiving chemotherapy in the last four weeks of life - `r stp_name` STP
+
+```{r chemo in last month of life binomial ci plot by cwt site (stp)}
+chemo_last_month_binomial_ci_plot_cwt(activity)
+```
+
+#### Figure 45 : Proportion by cancer type receiving chemotherapy in the last four weeks of life - `r region_name` region
+
+```{r chemo in last month of life binomial ci plot by cwt site (region)}
+chemo_last_month_binomial_ci_plot_cwt(activity_region)
+```
+
+## How is critical care used at end of life?
+
+Critical care units are crucially important, they are highly specialist wards that provide treatment
+and monitoring for people who become very unwell or are recovering from major surgery. 1 in
+every 8 decedents (sub-section 5.1) spend some time in critical care in the two years before they
+die. For some decedents, particularly when close to death, critical care may be non-beneficial. It is
+also a costly resource. This is important because in addition to a lack of benefit to patients use of
+critical care also has substantial resource implications for services.
+
+We now consider critical care in detail. We investigate how days in critical care are used by
+decedents and for how many decedents it is their place of death.
+
+### Critical care bed days are usually part of emergency care
+
+Critical care is usually a component of a longer hospital stay. Some decedents who spend time in
+this setting do so after elective surgery whilst others do so following emergency admission. For
+those decedents using critical care Figure 46 shows the amount of critical care days by source. It
+shows that:
+
+- More days are used by decedents with organ failure (1 in 3 of all critical care bed days) than
+other causes; and,
+- Most critical care bed days used by the decedent population are part of an emergency
+admission. Critical care days after elective admission are few but cancer is an exception, close
+to a third of critical care days for cancer decedents are part of an elective admission.
+- When compared to the `r region_name` (Figure 47) there are more critical care days used by organ
+failure decedents. Profiles by type of admission are similar across causes of death.
+
+#### Figure 46 : Proportion of critical care bed days by cause and source of admission - `r stp_name` stp
+
+```{r critical care bed days - admission source (stp)}
+activity %>%
+  inner_join(select(mpi, su_pat_id, group),
+             by = "su_pat_id") %>%
+  filter(group != "(Missing)",
+         pod_summary_group == "Critical Care Bed Day") %>%
+  distinct(bb5008_pseudo_apcs_ident_pseudo, group, cc_pod_summary_group) %>%
+  mutate_at(vars(group),
+            compose(fct_rev, fct_recode),
+            "Sudden\nDeath" = "Sudden Death",
+            "OTI" = "Other Terminal Illness") %>%
+  mutate_at("cc_pod_summary_group", str_replace, " ", "\n") %>%
+    mekko_chart(group, cc_pod_summary_group)
+```
+
+#### Figure 47 : Propotion of critical care bed days by cause and source of admission - `r region_name` region
+
+```{r critical care bed days - admission source (region)}
+activity_region %>%
+  inner_join(select(mpi_region, su_pat_id, group),
+             by = "su_pat_id") %>%
+  filter(group != "(Missing)",
+         pod_summary_group == "Critical Care Bed Day") %>%
+  distinct(bb5008_pseudo_apcs_ident_pseudo, group, cc_pod_summary_group) %>%
+  mutate_at(vars(group),
+            compose(fct_rev, fct_recode),
+            "Sudden\nDeath" = "Sudden Death",
+            "OTI" = "Other Terminal Illness") %>%
+  mutate_at("cc_pod_summary_group", str_replace, " ", "\n") %>%
+    mekko_chart(group, cc_pod_summary_group)
+```
+
+### Death in critical care varies greatly by cause of death
+
+Critical care stays end when a patient leaves critical care, either because they have recovered
+enough to be moved to another ward or because they have died in critical care. Figure 48 shows
+the amount of days spent in critical care by the eventual outcomes of:
+
+- Did not die in critical care – moved to non-critical care ward; or,
+- Died in critical care.
+
+It shows that for sudden death more than half of critical care days are for a stay which ends with
+death in critical care. The proportions are similarly high for other terminal illness and organ failure.
+Cancer has the smallest proportion of days in critical care ending in death. When compared to the
+`r region_name` (Figure 49) profiles of critical care days by cause are similar.
+
+#### Figure 48 : Proportion of critical care bed days by cause and outcome - `r stp_name` STP
+
+```{r critical care bed days - outcome (stp)}
+mpi %>%
+  filter(group != "(Missing)") %>%
+  mutate_at(vars(group),
+            compose(fct_rev, fct_recode),
+            "Sudden\nDeath" = "Sudden Death",
+            "OTI" = "Other Terminal Illness") %>%
+  drop_na(died_in_critical_care) %>%
+  mutate_at("died_in_critical_care", ~ifelse(.x == 1,
+                                             "Died in\ncritical care",
+                                             "Did not die in\ncritical care")) %>%
+  mekko_chart(group, died_in_critical_care)
+```
+
+#### Figure 49 : Proportion of critical care bed days by cause and outcome - `r region_name` region
+
+```{r critical care bed days - outcome (region)}
+mpi_region %>%
+  filter(group != "(Missing)") %>%
+  mutate_at(vars(group),
+            compose(fct_rev, fct_recode),
+            "Sudden\nDeath" = "Sudden Death",
+            "OTI" = "Other Terminal Illness") %>%
+  drop_na(died_in_critical_care) %>%
+  mutate_at("died_in_critical_care", ~ifelse(.x == 1,
+                                             "Died in\ncritical care",
+                                             "Did not die in\ncritical care")) %>%
+  mekko_chart(group, died_in_critical_care)
+```
+
+### Fewer frailty and cancer deaths happen in critical care
+
+We now consider stays, rather than days, in critical care. We investigate the proportion of critical
+care stays ending in death as a proportion of all decedent critical care stays. Figure 50 shows the
+proportions by cause. `r stp_name` are shown as larger yellow dots
+(with confidence interval – the range in which we can be reasonably confident that the true
+proportion lies); the `r region_name` is shown as smaller grey dots. It can be seen that:
+
+- Proportionally fewer critical care stays end in death for cancer and frailty patients. This reflects
+the nature of cancer and frailty patients who, with advanced incurable disease or pre-existing
+limitations of treatment, are less likely to benefit from critical care;
+- Proportionally more critical care stays end in death for the causes of other terminal illness,
+sudden death and organ failure; and,
+- The `r region_name` have fewer critical care stays ending in death for other terminal illness, cancer
+and frailty. However, these are within confidence intervals and are therefore not considered
+significantly different.
+
+#### Figure 50 : Proportion of critical care spells ending in death, confidence intervals indicated by whiskers – `r stp_name` (yellow dots), `r region_name` (grey dots)
+
+```{r critical care spells ending in death}
 pcnt_dot_comparison_plot <- function(mpi, mpi_region, category, value, reorder = TRUE) {
   data <- list(
     stp = mpi,
@@ -507,284 +1721,260 @@ pcnt_dot_comparison_plot <- function(mpi, mpi_region, category, value, reorder =
           legend.direction = "vertical") +
     labs(x = "", y = "", fill = "", size = "")
 }
-```
-
-```{r died in critical care - group}
-pcnt_bar_comparison_plot(mpi, group, died_in_critical_care) +
-  xlab("% who died in critical care")
 
 pcnt_dot_comparison_plot(mpi, mpi_region, group, died_in_critical_care) +
   ylab("% who died in critical care")
 ```
 
-```{r died in critical care - age}
-pcnt_bar_comparison_plot(mpi, age_band, died_in_critical_care) +
-  xlab("% who died in critical care")
+# How much is spent and what level of resource will be required in future?
 
-pcnt_dot_comparison_plot(mpi, mpi_region, age_band, died_in_critical_care) +
-  ylab("% who died in critical care")
+In earlier section (section 6) we have examined use of services from the perspective of activity. Now
+we consider use in terms of spend for `r stp_name` STP decedents in the
+two years before they die. We then move on to consider the level of resources required by future
+decedent populations from perspective of activity, spend and beds.
+
+##  Urgent care accounts for two-thirds of expenditure
+
+```{r 8.1 figures}
+stp_cost <- activity_costs %>%
+  filter(pod_type %in% c("Urgent Service Event",
+                         "Planned Contact",
+                         "Planned Admission",
+                         "Critical Care")) %>%
+  pull(cost) %>%
+  sum()
+avg_cost <- sum(activity_costs$cost) / nrow(mpi)
 ```
 
-```{r died in critical care - imd}
-# suppress "Scale for 'y' is already present" message
-suppressMessages(
-  mpi %>%
-    mutate_at("imd_quintile", factor, levels = as.character(5:1)) %>%
-    pcnt_bar_comparison_plot(imd_quintile, died_in_critical_care) +
-    scale_y_discrete(labels = c("Least Deprived","","","","Most Deprived")) +
-    ylab("% who died in critical care")
-)
+The calculated total hospital spend in the last two years of life in the `r stp_name`
+is `r number(stp_cost, scale = 1e-6, accuracy = 1, prefix = "£")` million.
+Figure 51 shows spend by activity type. Urgent services dominate  spend, consuming two-thirds of
+end of life resource.
 
-local({
-  mpi <- mpi %>%
-    mutate_at("imd_quintile", factor, levels = as.character(5:1))
-  
-  mpi_region <- mpi_region %>%
-    mutate_at("imd_quintile", factor, levels = as.character(5:1))
-  
-  pcnt_dot_comparison_plot(mpi, mpi_region, imd_quintile, died_in_critical_care, FALSE) +
-    ylab("% who died in critical care") +
-    scale_x_discrete(labels = c("Least Deprived","","","","Most Deprived")) +
-    theme(legend.position = c(0.001, 0),
-          legend.justification = c(0, 0))
-})
+#### Figure 51 : Total spend by activity type in two years prior to death – `r stp_name` STP
+
+```{r total spend by activity type (stp)}
+activity_costs %>%
+  filter(!pod_type %in% c("Bed", "Device", "Drug", "Other")) %>%
+  group_by(pod_type) %>%
+  summarise_at("cost", sum) %>%
+  ggplot(aes(pod_type, cost)) +
+  geom_col(aes(colour = pod_type,
+               fill = after_scale(alpha(colour, 0.4))), show.legend = FALSE) +
+  geom_text(aes(label = money_format(cost)),
+                vjust = -0.35) +
+  scale_y_continuous(labels = money_format,
+                     expand = expansion(c(0, 0.05))) +
+  labs(x = "", y = "")
 ```
 
-```{r had critical care - group}
-mpi %>%
-  mutate(had_critical_care = as.numeric(!is.na(died_in_critical_care))) %>%
-  pcnt_bar_comparison_plot(group, had_critical_care) +
-  xlab("% who had critical care")
+## STP expenditure differs widely in the `r region_name`
 
-local({
-  mpi <- mpi %>%
-    mutate(had_critical_care = as.numeric(!is.na(died_in_critical_care)))
-                
-  mpi_region <- mpi_region %>%
-    mutate(had_critical_care = as.numeric(!is.na(died_in_critical_care)))
-                
-  pcnt_dot_comparison_plot(mpi, mpi_region, group, had_critical_care) +
-    ylab("% who had critical care")
-})
+The average spend in the last two years of life in the `r stp_name` is
+`r comma(avg_cost, prefix = "£")` per decedent. To put this into context, government spend on
+hospital care per year per head is £1,225.
+
+Figure 52 shows for each STP average spend and confidence interval – the range in which we can
+be reasonably confident that the true average lies. *[insert text]*.
+
+#### Figure 52 : Average spend per decedent in two years prior to death – by STP with `r region_name` regional average and STP confidence intervals indicated by whiskers 
+
+```{r average spend by stp}
+mpi_region %>%
+  left_join(activity_costs_region, by = "su_pat_id") %>%
+  group_by(stp, su_pat_id) %>%
+  summarise_at("cost", sum) %>%
+  modify_at("cost", replace_na, 0) %>%
+  summarise(ci = list(cost) %>% map(DescTools::MeanCI), .groups = "drop") %>%
+  unnest_wider(ci) %>%
+  inner_join(stps, by = c("stp" = "stp18cd")) %>%
+  mutate_at("stp18nm", fct_reorder, quo(mean)) %>%
+  mutate(colour = ifelse(stp == params$stp, "orange", "charcoal")) %>%
+  mutate(region = sum(activity_costs_region$cost) / nrow(mpi_region)) %>%
+  mutate(region_text = ifelse(mean == min(mean),
+                              paste0(region_name, "\n",
+                                     comma(region, prefix = "£", accuracy = 1)),
+                              NA)) %>%
+  ggplot(aes(mean, stp18nm)) +
+  geom_col(aes(colour = colour, fill = after_scale(alpha(colour, 0.4))),
+           show.legend = FALSE) +
+  geom_errorbar(aes(xmin = lwr.ci, xmax = upr.ci), width = 0.5) +
+  geom_text(aes(x = 0, label = comma(mean, prefix = "£", accuracy = 1)),
+            hjust = -0.15) +
+  geom_vline(aes(xintercept = region)) +
+  geom_text(aes(x = region, label = region_text),
+            na.rm = TRUE,
+            size = 3,
+            hjust = 0.6,
+            vjust = -0.2,
+            angle = 270) +
+  scale_colour_manual(values = su_theme_cols()) +
+  scale_x_continuous(labels = comma_format(prefix = "£", accuracy = 1)) +
+  labs(x = "Average spend per Decedent", y = "") +
+  theme(axis.line = element_blank(),
+        axis.ticks.y = element_blank())
 ```
 
-```{r had critical care - age}
-mpi %>%
-  mutate(had_critical_care = as.numeric(!is.na(died_in_critical_care))) %>%
-  pcnt_bar_comparison_plot(age_band, had_critical_care) +
-  xlab("% who had critical care")
+## Spend increases as death nears, but reduces in the final days
 
-local({
-  mpi <- mpi %>%
-    mutate(had_critical_care = as.numeric(!is.na(died_in_critical_care)))
-                
-  mpi_region <- mpi_region %>%
-    mutate(had_critical_care = as.numeric(!is.na(died_in_critical_care)))
-                
-  pcnt_dot_comparison_plot(mpi, mpi_region, age_band, had_critical_care) +
-    ylab("% who had critical care")
-})
-```
+The spend curve by proximity to death shown in Figure 53 is similar to the utilisation curve of
+urgent service events seen in sub-section 6.1.1. There is however one key difference noticeable
+when we zoom in on the final month of life in Figure 54. This shows that for the `r region_name`, unlike
+service use where activity peaks on day of death, spend peaks a few days before death. Activity still
+takes place but the investigations, treatments and procedures which drive costs start to reduce.
+Across the two years the rate and pattern of spend is generally the same as the `r region_name`. *[insert text]*.
 
-```{r percentage lives alone}
-mpi %>%
-  drop_na(lives_alone) %>%
-  pcnt_bar_comparison_plot(group, lives_alone) +
-  xlab("% who lived alone")
+#### Figure 53 : Average daily spend per decedent over two years - the `r stp_name` (yellow dots and line) and the `r region_name` region (grey line)
 
-pcnt_dot_comparison_plot(drop_na(mpi, lives_alone),
-                         drop_na(mpi_region, lives_alone),
-                         group,
-                         lives_alone) +
-  ylab("% who lived alone")
-```
-
-```{r percentage carer support}
-mpi %>%
-  mutate_at("carer_support", ~.x == "01") %>%
-  pcnt_bar_comparison_plot(group, carer_support) +
-  ylab("% who had carer support")
-
-pcnt_dot_comparison_plot(mpi %>%
-                           mutate_at("carer_support", ~.x == "01"),
-                         mpi_region %>%
-                           mutate_at("carer_support", ~.x == "01"),
-                         group, carer_support) +
-  ylab("% who had carer support")
-```
-
-```{r historic and forecast deaths}
-local({
+```{r average daily spend}
+average_daily_spend_plots <- local({
   df <- list(
-    historical = historical_deaths %>%
-      select(-stp) %>%
-      mutate(point_val = deaths),
-    forecast = forecast_deaths %>%
-      group_by(year, sex) %>%
-      summarise_at("est_deaths", sum) %>%
-      rename(deaths = est_deaths) %>%
-      filter(year > 2019)
+    stp = activity_costs,
+    region = activity_costs_region
   ) %>%
-    bind_rows(.id = "type") %>%
-    mutate_at("type", fct_rev)
+    map(group_by, proximity_to_death_days) %>%
+    map_dfr(summarise_at, "cost", sum, .id = "type") %>%
+    pivot_wider(names_from = type, values_from = cost) %>%
+    mutate_at("stp", `/`, nrow(mpi)) %>%
+    mutate_at("region", `/`, nrow(mpi_region))
   
-  df %>%
-    ggplot(aes(year, deaths, colour = sex)) +
-    geom_line(aes(linetype = type)) +
-    geom_point(aes(y = point_val), na.rm = TRUE, show.legend = FALSE) +
-    geom_vline(xintercept = 2019,
-               colour = su_theme_cols("grey"),
-               linetype = "dotted") +
-    scale_x_continuous(breaks = seq(2010, 2040, 5)) +
-    annotate("text",
-             x = min(df$year),
-             y = max(df$deaths),
-             label = "Historical",
-             hjust = 0) +
-    annotate("text",
-             x = 2020,
-             y = max(df$deaths),
-             label = "Forecast",
-             hjust = 0) +
-    scale_y_continuous(labels = comma_format(accuracy = 1)) +
-    scale_linetype_manual(values = c("forecast" = "dashed",
-                                     "historical" = "solid"),
-                          guide = "none") +
-    labs(colour = "gender", x = "", y = "") +
-    theme(legend.position = c(1, 0),
-          legend.justification = c(1, 0),
-          legend.background = element_blank(),
-          legend.key = element_blank(),
-          legend.title = element_blank())
+  c(Inf, 31) %>%
+    map(function(.x) {
+      p <- df %>%
+        filter(proximity_to_death_days < .x) %>%
+        ggplot(aes(proximity_to_death_days, stp)) +
+        geom_point(colour = su_theme_cols("orange"),
+                   size = 1,
+                   fill = alpha(su_theme_cols("orange"), 0.4),
+                   shape = "circle filled") +
+        geom_smooth(method = "loess",
+                    formula = y ~ x,
+                    span = 0.2,
+                    colour = su_theme_cols("orange"),
+                    fill = NA)
+      
+      if (!params$region_report) {
+        p <- p +
+          geom_smooth(aes(y = region),
+                      method = "loess",
+                      formula = y ~ x,
+                      span = 0.2,
+                      colour = after_scale(alpha(su_theme_cols("charcoal"), 0.4)),
+                      linetype = "solid",
+                      fill = NA)
+      }
+      
+      p <- p +
+        scale_y_continuous(labels = number_format(prefix = "£"),
+                           position = "right") +
+        theme(axis.title.y.right = element_text(margin = margin(l = 10))) +
+        ylab("Average cost per decedent")
+      
+      if(is.finite(.x)) {
+        p <- p +
+          scale_x_continuous(trans = "reverse",
+                             breaks = seq(0, 31, by = 7)) +
+          coord_cartesian(xlim = c(.x, 0)) +
+          xlab("Proximity to Death (Days)")
+      } else {
+        p <- p +
+          scale_x_proximity_to_death_days() +
+          xlab("Proximity to Death (Months)")
+      }
+      
+      p
+    })
 })
+average_daily_spend_plots[[1]]
 ```
 
-# Utilisation
+#### Figure 54 : Average daily spend per decedent in final month - `r stp_name` STP (yellow dots and line) and the `r region_name` region (grey line)
 
-```{r utilisation curve, message=FALSE,  echo=FALSE, results = "asis"}
-utilisation_curve_plot <- function(pod_type, data, loess_span = 0.15) {
-  cat("##", ifelse(pod_type == "Bed", "Bed Days", as.character(pod_type)), "\n\n")
-  
-  p <- data %>%
-    ggplot(aes(proximity_to_death_days, stp)) +
-    geom_smooth(span = loess_span,
-                formula = y ~ x,
-                method = "loess",
-                fill = NA,
-                colour = su_theme_cols()[["orange"]])
-  
-  if (!params$region_report) {
-    p <- p + 
-      geom_smooth(aes(y = region),
-                span = loess_span,
-                formula = y ~ x,
-                method = "loess",
-                fill = NA,
-                colour = after_scale(alpha(su_theme_cols()[["charcoal"]], 0.4)))
-  }
-  
-  p <- p +
-    geom_point(size = 0.2,
-               shape = "circle filled",
-               colour = su_theme_cols()[["orange"]],
-               fill = after_scale(alpha(su_theme_cols()[["orange"]], 0.4))) +
-    
-    geom_vline(xintercept = 3*365/12,
-               linetype = "dashed",
-               colour = su_theme_cols()[["dark_charcoal"]]) +
-    scale_x_proximity_to_death_days() +
-    scale_y_continuous(labels = comma_format(scale = 1000, accuracy = 1),
-                       position = "right") +
-    theme(panel.grid.major = element_line(colour = "grey",
-                                          size = 0.25,
-                                          linetype = "dotted"),
-          axis.text.y.left = element_blank(),
-          axis.title.y.right = element_text(margin = margin(0, 0, 0, 10)),
-          axis.ticks.y.left = element_blank(),
-          legend.position = "bottom") +
-    labs(x = "Proximity to Death (Months)",
-         y = "Activity per 1,000 Decedants",
-         colour = "") +
-    annotate("text",
-             x = 3*365/12+10,
-             y = max(c(data$stp, data$region)),
-             label = "3 months prior to death",
-             hjust = 1,
-             size = 3)
-  
-  plot(p)
-  
-  cat("\n\n")
-}
+```{r average daily spend (last month)}
+average_daily_spend_plots[[2]]
+```
 
-list(
-  stp = activity,
-  region = activity_region
+## How will service use and expenditure evolve in future?
+
+The earlier section (section 6) showed how much service use there was for those who died. Now we
+consider how much will be used in future. We examine what levels of future use will be if current
+patterns of service and resource use continue. We view these at five-year intervals and by age group
+for activity, spend and beds.
+
+Future levels of service use in `r stp_name` were predicted by applying
+the current utilisation rates to future expected decedent populations. If utilisation rates were to
+change then so too would the predicted levels. 
+
+```{r forecast spend}
+average_costs_per_person <- activity_costs %>%
+  filter(pod_type != "Bed") %>%
+  inner_join(mpi, by = "su_pat_id") %>%
+  mutate_at("age", pmin, 90) %>%
+  mutate(activity_year = as.numeric(proximity_to_death_days >= 365)) %>%
+  group_by(activity_year, pod_type, age, sex) %>%
+  summarise(cost = sum(cost), .groups = "drop") %>%
+  complete(nesting(pod_type),
+           activity_year = 0:1,
+           age = seq(18, 90),
+           sex,
+           fill = list(cost = 0)) %>%
+  inner_join(count(mpi, age, sex, name = "decedents"), by = c("age", "sex"))
+
+average_costs_per_person_sum <- forecast_deaths %>%
+  inner_join(average_costs_per_person, by = c("sex", "age_group" = "age")) %>%
+  mutate_at("year", ~.x - activity_year) %>%
+  filter(!year %% 5) %>%
+  filter(age_group >= 18) %>%
+  mutate_at("age_group",
+            cut,
+            c(0, 18, 65, 75, 85, Inf),
+            labels = levels(mpi$age_band),
+            right = FALSE) %>%
+  group_by(year, age_group, pod_type) %>%
+  summarise(across(c("est_deaths", "cost", "decedents"), sum), .groups = "drop_last")
+
+forecast_spend_plots <- bind_rows(
+  average_costs_per_person_sum,
+  average_costs_per_person_sum %>%
+    group_by(est_deaths, decedents, .add = TRUE) %>%
+    summarise_at("cost", sum) %>%
+    mutate(pod_type = "All Activity")
 ) %>%
-  map_dfr(.id = "type", function(.x) {
-    .x %>%
-      mutate_at("pod_type",
-                ~ifelse(pod_summary_group == "Critical Care Bed Day",
-                        "Critical Care Bed Day",
-                        as.character(.x))) %>%
-      mutate_at("pod_type",
-                fct_relevel,
-                c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
-      count(pod_type, proximity_to_death_days)
-  }) %>%
-  inner_join(tribble(~type, ~p,
-                     "stp", nrow(mpi),
-                     "region", nrow(mpi_region)),
-             by = "type") %>%
-  mutate_at("n", ~n / p) %>%
-  select(-p) %>%
-  pivot_wider(names_from = type, values_from = n) %>%
-  modify_at(vars(region, stp), replace_na, 0) %>%
+  ungroup() %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c("All Activity",
+              levels(activity_costs$pod_type) %>% subset(., . != "Bed"))) %>%
+  mutate(cost = ifelse(decedents, cost / decedents * est_deaths, 0)) %>%
   group_nest(pod_type) %>%
-  mutate(loess_span = c(0.05, 0.15, 0.15, 0.05, 0.05)) %>% 
-  pwalk(utilisation_curve_plot)
-```
-
-```{r utilisation curve grouped, message=FALSE,  echo=FALSE, results = "asis"}
-utilisation_curve_plot_grouped <- function(pod_type, data, loess_span = 0.15) {
-  cat("##", ifelse(pod_type == "Bed", "Bed Days", as.character(pod_type)), "\n\n")
+  mutate(plot = map(data, function(data) {
+    lbls <- data %>%
+      group_by(year) %>%
+      summarise_at("cost", sum) %>%
+      arrange(year) %>%
+      mutate(act_sum_lbl = comma(cost, prefix = "£", accuracy = .1, scale = 1e-6, suffix = "m"),
+             pcnt_change_lbl = percent(ifelse(year == 2020,
+                                              NA,
+                                              cost / first(cost) - 1),
+                                       accuracy = .1))
   
-  p <- data %>%
-    ggplot(aes(proximity_to_death_days, n, colour = group)) +
-    geom_smooth(span = loess_span,
-                formula = y ~ x,
-                method = "loess",
-                size = 0.5,
-                fill = NA) +
-    geom_vline(xintercept = 3*365/12,
-               linetype = "dashed",
-               colour = su_theme_cols()[["dark_charcoal"]]) +
-    scale_x_proximity_to_death_days() +
-    scale_y_continuous(labels = comma_format(scale = 1000, accuracy = 1),
-                       position = "right") +
-    theme(panel.grid.major = element_line(colour = "grey",
-                                          size = 0.25,
-                                          linetype = "dotted"),
-          axis.text.y.left = element_blank(),
-          axis.title.y.right = element_text(margin = margin(0, 0, 0, 10)),
-          axis.ticks.y.left = element_blank(),
-          legend.position = "bottom") +
-    labs(x = "Proximity to Death (Months)",
-         y = "Activity per 1,000 Decedants",
-         colour = "") +
-    annotate("text",
-             x = 3*365/12+10,
-             y = max(data$n),
-             label = "3 months prior to death",
-             hjust = 1,
-             size = 3)
+    data %>%
+      ggplot(aes(year, cost)) +
+      geom_col(aes(fill = fct_rev(age_group)),
+               alpha = 0.4,
+               colour = "white",
+               position = "stack") +
+      geom_text(data = lbls, aes(label = act_sum_lbl), vjust = -.3, size = 3.5, na.rm = TRUE) +
+      geom_text(data = lbls, aes(label = pcnt_change_lbl), vjust = 1.3, size = 3.5, na.rm = TRUE) +
+      scale_fill_discrete(guide = guide_legend(reverse = TRUE),
+                          reverse = TRUE) +
+      scale_y_continuous(labels = money_format,
+                         expand = expansion(c(0, 0.15))) +
+      labs(fill = "", y = "Spend (£million)") +
+      theme(legend.position = "bottom")
+  }))
 
-  plot(p)
-  
-  cat("\n\n")
-}
-
-activity %>%
+forecast_data <- forecast_activity %>%
   mutate_at("pod_type",
             ~ifelse(pod_summary_group == "Critical Care Bed Day",
                     "Critical Care Bed Day",
@@ -792,978 +1982,209 @@ activity %>%
   mutate_at("pod_type",
             fct_relevel,
             c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
-  inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
-  filter(group != "(Missing)") %>%
-  count(pod_type, group, proximity_to_death_days) %>%
+  filter(year %% 5 == 0) %>%
+  group_by(age_band, year, pod_type) %>%
+  summarise_at(vars(est_deaths, activity), sum) %>%
+  ungroup()
 
-  inner_join(count(mpi, group, name = "p"), by = "group") %>%
-  mutate_at("n", ~n/p) %>%
-  
+forecast_activity_plots <- forecast_data %>%
   group_nest(pod_type) %>%
-  mutate(loess_span = c(0.05, 0.15, 0.15, 0.05, 0.05)) %>% 
-  pwalk(utilisation_curve_plot_grouped)
-```
-
-```{r utilisation curve location, message=FALSE, echo=FALSE, results = "asis"}
-activity %>%
-  mutate_at("pod_type",
-            ~ifelse(pod_summary_group == "Critical Care Bed Day",
-                    "Critical Care Bed Day",
-                    as.character(.x))) %>%
-  mutate_at("pod_type",
-            fct_relevel,
-            c(levels(activity$pod_type), "Critical Care Bed Day")) %>% 
-  inner_join(select(mpi, su_pat_id, group = location_type),
-             by = "su_pat_id") %>%
-  filter(group != "Unknown") %>%
-  count(pod_type, group, proximity_to_death_days) %>%
-  
-  inner_join(count(mpi, group = location_type, name = "p"), by = "group") %>%
-  mutate_at("n", ~n/p) %>%
-  
-  group_nest(pod_type) %>%
-  pwalk(utilisation_curve_plot_grouped)
-```
-
-# Utilisation Rates
-
-```{r utilisation rates, message=FALSE, echo=FALSE, results = "asis"}
-list(stp = activity,
-     region = activity_region) %>%
-  map_dfr(.id = "type", function(.x) {
-    .x %>%
-      inner_join(select(mpi_region, su_pat_id, age),
-                 by = "su_pat_id") %>%
-    mutate(activity_year = as.numeric(proximity_to_death_days >= 365)) %>%
-    mutate_at("age", ~case_when(.x > 90 ~ 90,
-                                .x < 50 ~ 50,
-                                TRUE ~ .x)) %>%
-    mutate_if(is.factor, as.character) %>%
-    count(pod_type, pod_summary_group, activity_year, age,
-          name = "activity")
-  }) %>%
-  arrange(type, pod_type, pod_summary_group, activity_year, age) %>%
-  complete(nesting(pod_type, pod_summary_group),
-           activity_year = 0:1,
-           age = seq(50, 90),
-           fill = list(activity = 0)) %>%
-  inner_join(
-    bind_rows(
-      mpi %>%
-        mutate_at("age",
-                  ~case_when(.x > 90 ~ 90,
-                             .x < 50 ~ 50,
-                             TRUE ~ .x)) %>%
-        count(age, name = "deaths") %>%
-        mutate(type = "stp"),
-      mpi_region %>%
-        mutate_at("age",
-                  ~case_when(.x > 90 ~ 90,
-                             .x < 50 ~ 50,
-                             TRUE ~ .x)) %>%
-        count(age, name = "deaths") %>%
-        mutate(type = "region")
-    ),
-    by = c("type", "age")
-  ) %>%
-  mutate(utilisation = activity / deaths) %>%
-  select(-activity, -deaths) %>%
-  pivot_wider(names_from = "type", values_from = "utilisation") %>%
-  group_nest(pod_type) %>%
-  pwalk(function(pod_type, data) {
-    cat("##", ifelse(pod_type == "Bed", "Bed Days", as.character(pod_type)), "\n\n")
+  mutate(plot = map(data, function(data) {
+    lbls <- data %>%
+      group_by(year) %>%
+      summarise_at("activity", sum) %>%
+      arrange(year) %>%
+      mutate(act_sum_lbl = comma(activity, accuracy = 1),
+             pcnt_change_lbl = percent(ifelse(year == 2020,
+                                              NA,
+                                              activity / first(activity) - 1),
+                                       accuracy = .1))
     
-    p <- data %>%
-      mutate_at("pod_summary_group",
-                ~fct_reorder(.x, region, .fun = sum)) %>%
-      group_by(pod_summary_group) %>%
-      # make sure we have a sensible number of rows per pod_summary_group, we should have 82 rows
-      # 2*(90-50+1)
-      filter(sum(is.na(stp)) < 82*.75) %>%
-      ungroup() %>%
-      mutate_at("activity_year",
-                ifelse,
-                "Penultimate year of life (12-24 months before death)",
-                "Final year of life (0-12 months before death)") %>%
-      ggplot(aes(age, stp, colour = activity_year)) +
-      geom_smooth(fill = NA, method = "loess", formula = y ~ x, na.rm = TRUE,
-                  lwd = 0.75) +
-      geom_point(aes(fill = after_scale(alpha(colour, 0.4))),
-                 shape = "circle filled",
-                 na.rm = TRUE) +
-      expand_limits(y = 0) +
-      facet_wrap(vars(fct_rev(pod_summary_group)), drop = FALSE) +
-      theme(legend.position = "bottom") +
-      labs(colour = "",
-           x = "Age of decedent",
-           y = "Average use")
-    
-    plot(p)
-    
-    cat("\n\n")
-  })
+    data %>%
+      ggplot(aes(year, activity)) +
+      geom_col(aes(fill = fct_rev(age_band)),
+               alpha = 0.4,
+               colour = "white",
+               position = "stack") +
+      geom_text(data = lbls, aes(label = act_sum_lbl), vjust = -.3, na.rm = TRUE) +
+      geom_text(data = lbls, aes(label = pcnt_change_lbl), vjust = 1.3, size = 3.5, na.rm = TRUE) +
+      scale_y_continuous(labels = scales::comma_format(scale = .001),
+                         expand = expansion(c(0, 0.15))) +
+      scale_fill_discrete(guide = guide_legend(reverse = TRUE),
+                          reverse = TRUE) +
+      labs(fill = "",
+           y = "Activity (1,000's)") +
+      theme(legend.position = "bottom")
+  }))
 ```
 
-# Critical Care LoS
+#### Urgent services activity and expenditure is set to increase
 
-```{r critical care LoS boxplot cod}
-activity %>%
-  inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
-  filter(pod_summary_group == "Critical Care Bed Day",
-         group != "(Missing)") %>%
-  group_by(group) %>%
-  count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
-  mutate(n = n()) %>%
-  select(-bb5008_pseudo_apcs_ident_pseudo) %>%
-  ggplot(aes(group, cc_los)) +
-  geom_boxplot(aes(colour = group,
-                   fill = after_scale(alpha(colour, 0.4))),
-               outlier.shape = NA) +
-  scale_y_continuous(breaks = seq(0,30,3)) +
-  coord_flip(ylim = c(0, 18)) +
-  theme(legend.position = "none",
-        axis.title.x = element_blank()) +
-  labs(x = "", y = "Critical Care Bed Days")
+By 2030 urgent service events will have increased by *[insert %]* for activity (Figure 55) and *[insert %]* for spend
+(Figure 56). Older decedents (those aged 85+) are the largest share of urgent services and growth
+is driven by increasing number of decedents in this age group.
+
+#### Figure 55 : Urgent service events future use at five-year intervals by decedent age group (percentages relative to 2020)
+
+```{r forecast activity - urgent service event}
+filter(forecast_activity_plots, pod_type == "Urgent Service Event")$plot[[1]]
 ```
 
-```{r critical care LoS boxplot age}
-activity %>%
-  inner_join(select(mpi, su_pat_id, age_band), by = "su_pat_id") %>%
-  filter(pod_summary_group == "Critical Care Bed Day") %>%
-  group_by(age_band) %>%
-  count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
-  mutate(n = n()) %>%
-  select(-bb5008_pseudo_apcs_ident_pseudo) %>%
-  ggplot(aes(fct_rev(age_band), cc_los)) +
-  geom_boxplot(aes(colour = age_band,
-                   fill = after_scale(alpha(colour, 0.4))),
-               outlier.shape = NA) +
-  scale_y_continuous(breaks = seq(0,30,3)) +
-  coord_flip(ylim = c(0, 18)) +
-  theme(legend.position = "none") +
-  labs(x = "", y = "Critical Care Bed Days")
+#### Figure 56 : Urgent service events future spend at five-year intervals by decedent age group (percentages relative to 2020)
+
+```{r forecast spend - urgent service event}
+filter(forecast_spend_plots, pod_type == "Urgent Service Event")$plot[[1]]
 ```
 
-```{r critical care LoS boxplot died}
-activity %>%
-  filter(pod_summary_group == "Critical Care Bed Day") %>%
-  mutate_at("died_in_critical_care", ~ifelse(.x, "Yes", "No")) %>%
-  group_by(group = died_in_critical_care) %>%
-  count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
-  mutate(n = n()) %>%
-  select(-bb5008_pseudo_apcs_ident_pseudo) %>%
-  ggplot(aes(group, cc_los)) +
-  geom_boxplot(aes(colour = group,
-                   fill = after_scale(alpha(colour, 0.4))),
-               outlier.shape = NA) +
-  scale_y_continuous(breaks = seq(0,30,3)) +
-  coord_flip(ylim = c(0, 18)) +
-  theme(legend.position = "none") +
-  labs(x = "Died in Critical Care?", y = "Critical Care Bed Days")
+### Future use and spend grow steadily for planned contacts
+
+Jointly the two oldest age groups (those 75-84 and those aged 85+) are responsible for over half of
+planned contacts. For both activity (Figure 57) and spend (Figure 58). Growth is driven by
+increasing number of decedents in the oldest age group.
+
+#### Figure 57 : Planned contact future use at five-year intervals by decedent age group (percentages relative to 2020)
+
+```{r forecast activity - planned contacts}
+filter(forecast_activity_plots, pod_type == "Planned Contact")$plot[[1]]
 ```
 
-```{r critical care LoS boxplot died cod}
-activity %>%
-  inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
-  filter(pod_summary_group == "Critical Care Bed Day",
-         group != "(Missing)") %>%
-  mutate_at("died_in_critical_care", ~ifelse(.x, "Yes", "No")) %>%
-  group_by(group, died_in_critical_care) %>%
-  count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
-  mutate(n = n()) %>%
-  select(-bb5008_pseudo_apcs_ident_pseudo) %>%
-  ggplot(aes(died_in_critical_care, cc_los)) +
-  geom_boxplot(aes(colour = group,
-                   fill = after_scale(alpha(colour, 0.4))),
-               outlier.shape = NA) +
-  scale_y_continuous(breaks = seq(0,30,3)) +
-  coord_flip(ylim = c(0, 18)) +
-  theme(legend.position = "none") +
-  facet_wrap(vars(group), ncol = 1) +
-  labs(x = "Died in Critical Care?",
-       y = "Critical Care Bed Days")
+#### Figure 58 : Planned contact future spend at five-year intervals by decedent age group (percentages relative to 2020)
+
+```{r forecast spend - planned contacts}
+filter(forecast_spend_plots, pod_type == "Planned Contact")$plot[[1]]
 ```
 
-```{r critical care LoS boxplot admission type}
-activity %>%
-  filter(pod_summary_group == "Critical Care Bed Day") %>%
-  group_by(group = cc_pod_summary_group) %>%
-  count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
-  mutate(n = n()) %>%
-  select(-bb5008_pseudo_apcs_ident_pseudo) %>%
-  ggplot(aes(group, cc_los)) +
-  geom_boxplot(aes(colour = group,
-                   fill = after_scale(alpha(colour, 0.4))),
-               outlier.shape = NA) +
-  scale_y_continuous(breaks = seq(0,30,3)) +
-  coord_flip(ylim = c(0, 18)) +
-  theme(legend.position = "none",
-        axis.title.y = element_blank()) +
-  labs(y = "Critical Care Bed Days",
-       x = "")
+### Future use and spend remain steady for planned admissions
+
+Future levels of planned admissions remain steady for activity (Figure 59) and grow slowly for
+spend (Figure 60). The increase in spend is proportionally more than the increase in activity.
+Although younger age groups feature more heavily in planned admissions the growth in spend is
+driven by decedents in the oldest age group.
+
+#### Figure 59 : Planned admission future use at five-year intervals by decedent age group (percentages relative to 2020)
+
+```{r forecast activity - planned admission}
+filter(forecast_activity_plots, pod_type == "Planned Admission")$plot[[1]]
 ```
 
-```{r critical care LoS boxplot age line}
-activity %>%
-  inner_join(select(mpi, su_pat_id, age), by = "su_pat_id") %>%
-  filter(pod_summary_group == "Critical Care Bed Day") %>%
+#### Figure 60 : Planned admission future spend at five-year intervals by decedent age group (percentages relative to 2020)
 
-  mutate_at("age",
-            cut,
-            c(18, seq(50, 90, 5), Inf),
-            c("18-49",
-              seq(50,85,5) %>% paste0(.,"-",.+4),
-              "90+"),
-            right = FALSE) %>%
-  group_by(age) %>%
-  count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
-  summarise_at("cc_los", list) %>%
-  mutate(ci = map(cc_los, ~MeanCI(.x) %>% as.list() %>% as_tibble())) %>%
-  
-  mutate_at("cc_los", map, ~tibble(s = sum(.x), n = length(.x))) %>%
-  unnest(cols = c(cc_los, ci)) %>%
-  mutate(overall_mean = sum(s)/sum(n)) %>%
-  ggplot(aes(age, mean)) +
-  geom_hline(aes(yintercept = overall_mean),
-             linetype = "dashed") +
-  geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci)) +
-  geom_point() +
-  labs(x = "", y = "Mean Critical Care Bed Days")
+```{r forecast spend - planned admission}
+filter(forecast_spend_plots, pod_type == "Planned Admission")$plot[[1]]
 ```
 
-```{r critical care LoS boxplot age line by cod, message = FALSE, echo = FALSE, results = "asis"}
-activity %>%
-  inner_join(select(mpi, su_pat_id, age, group), by = "su_pat_id") %>%
-  filter(pod_summary_group == "Critical Care Bed Day",
-         group != "(Missing)") %>%
-  mutate_at("age",
-            cut,
-            c(18, seq(50, 90, 5), Inf),
-            c("18-49",
-              seq(50,85,5) %>% paste0(.,"-",.+4),
-              "90+"),
-            right = FALSE) %>%
-  group_by(group, age) %>%
-  count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
-  summarise_at("cc_los", list) %>%
-  filter(map(cc_los, length) > 3) %>%
-  mutate(ci = map(cc_los, ~MeanCI(.x) %>% as.list() %>% as_tibble())) %>%
-  
-  mutate_at("cc_los", map, ~tibble(s = sum(.x), n = length(.x))) %>%
-  unnest(cols = c(cc_los, ci)) %>%
-  mutate(overall_mean = sum(s)/sum(n)) %>%
-  group_nest() %>%
-  filter(group != "(Missing)") %>%
-  pwalk(function(group, data) {
-    cat("##", as.character(group), "\n\n")
-    
-    p <- data %>%
-      ggplot(aes(age, mean)) +
-      geom_hline(aes(yintercept = overall_mean),
-                 linetype = "dashed") +
-      geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci), na.rm = TRUE) +
-      geom_point(na.rm = TRUE) +
-      labs(x = "", y = "Mean Critical Care Bed Days") +
-      theme(legend.position = "none")
-    
-    plot(p)
-    
-    cat("\n\n")
-  })
+### Increased demand for bed days will put pressure on capacity
+
+Future bed days have similar growth to urgent service events. By 2030 they will have increased by
+*[insert %]* (Figure 61). Older decedents (those aged 85+) are responsible for the largest share of bed days
+and growth is also driven by the increasing number of decedents in this age group. By 2030 to
+meet growth in bed days `r stp_name` will require an additional *[insert #]* beds (Table 3).
+
+Costs for future bed days are not calculated separately. They are included in cost of admission.
+
+#### Figure 61 : Bed day future level of use at five-year intervals by decedent age group (percentages relative to 2020)
+
+```{r forecast activity - bed}
+filter(forecast_activity_plots, pod_type == "Bed")$plot[[1]]
 ```
 
-```{r critical care LoS boxplot group admission type}
-activity %>%
-  inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
-  filter(pod_summary_group == "Critical Care Bed Day",
-         group != "(Missing)") %>%
-  group_by(group, cc_pod_summary_group) %>%
-  count(bb5008_pseudo_apcs_ident_pseudo, name = "cc_los") %>%
-  mutate(n = n()) %>%
-  select(-bb5008_pseudo_apcs_ident_pseudo) %>%
-  ggplot(aes(cc_pod_summary_group, cc_los)) +
-  geom_boxplot(aes(colour = group,
-                   fill = after_scale(alpha(colour, 0.4))),
-               outlier.shape = NA) +
-  scale_x_discrete(labels = compose(str_to_upper,
-                                    partial(str_sub, start = 1, end = 2))) +
-  scale_y_continuous(breaks = seq(0,30,3)) +
-  coord_flip(ylim = c(0, 18)) +
-  theme(legend.position = "none",
-        axis.title.y = element_text(margin = margin(r = 10))) +
-  facet_wrap(vars(group), ncol = 1) +
-  labs (x = "Admission Method (EL=Elective, EM=Emergency)",
-        y = "Critical Care Bed Days")
+#### Table 3 : Additional beds required to meet future growth in bed days
+
+```{r forecast bed table}
+forecast_data %>%
+  filter(pod_type == "Bed") %>%
+  group_by(year) %>%
+  summarise(across(activity, sum), .groups = "drop") %>%
+  mutate(across(activity, ~round((.x - first(.x)) / (365*.9)))) %>%
+  filter(year > 2020) %>%
+  pivot_wider(names_from = year, values_from = activity) %>%
+  mutate(year = "Extra Beds") %>%
+  relocate(year, .before = everything())
 ```
 
-### Critical Care stay "Theographs"
+### Future use and spend reduces for critical care
 
-Each "row" of data is a patient, with bars showing when that patient stayed on
-critical care. Black bars are elective admissions, yellow bars are emergency
-admissions.
+Future level of critical care bed days reduce for both days (Figure 62) and spend (Figure 63). The
+youngest group in the decedent population (aged 18-64) have the largest share of critical care
+days. The reduction is driven by the decreasing number of decedents in this age group.
 
-Data is ordered so patients who died in critical care are at the top. The data
-is then further ordered within the "died" and "did not die" in CC groups by how
-long the patient spent in critical care in total, so those who had more CC days
-are at the top.
+#### Figure 62 : Critical care bed day future use at five-year intervals by decedent age group (percentages relative to 2020)
 
-```{r critical care stay theographs, echo = FALSE, message = FALSE, results = "asis"}
-activity %>%
-  inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
-  filter(pod_summary_group == "Critical Care Bed Day",
-         group != "(Missing)") %>%
-  group_nest(group) %>%
-  pwalk(function(group, data) {
-    cat("##", as.character(group), "\n\n")
-    
-    p <- data %>%
-      mutate_at("su_pat_id", as.character) %>%
-      group_by(su_pat_id) %>%
-      mutate(order = any(died_in_critical_care)*10000 + n()) %>%
-      ungroup() %>%
-      mutate_at("su_pat_id", fct_reorder, quo(order)) %>%
-      ggplot(aes(proximity_to_death_days, su_pat_id)) +
-      geom_tile(aes(fill = cc_pod_summary_group)) +
-      scale_x_proximity_to_death_days(expand = expansion(c(0.02, 0.001))) +
-      expand_limits(xlim = c(-0, 730)) +
-      scale_fill_manual(values = c("Elective Admission" = su_theme_cols()[["charcoal"]],
-                                   "Emergency Admission" = su_theme_cols()[["orange"]])) +
-      theme(axis.text.y = element_blank(),
-            axis.line.y = element_blank(),
-            axis.ticks.y = element_blank(),
-            legend.position = "none") +
-      labs(x = "", y = "", fill = "")
-    
-    plot(p)
-    
-    cat("\n\n")
-  })
+```{r forecast activity - critical care bed day}
+filter(forecast_activity_plots, pod_type == "Critical Care Bed Day")$plot[[1]]
 ```
 
-* Cancer and Frailty look very similar, a lot of elective, but short admissions
-throughout the 24 months.
-* Organ Failure has more emergency admissions scattered throughout where the
-patient stays longer. Many more patients die in critical care.
-* Sudden Death sees the largest percentage of deaths in critical care, and very
-little activity other than in the 6 months before death.
-* Other Terminal Illness is similar to Organ Failure, but with shorter stays
+#### Critical care bed day future spend at five-year intervals by decedent age group (percentages relative to 2020)
 
-# Chemotherapy
-
-## Who had chemotherapy in their last 4 weeks of life
-
-```{r chemo last month}
-activity %>%
-  filter(chemotherapy_indicator == 1) %>%
-  group_by(su_pat_id) %>%
-  mutate(last_month = any(proximity_to_death_days <= 28)) %>%
-  mutate_at("last_month",
-            ~ifelse(.x == 1,
-                    "Had chemo in last 4 weeks of life",
-                    "Had chemo, but not in last 4 weeks of life")) %>%
-  group_by(last_month) %>%
-  summarise(nd = n_distinct(su_pat_id), .groups = "drop_last") %>%
-  mutate(p = nd/sum(nd)) %>%
-  ggplot(aes(last_month, p)) +
-  geom_col(colour = su_theme_cols()[["orange"]],
-           fill = after_scale(alpha(su_theme_cols()[["orange"]], 0.4))) +
-  geom_label(aes(y = 0, label = paste0(percent(p, accuracy = 1), " (", comma(nd), ")")),
-             vjust = -0.5) +
-  scale_y_continuous(expand = expansion(c(0, 0.05)),
-                     labels = percent_format(accuracy = 1)) +
-  labs(x = "",
-       y = "")
+```{r forecast spend - critical care bed day}
+filter(forecast_spend_plots, pod_type == "Critical Care")$plot[[1]]
 ```
 
-```{r chemo activity}
-tibble(proximity_to_death_days = activity %>%
-         pull(proximity_to_death_days) %>%
-         range() %>%
-         (lift_dv(seq))) %>%
-  left_join(activity %>%
-              filter(chemotherapy_indicator == 1) %>%
-              mutate(nd = n_distinct(su_pat_id)) %>%
-              count(proximity_to_death_days, nd) %>%
-              mutate_at("nd", ~n / nd),
-            by = c("proximity_to_death_days")) %>%
-  modify_at(vars(nd, n), replace_na, 0) %>%
-  ggplot(aes(proximity_to_death_days, nd)) +
-  geom_jitter(alpha = 0.15,
-              colour = su_theme_cols("orange")) +
-  geom_smooth(fill = NA,
-              colour = su_theme_cols("orange"),
-              method = "loess",
-              span = 0.3,
-              formula = y ~ x) +
-  scale_x_proximity_to_death_days() +
-  scale_y_continuous(labels = comma_format(scale = 1000),
-                     position = "right") +
-  expand_limits(y = 0) +
-  theme(legend.position = "bottom",
-        axis.title.y.right = element_text(margin = margin(l = 10))) +
-  labs(x = "Proximity to death (Months)",
-       y = "Daily chemo activity\nper 1,000 decedents who had chemo",
-       colour = "Had chemo in last 4 weeks of life?")
-```
+# Discussion
 
-```{r chemo activity split last month}
-activity %>%
-  filter(chemotherapy_indicator == 1) %>%
-  group_by(su_pat_id) %>%
-  mutate(last_month = any(proximity_to_death_days <= 28)) %>%
-  group_by(last_month) %>%
-  mutate(nd = n_distinct(su_pat_id)) %>%
-  count(proximity_to_death_days, nd) %>%
-  ungroup() %>%
-  mutate_at("nd", ~n / nd) %>%
-  complete(last_month, proximity_to_death_days, fill = list(nd = 0, n = 0)) %>%
-  filter(last_month | proximity_to_death_days > 28)  %>%
-  rename("Number" = n,
-         "Daily chemo activity\nper 1,000 decedents who had chemo" = nd) %>%
-  pivot_longer(cols = -c("proximity_to_death_days", "last_month")) %>%
-  group_nest(name) %>%
-  pwalk(function(name, data) {
-    s <- ifelse(name != "Number", 1000, 1)
-    
-    p <- data %>%
-      mutate_at("last_month",
-                ifelse,
-                "later - received in last 4 weeks",
-                "earlier - did not receive in last 4 weeks") %>%
-      ggplot(aes(proximity_to_death_days, value, colour = last_month)) +
-      geom_smooth(fill = NA,
-                  method = "loess",
-                  formula = y ~ x) +
-      geom_vline(xintercept = 28, linetype = "dashed") +
-      scale_x_proximity_to_death_days() +
-      scale_y_continuous(labels = comma_format(scale = s),
-                         position = "right") +
-      theme(legend.position = "bottom",
-            axis.title.y.right = element_text(margin = margin(0, 0, 0, 10)),
-            panel.grid.major = element_line(linetype = "dotted",
-                                            colour = "lightgrey")) +
-      labs(x = "Proximity to death (Months)",
-           y = name,
-           colour = "") +
-      annotate("text",
-               x = 28,
-               y = 0,
-               label = "4 weeks prior to death",
-               hjust = 1.05,
-               vjust = -0.5,
-               size = 3)
-    
-    plot(p)
-  })
-```
+The aim of this report is to equip decision makers, in all parts of the STP, with insight into people's
+use of healthcare services as they approach the end of their lives. These insights can be used to
+spur action and improve outcomes.
 
-```{r chemo when do people have first chemo}
-tibble(proximity_to_death_days = activity %>%
-         pull(proximity_to_death_days) %>%
-         range() %>%
-         (lift_dv(seq))) %>%
-  left_join(activity %>%
-              filter(chemotherapy_indicator == 1) %>%
-              group_by(su_pat_id) %>%
-              summarise_at("proximity_to_death_days", max) %>%
-              ungroup() %>%
-              count(proximity_to_death_days),
-            by = "proximity_to_death_days") %>%
-  mutate_at("n", replace_na, 0) %>%
-  arrange(desc(proximity_to_death_days)) %>%
-  mutate_at("n", cumsum) %>%
-  mutate(p = n / max(n)) %>%
-  ggplot(aes(proximity_to_death_days, p)) +
-  geom_step(colour = su_theme_cols()[["orange"]]) +
-  scale_y_continuous(labels = percent) +
-  scale_x_proximity_to_death_days() +
-  labs(x = "Proximity to death (Months)",
-       y = "Cumulative % of when people had\ntheir first chemo")
-```
+The report’s main messages are challenging. The analysis is detailed and takes multiple angles; it
+presents subtlety, difference and nuance. Yet the overall conclusion is clear: too few people in 
+`r stp_name` experience a ‘good death’.
 
-```{r chemo when do people have first chemo split last month}
-activity %>%
-  filter(chemotherapy_indicator == 1) %>%
-  group_by(su_pat_id) %>%
-  summarise(last_month = any(proximity_to_death_days <= 28),
-            proximity_to_death_days = max(proximity_to_death_days),
-            .groups = "drop_last") %>%
-  count(proximity_to_death_days, last_month) %>%
-  complete(proximity_to_death_days, last_month, fill = list(n = 0)) %>%
-  filter(last_month | proximity_to_death_days > 28) %>%
-  mutate_at("last_month",
-            ifelse,
-            "later - received in last 4 weeks",
-            "earlier - did not receive in last 4 weeks") %>%
-  group_by(last_month) %>%
-  arrange(desc(proximity_to_death_days)) %>%
-  mutate_at("n", cumsum) %>%
-  mutate(p = n / max(n)) %>%
-  # there is a slight dip in the first couple of days of data - this "cleans"
-  # the chart up a little
-  filter(proximity_to_death_days < 365*1.95) %>%
-  ggplot(aes(proximity_to_death_days, p, colour = last_month)) +
-  geom_step(lwd = 1) +
-  geom_vline(xintercept = 28, linetype = "dashed") +
-  scale_y_continuous(labels = percent,
-                     position = "right") +
-  scale_x_proximity_to_death_days() +
-  labs(x = "Proximity to death (Months)",
-       y = "Cumulative % of when people had\ntheir first chemo",
-       colour = "") +
-  theme(legend.position = "bottom",
-        panel.grid.major = element_line(linetype = "dashed",
-                                        colour = "lightgrey"),
-        axis.title.y.right = element_text(margin = margin(l = 10))) +
-  annotate("text",
-           x = 28,
-           y = 0,
-           label = "4 weeks prior to death",
-           hjust = 1.05,
-           vjust = -0.5,
-           size = 3)
-```
+There is no single explanation for this. The analysis suggests that services are often reactive and
+uncoordinated, with patterns of use that seem undesirable. Most people say they want to die at
+home, but this intention is frequently lost in the interaction with – and between - the services
+supporting them. Expenditure also does not seem to support this desire to die at home: around
+two thirds of investment in hospital services is spent on urgent care.
 
-```{r chemo utilisation}
-mpi %>%
-  left_join(activity %>%
-              group_by(su_pat_id) %>%
-              summarise_at("chemotherapy_indicator",  any),
-            by = "su_pat_id") %>%
-  modify_at("chemotherapy_indicator", replace_na, FALSE) %>%
-  group_by(age_band) %>%
-  summarise_at("chemotherapy_indicator", mean) %>%
-  ggplot(aes(age_band, chemotherapy_indicator, colour = age_band)) +
-  geom_col(aes(fill = after_scale(alpha(colour, 0.4)))) +
-  scale_y_continuous(labels = percent,
-                     expand = expansion(c(0, 0.05))) +
-  labs(x = "",
-       y = "Percentage of decedents who had chemo") +
-  theme(legend.position = "none")
+Inequality is a clear part of the story. Experiences at the end of life differ radically according to
+factors such as age, gender, class and cause of death. There are also geographic differences, with a
+consistently higher rate of planned care use in `r stp_name` compared to the `r region_name`, for example.
 
-bind_rows(
-  mpi %>%
-    left_join(activity %>%
-                group_by(su_pat_id) %>%
-                summarise_at("chemotherapy_indicator",  any),
-              by = "su_pat_id") %>%
-    mutate(type = "stp"),
-  
-  mpi_region %>%
-    left_join(activity_region %>%
-                group_by(su_pat_id) %>%
-                summarise_at("chemotherapy_indicator",  any),
-              by = "su_pat_id") %>%
-    mutate(type = "region")
-) %>%
-  modify_at("chemotherapy_indicator", replace_na, FALSE) %>%
-  group_by(type, age) %>%
-  summarise_at("chemotherapy_indicator", mean) %>%
-  pivot_wider(names_from = type, values_from = chemotherapy_indicator) %>%
-  modify_at("stp", replace_na, 0) %>%
-  ggplot(aes(age, stp)) +
-  geom_point(colour = su_theme_cols("orange"),
-             fill = after_scale(alpha(su_theme_cols("orange"), 0.4)),
-             shape = "circle filled") +
-  geom_smooth(method = "loess",
-              formula = y ~ x,
-              fill = NA,
-              colour = su_theme_cols("orange")) +
-  geom_smooth(aes(y = region),
-              linetype = "dotted",
-              method = "loess",
-              formula = y ~ x,
-              fill = NA,
-              colour = su_theme_cols("charcoal")) +
-  scale_y_continuous(labels = percent_format(accuracy = 1)) +
-  labs(x = "Age",
-       y = "Percentage of decedents who had chemo") +
-  theme(legend.position = "none")
-```
+The current situation has evolved during a decades-long trend of falling deaths. This trend is now
+set to change and the number of deaths is forecast to increase. Demographic change means that
+this growth is largely concentrated among those aged 85 and above. As well as adding to the
+overall scale of need, the average case is also therefore likely to become more complex.
+This change in the nature and scale of demand casts a different light on the current situation. Faced
+with this more challenging future, decision makers may want to consider more ambitious options
+in response.
 
-```{r chemo utilisation split by years}
-activity %>%
-  inner_join(mpi, by = "su_pat_id") %>%
-  mutate_at("age", ~case_when(.x < 50 ~ 50,
-                              .x < 90 ~ .x,
-                              TRUE ~ 90)) %>%
-  filter(chemotherapy_indicator == 1) %>%
-  mutate(year = ifelse(proximity_to_death_days <= 365,
-                       "Year of death",
-                       "Year prior to death")) %>%
-  count(age, year, name = "activity") %>%
-  inner_join(mpi %>%
-               semi_join(activity %>%
-                           filter(chemotherapy_indicator == 1),
-                         by = "su_pat_id") %>%
-               mutate_at("age", ~case_when(.x < 50 ~ 50,
-                                           .x < 90 ~ .x,
-                                           TRUE ~ 90)) %>%
-               count(age, name = "nd"),
-             by = "age") %>%
-  mutate(utilisation = activity / nd) %>%
-  ggplot(aes(age, utilisation, colour = year)) +
-  geom_point(aes(fill = after_scale(alpha(colour, 0.4))),
-             shape = "circle filled") +
-  geom_smooth(fill = NA, method = "loess", formula = y ~ x) +
-  labs(x = "Age",
-       y = "Chemo Usage per decedent who had chemo",
-       colour = "") +
-  theme(legend.position = c(0, 0),
-        legend.justification = c(0, 0),
-        legend.background = element_blank())
-```
+This report presents a detailed account of ‘what is’. Moving on from this and deciding ‘what ought
+to be’ is a more complex undertaking. It involves professional judgement, evidence and clinical
+standards. But it also involves personal preference, values and cultural differences. Combining such
+diverse perspectives requires care, humanity, and skill.
 
-```{r chemo utilisation split by years by decedent}
+Seen in this context, the analysis presented here is just one input (albeit an essential one) into a
+broader set of conversations. These conversations are the place to generate detailed plans for
+improvement.
 
-activity %>%
-  inner_join(mpi, by = "su_pat_id") %>%
-  mutate_at("age", ~case_when(.x < 50 ~ 50,
-                              .x < 90 ~ .x,
-                              TRUE ~ 90)) %>%
-  filter(chemotherapy_indicator == 1) %>%
-  mutate(year = ifelse(proximity_to_death_days <= 365,
-                       "Year of death",
-                       "Year prior to death")) %>%
-  count(age, year, name = "activity") %>%
-  inner_join(mpi %>%
-               semi_join(activity %>%
-                           filter(chemotherapy_indicator == 1),
-                         by = "su_pat_id") %>%
-               mutate_at("age", ~case_when(.x < 50 ~ 50,
-                                           .x < 90 ~ .x,
-                                           TRUE ~ 90)) %>%
-               count(age, name = "nd"),
-             by = "age") %>%
-  mutate(utilisation = activity / nd) %>%
-  ggplot(aes(age, utilisation, colour = year)) +
-  geom_point(aes(fill = after_scale(alpha(colour, 0.4))),
-             shape = "circle filled") +
-  geom_smooth(fill = NA, method = "loess", formula = y ~ x) +
-  labs(x = "Age",
-       y = "Chemo Usage per decedent",
-       colour = "") +
-  theme(legend.position = c(0, 0),
-        legend.justification = c(0, 0),
-        legend.background = element_blank())
-```
+We therefore stop short of making specific recommendations. But, as a bridge into these
+conversations, we note that:
 
-```{r chemo in last month of life binomial ci plot by cwt site}
-cwt_groups <- file.path("data","reference","cwt_groups.csv") %>%
-  read_csv(col_types = "cc")
+- Local citizens have the main stake in better end of life care. People living in the STP area will
+have views on the analysis presented here; they will be a source of first-hand evidence from
+experience; they will have a sense of what outcomes are desirable and of what better care
+would look like. As friends, neighbours and family members, they are also current providers of
+care: a source of solutions as well as of ‘demand’.
 
-activity %>%
-  filter(chemotherapy_indicator == 1) %>%
-  inner_join(select(mpi, su_pat_id, primary_cod), by = "su_pat_id") %>%
-  mutate_at("primary_cod", ~ifelse(.x == "C770", .x, str_sub(.x, 1, 3))) %>%
-  inner_join(cwt_groups, by = c("primary_cod" = "icd10")) %>%
-  mutate(last_month = ifelse(proximity_to_death_days <= 28, su_pat_id, NA)) %>%
-  group_by(cancer_site) %>%
-  summarise(d = n_distinct(su_pat_id),
-            n = n_distinct(last_month, na.rm = TRUE),
-            .groups = "drop_last") %>%
-  mutate(ci = map2(n, d, compose(as_tibble, BinomCI))) %>%
-  unnest(ci) %>%
-  mutate(mean_est = sum(n) / sum(d),
-         colour = case_when(
-           upr.ci < mean_est ~ "significantly lower",
-           lwr.ci > mean_est ~ "significantly higher",
-           TRUE ~ "no significant difference",
-         ) %>%
-           factor(levels = c("significantly lower",
-                             "no significant difference",
-                             "significantly higher"))) %>%
-  mutate_at("cancer_site", fct_reorder, quo(-est)) %>%
-  ggplot(aes(fct_rev(cancer_site), est, colour = colour)) +
-  geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci)) +
-  geom_point(aes(fill = after_scale(alpha(colour, 0.4)))) +
-  geom_hline(aes(yintercept = mean_est),
-             linetype = "dashed") +
-  coord_flip() +
-  scale_colour_discrete(drop = FALSE,
-                        guide = guide_legend(reverse = TRUE)) +
-  scale_y_continuous(labels = percent_format(accuracy = 1)) +
-  labs(x = "",
-       y = paste("% of patients who have chemo in last month before death",
-                 "Dashed line = average %",
-                 sep = "\n")) +
-  theme(axis.line.y = element_blank(),
-        axis.ticks.y = element_blank(),
-        panel.grid.major.x = element_line(colour = "lightgrey",
-                                          linetype = "dotted"),
-        legend.position = c(1, 0),
-        legend.justification = c(1, 0),
-        legend.background = element_blank(),
-        legend.title = element_blank())
-```
+- Professionals and organisations involved in providing care – clinical and non-clinical, health
+and social care, statutory and voluntary sector – also have a clear stake. They will see the
+practice that leads to the situation described in this analysis; they will know where there are
+gaps between professional standards and current provision; they will have the clearest sense of
+the opportunities to reduce non-beneficial treatments. Professionals will also be a source of
+solutions for improving communication and coordination between different services.
 
-```{r chemo in last month of life binomial ci plot by age band}
+- NHS and Local Authority commissioners hold responsibility for patterns of investment and
+service provision. They have a stake in ensuring that outcomes for their population are
+improving and that inequalities are reducing. Acting on behalf of citizens, they are stewards of
+a collective resource, balancing out competing claims and perspectives. Commissioners must
+therefore ask whether citizens are well-served by the picture presented in this report. Given the
+projections presented here, they should also consider the needs of future populations.
 
-activity %>%
-  filter(chemotherapy_indicator == 1) %>%
-  inner_join(select(mpi, su_pat_id, age_band), by = "su_pat_id") %>%
-  mutate(last_month = ifelse(proximity_to_death_days <= 28, su_pat_id, NA)) %>%
-  group_by(age_band) %>%
-  summarise(d = n_distinct(su_pat_id),
-            n = n_distinct(last_month, na.rm = TRUE),
-            .groups = "drop_last") %>%
-  mutate(ci = map2(n, d, compose(as_tibble, BinomCI))) %>%
-  unnest(ci) %>%
-  mutate(mean_est = sum(n) / sum(d),
-         colour = case_when(
-           upr.ci < mean_est ~ "significantly lower",
-           lwr.ci > mean_est ~ "significantly higher",
-           TRUE ~ "no significant difference",
-         ) %>%
-           factor(levels = c("significantly lower",
-                             "no significant difference",
-                             "significantly higher"))) %>%
-  ggplot(aes(fct_rev(age_band), est, colour = colour)) +
-  geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci)) +
-  geom_point(aes(fill = after_scale(alpha(colour, 0.4)))) +
-  geom_hline(aes(yintercept = mean_est),
-             linetype = "dashed") +
-  coord_flip() +
-  scale_colour_discrete(drop = FALSE,
-                        guide = guide_legend(reverse = TRUE)) +
-  scale_y_continuous(labels = percent_format(accuracy = 1)) +
-  labs(x = "",
-       y = paste("% of patients who have chemo in last month before death",
-                 "Dashed line = average %",
-                 sep = "\n")) +
-  theme(axis.line.y = element_blank(),
-        axis.ticks.y = element_blank(),
-        panel.grid.major.x = element_line(colour = "lightgrey",
-                                          linetype = "dotted"),
-        legend.position = c(0, 1),
-        legend.justification = c(0, 1),
-        legend.background = element_blank(),
-        legend.title = element_blank())
-```
+In approaching these conversations, it is perhaps helpful to reflect that many of the underlying
+trends - demographic change for example - are long-term and amenable to strategic planning. This
+is an opportunity to take advantage of foresight.
 
-# Critical care bed days
-
-What % of critical care bed days are used by people who died in critical care
-versus those who did not die in critical care?
-
-```{r cc mekko plots, message=FALSE, warning=FALSE}
-aligned <- local({
-  loadfonts(device = "win", quiet = TRUE)
-  p1 <- mpi %>%
-    filter(group != "(Missing)") %>%
-    mutate_at(vars(group),
-              compose(fct_rev, fct_recode),
-              "Sudden\nDeath" = "Sudden Death",
-              "OTI" = "Other Terminal Illness") %>%
-    drop_na(died_in_critical_care) %>%
-    mutate_at("died_in_critical_care", ~ifelse(.x == 1,
-                                               "Died in\ncritical care",
-                                               "Did not die in\ncritical care")) %>%
-    mekko_chart(group, died_in_critical_care)
-  
-  p2 <- activity %>%
-    inner_join(select(mpi, su_pat_id, group),
-               by = "su_pat_id") %>%
-    filter(group != "(Missing)",
-           pod_summary_group == "Critical Care Bed Day") %>%
-    distinct(bb5008_pseudo_apcs_ident_pseudo, group, cc_pod_summary_group) %>%
-    mutate_at(vars(group),
-              compose(fct_rev, fct_recode),
-              "Sudden\nDeath" = "Sudden Death",
-              "OTI" = "Other Terminal Illness") %>%
-    mutate_at("cc_pod_summary_group", str_replace, " ", "\n") %>%
-    mekko_chart(group, cc_pod_summary_group)
-  
-  suppressWarnings(
-    align_plots(p1, p2, align = "v")
-  )
-})
-```
-
-```{r cc mekko - died in CC}
-ggdraw(aligned[[1]])
-```
-
-What % of critical care bed days are used by elective admissions versus
-emergency admissions?
-
-```{r cc mekko - admission method split}
-ggdraw(aligned[[2]])
-```
-
-# Ambulance Arrivals
-
-```{r AandE arrival volumes}
-activity_ambulance %>%
-  count(proximity_to_death_days, arrival_mode, wt = n) %>%
-  complete(proximity_to_death_days = seq(1, 729),
-           arrival_mode,
-           fill = list(n = 0)) %>%
-  ggplot(aes(proximity_to_death_days, n, colour = arrival_mode)) +
-  geom_smooth(method = "loess",
-              formula = y ~ x,
-              span = 0.2,
-              fill = NA) +
-  scale_x_proximity_to_death_days() +
-  expand_limits(y = 0) +
-  labs(x = "Proximity to death (months)",
-       y = "Number of A&E arrivals",
-       colour = "") +
-  theme(legend.position = c(0.02, 1),
-        legend.justification = c(0, 1),
-        legend.key = element_blank(),
-        legend.title = element_blank())
-```
-
-```{r Ambulance pcnt by cod group}
-activity_ambulance %>%
-  count(arrival_mode, proximity_to_death_days, group, wt = n) %>%
-  complete(proximity_to_death_days =
-             seq(min(activity_ambulance$proximity_to_death_days),
-                 max(activity_ambulance$proximity_to_death_days)),
-           arrival_mode,
-           group,
-           fill = list(n = 0)) %>%
-  pivot_wider(names_from = arrival_mode, values_from = n) %>%
-  mutate(total = ambulance + other,
-         ci = map2(ambulance, total, compose(as_tibble, BinomCI))) %>%
-  filter(group != "(Missing)") %>%
-  group_by(group) %>%
-  mutate(line_label = ifelse(proximity_to_death_days == max(proximity_to_death_days),
-                             as.character(group),
-                             NA)) %>%
-  ungroup() %>%
-  unnest(cols = c(ci)) %>%
-  ggplot(aes(proximity_to_death_days, est, colour = group)) +
-  geom_smooth(method = "loess",
-              formula = y ~ x,
-              span = 0.2,
-              fill = NA,
-              na.rm = TRUE) +
-  scale_x_proximity_to_death_days() +
-  scale_y_continuous(labels = percent_format(accuracy = 1),
-                     position = "right") +
-  coord_cartesian(ylim = c(0, 1)) +
-  labs(x = "Proximity to death (months)",
-       y = "% of A&E arrivals by Ambulance",
-       colour = "") +
-  theme(legend.position = c(0, 0),
-        legend.justification = c(0, 0),
-        legend.direction = "horizontal",
-        legend.key = element_blank(),
-        axis.title.y.right = element_text(margin = margin(l = 10)))
-```
-
-# Terminal Episode LoS
-
-```{r terminal episode los}
-# this is likely to be different to Justine's outputs as I correct for the dod
-tlos <- list(
-  stp = activity,
-  region = activity_region
-) %>%
-  map(semi_join, mpi_region, by = c("su_pat_id", "discharge_date" = "dod")) %>%
-  map(filter, pod_summary_group == "Emergency Admission") %>%
-  map(group_by, pod_summary_group) %>%
-  map_dfr(count, proximity_to_death_days, .id = "type") %>%
-  pivot_wider(names_from = type, values_from = n) %>%
-  mutate(across(stp, replace_na, 0))
-```
-
-```{r tlos count plot}
-tlos %>%
-  filter(proximity_to_death_days <= 42) %>%
-  mutate(across(stp, `/`, nrow(mpi)),
-         across(region, `/`, nrow(mpi_region))) %>%
-  ggplot(aes(proximity_to_death_days, stp)) +
-  geom_col(colour = su_theme_cols("orange"),
-           fill = after_scale(alpha(su_theme_cols("orange"), 0.4)),
-           width = 1) +
-  geom_point(aes(y = region),
-             colour = su_theme_cols("charcoal"),
-             fill = after_scale(alpha(su_theme_cols("charcoal"), 0.4)),
-             shape = "circle filled") +
-  scale_x_continuous(breaks = seq(0, 70, by = 7)) +
-  scale_y_continuous(expand = expansion(c(0, 0.05)),
-                     labels = percent_format(accuracy = 1)) +
-  labs(x = "Bed days for Terminal Spell",
-       y = "% of Decedents")
-```
-
-```{r tlos pcnt bed days plot}
-tlos %>%
-  filter(proximity_to_death_days <= 42) %>%
-  mutate(n = (proximity_to_death_days+1) * stp) %>%
-  ggplot(aes(proximity_to_death_days, n)) +
-  geom_col(colour = su_theme_cols("orange"),
-           fill = after_scale(alpha(su_theme_cols("orange"), 0.4)),
-           width = 1) +
-  scale_x_continuous(breaks = seq(0, 70, by = 7)) +
-  scale_y_continuous(expand = expansion(c(0, 0.05))) +
-  labs(x = "Bed days for Terminal Spell",
-       y = "Total Number of Bed days for Terminal Spell")
-```
-
-## cumulative bed days for terminal spells
-
-```{r tlos pcnt bed days plot cumulative}
-tlos %>%
-  pivot_longer(c(stp, region)) %>%
-  group_by(name) %>%
-  arrange(-proximity_to_death_days) %>%
-  mutate(n = (proximity_to_death_days+1) * value,
-         p = cumsum(n) / sum(n),
-         dropline = ifelse(proximity_to_death_days == 7, p, NA)) %>%
-  filter(proximity_to_death_days <= 140) %>%
-  ggplot(aes(proximity_to_death_days, p)) +
-  geom_segment(aes(xend = proximity_to_death_days, y = dropline, yend = 0),
-               na.rm = TRUE,
-               linetype = "dashed") +
-  geom_step(aes(colour = name)) +
-  scale_x_continuous(trans = "reverse",
-                     expand = expansion(c(0.05, 0)),
-                     breaks = seq(0, 140, by = 7)) +
-  scale_y_continuous(expand = expansion(c(0, 0.05)),
-                     labels = percent,
-                     position = "right") +
-  labs(x = "Bed days for Terminal Spell",
-       y = "Cumulative Bed days for Terminal Spell") +
-  theme(legend.position = c(0, 1),
-        legend.justification = c(0, 1),
-        legend.title = element_blank())
-```
-
-## cumulative bed days as a percentage of all emergency bed days
-
-```{r tlos pcnt bed days plot cumulative - all activity}
-tlos %>%
-  pivot_longer(c(stp, region)) %>%
-  inner_join(by = "name",
-             list(stp = activity, region = activity_region) %>% 
-               map(filter, pod_summary_group %in% c(#"Elective Admission Bed Day", 
-                                                    "Emergency Admission Bed Day")) %>% 
-               map_dbl(nrow) %>% 
-               enframe(value = "total_beddays")) %>%
-  group_by(name) %>%
-  arrange(-proximity_to_death_days) %>%
-  mutate(n = (proximity_to_death_days+1) * value,
-         p = cumsum(n) / total_beddays, #sum(n),
-         dropline = ifelse(proximity_to_death_days == 7, p, NA)) %>%
-  filter(proximity_to_death_days <= 140) %>%
-  ggplot(aes(proximity_to_death_days, p)) +
-  geom_segment(aes(xend = proximity_to_death_days, y = dropline, yend = 0),
-               na.rm = TRUE,
-               linetype = "dashed") +
-  geom_step(aes(colour = name)) +
-  scale_x_continuous(trans = "reverse",
-                     expand = expansion(c(0.05, 0)),
-                     breaks = seq(0, 140, by = 7)) +
-  scale_y_continuous(expand = expansion(c(0, 0.05)),
-                     labels = percent,
-                     position = "right") +
-  labs(x = "Bed days for Terminal Spell",
-       y = "Cumulative Bed days for Terminal Spell") +
-  theme(legend.position = c(0, 1),
-        legend.justification = c(0, 1),
-        legend.title = element_blank())
-```
+Any successful way forward will draw on a combination of perspectives and insights from the
+different groups noted above. Their reactions and responses to the analysis presented here will
+determine the direction, nature and ambition of efforts to improve the deaths of people in 
+`r stp_name`.

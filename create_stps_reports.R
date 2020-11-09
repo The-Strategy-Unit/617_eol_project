@@ -46,32 +46,6 @@ render_report <- function(stp18cd, stp18nm, region_report) {
   stp18cd
 }
 
-render_costing <- function(stp18cd, stp18nm, region_report) {
-  capture.output({
-    if (region_report) {
-      filename <- stp18nm
-    } else {
-      filename <- paste0(stp18cd, "-", stp18nm)
-    }
-
-    filename <- paste0("costing-", str_replace_all(filename, " ", "_"))
-
-    file.copy("costing.Rmd", paste0(filename, ".Rmd"))
-
-    tryCatch({
-      render(input = paste0(filename, ".Rmd"),
-             output_format = "StrategyUnitTheme::su_document",
-             output_file = paste0(filename, ".docx"),
-             output_dir = "output",
-             envir = new.env(),
-             params = list(stp = stp18cd, region_report = region_report))
-    }, finally = {
-      unlink(paste0(filename, ".Rmd"))
-    })
-  })
-  stp18cd
-}
-
 stps <- file.path("data", "reference", "stps.csv") %>%
   read_csv(col_types = "cc") %>%
   semi_join(file.path("data", "reference", "stp18cd_to_nhser18cd.csv") %>%
@@ -90,21 +64,6 @@ stps <- file.path("data", "reference", "stps.csv") %>%
 {
   tic()
   res <- future_pmap(stps, safely(render_report)) %>%
-    map_chr("result")
-  toc()
-
-  errors <- stps %>% filter(!stp18cd %in% res)
-  if (nrow(errors) == 0) {
-    cat(col_green("All files generated successfully\n"))
-  } else {
-    cat(col_red("Errors:\n"))
-    print(errors)
-  }
-}
-
-{
-  tic()
-  res <- future_pmap(stps, safely(render_costing)) %>%
     map_chr("result")
   toc()
 
