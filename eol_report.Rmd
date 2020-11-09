@@ -5,7 +5,6 @@ output:
   StrategyUnitTheme::su_document: default
 params:
   stp: E54000016
-  region_report: no
 ---
 
 ```{r setup, include=FALSE}
@@ -28,7 +27,7 @@ if (!knitr::is_latex_output()) {
 # all setup should happen in setup.R that could be shared logic between files
 invisible(local({
   source("setup.R")
-  load_data(params$stp, params$region_report)
+  load_data(params$stp)
 }))
 ```
 
@@ -504,67 +503,60 @@ shown as dots. Proportions are similar compared to the `r region_name`.
 #### Figure 11 : Proportion of decedent population accessing healthcare activity types in two years prior to death - `r stp_name` STP indicated by bars (with percentage at bottom), `r region_name` region indicated by dots
 
 ```{r activity pcnt}
-local({
-  p <- list(
-    stp = activity,
-    region = activity_region
+list(
+  stp = activity,
+  region = activity_region
+) %>%
+  map_dfr(.id = "type", function(.x) {
+    .x %>%
+      mutate_at("pod_type",
+                ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                        "Critical Care Bed Day",
+                        as.character(.x))) %>%
+      group_by(pod_type) %>%
+      distinct(su_pat_id) %>%
+      count() %>%
+      ungroup() %>%
+      mutate_at("pod_type",
+                fct_relevel,
+                c(levels(activity$pod_type), "Critical Care Bed Day"))
+  }) %>%
+  inner_join(
+    bind_rows(
+      mpi %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "stp"),
+      
+      mpi_region %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "region"),
+    ),
+    by = c("type")
   ) %>%
-    map_dfr(.id = "type", function(.x) {
-      .x %>%
-        mutate_at("pod_type",
-                  ~ifelse(pod_summary_group == "Critical Care Bed Day",
-                          "Critical Care Bed Day",
-                          as.character(.x))) %>%
-        group_by(pod_type) %>%
-        distinct(su_pat_id) %>%
-        count() %>%
-        ungroup() %>%
-        mutate_at("pod_type",
-                  fct_relevel,
-                  c(levels(activity$pod_type), "Critical Care Bed Day"))
-    }) %>%
-    inner_join(
-      bind_rows(
-        mpi %>%
-          summarise(patients = n_distinct(su_pat_id)) %>%
-          mutate(type = "stp"),
-        
-        mpi_region %>%
-          summarise(patients = n_distinct(su_pat_id)) %>%
-          mutate(type = "region"),
-      ),
-      by = c("type")
-    ) %>%
-    mutate_at("n", ~.x / patients) %>%
-    select(-patients) %>%
-    pivot_wider(names_from = "type", values_from = "n") %>%
-    filter(pod_type != "Bed") %>%
-    ggplot(aes(pod_type, stp)) +
-    geom_col(aes(colour = pod_type,
-                 fill = after_scale(alpha(colour, 0.4)))) +
-    scale_y_continuous(labels = percent,
-                       expand = expansion(c(0.06, 0.05))) +
-    expand_limits(y = c(0, 1)) +
-    labs(x = "", y = "", colour = "", fill = "")  +
-    theme(legend.position = "none",
-          axis.line.x = element_blank(),
-          axis.ticks.x = element_blank())
-  
-  if (!params$region_report) {
-    p <- p +
-      geom_point(aes(y = region,
-                     colour = pod_type,
-                     fill = after_scale(alpha(colour, 0.4))),
-                 show.legend = FALSE,
-                 size = 2,
-                 shape = "circle filled",
-                 stroke = 1.5) 
-  }
-  
-  p + geom_text(aes(y = 0, label = percent(stp, accuracy = 1)),
-                size = 3.5,
-                vjust = 1.35)
-})
+  mutate_at("n", ~.x / patients) %>%
+  select(-patients) %>%
+  pivot_wider(names_from = "type", values_from = "n") %>%
+  filter(pod_type != "Bed") %>%
+  ggplot(aes(pod_type, stp)) +
+  geom_col(aes(colour = pod_type,
+               fill = after_scale(alpha(colour, 0.4)))) +
+  geom_point(aes(y = region,
+                 colour = pod_type,
+                 fill = after_scale(alpha(colour, 0.4))),
+             show.legend = FALSE,
+             size = 2,
+             shape = "circle filled",
+             stroke = 1.5) +
+  geom_text(aes(y = 0, label = percent(stp, accuracy = 1)),
+            size = 3.5,
+            vjust = 1.35) +
+  scale_y_continuous(labels = percent,
+                     expand = expansion(c(0.06, 0.05))) +
+  expand_limits(y = c(0, 1)) +
+  labs(x = "", y = "", colour = "", fill = "")  +
+  theme(legend.position = "none",
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())
 ```
 
 ## Most decedents access emergency admissions, A&E and outpatient clinics; few access mental health services 
@@ -577,84 +569,76 @@ Figure 12. It highlights radical differences by service type:
 #### Figure 12 : Proportion of decedent population accessing healthcare service types in two years prior to death - `r stp_name` STP indicated by bars (with percentage at bottom), `r region_name` region indicated by dots
 
 ```{r activity pcnt pod summary group}
-local({
-  p <- list(
-    stp = activity,
-    region = activity_region
+list(
+  stp = activity,
+  region = activity_region
+) %>%
+  map_dfr(.id = "type", function(.x) {
+    .x %>%
+      group_by(pod_type, pod_summary_group, cc_pod_summary_group) %>%
+      distinct(su_pat_id) %>%
+      count() %>%
+      ungroup() %>%
+      mutate_at("pod_type",
+                ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                        "Critical Care Bed Day",
+                        as.character(.x))) %>%
+      mutate_at("pod_summary_group",
+                ~ifelse(pod_type == "Critical Care Bed Day",
+                        paste0("Critical Care (",
+                               word(cc_pod_summary_group, 1),
+                               ")"),
+                        as.character(pod_summary_group))) %>%
+      mutate_at("pod_summary_group",
+                fct_relevel,
+                levels(activity$pod_summary_group) %>%
+                  subset(., . != "Critical Care Bed Day"),
+                "Critical Care (Emergency)",
+                "Critical Care (Elective)")
+  }) %>%
+  inner_join(
+    bind_rows(
+      mpi %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "stp"),
+      
+      mpi_region %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "region"),
+    ),
+    by = c("type")
   ) %>%
-    map_dfr(.id = "type", function(.x) {
-      .x %>%
-        group_by(pod_type, pod_summary_group, cc_pod_summary_group) %>%
-        distinct(su_pat_id) %>%
-        count() %>%
-        ungroup() %>%
-        mutate_at("pod_type",
-                  ~ifelse(pod_summary_group == "Critical Care Bed Day",
-                          "Critical Care Bed Day",
-                          as.character(.x))) %>%
-        mutate_at("pod_summary_group",
-                  ~ifelse(pod_type == "Critical Care Bed Day",
-                          paste0("Critical Care (",
-                                 word(cc_pod_summary_group, 1),
-                                 ")"),
-                          as.character(pod_summary_group))) %>%
-        mutate_at("pod_summary_group",
-                  fct_relevel,
-                  levels(activity$pod_summary_group) %>%
-                    subset(., . != "Critical Care Bed Day"),
-                  "Critical Care (Emergency)",
-                  "Critical Care (Elective)")
-    }) %>%
-    inner_join(
-      bind_rows(
-        mpi %>%
-          summarise(patients = n_distinct(su_pat_id)) %>%
-          mutate(type = "stp"),
-        
-        mpi_region %>%
-          summarise(patients = n_distinct(su_pat_id)) %>%
-          mutate(type = "region"),
-      ),
-      by = c("type")
-    ) %>%
-    mutate_at("n", ~.x / patients) %>%
-    select(-patients) %>%
-    pivot_wider(names_from = "type", values_from = "n") %>%
-    filter(pod_type != "Bed") %>% 
-    ungroup() %>%
-    mutate_at("pod_type",
-              fct_relevel,
-              c(levels(activity$pod_type) %>% subset(., . != "Bed"),
-                "Critical Care Bed Day")) %>%
-    ggplot(aes(pod_summary_group, stp)) +
-    geom_col(aes(colour = pod_type,
-                 fill = after_scale(alpha(colour, 0.4)))) +
-    scale_x_discrete(labels = partial(str_wrap, width = 10)) +
-    scale_y_continuous(labels = percent,
-                       expand = expansion(c(0.06, 0.05))) +
-    expand_limits(y = c(0, 1)) +
-    labs(x = "", y = "", colour = "", fill = "")  +
-    theme(legend.position = "none",
-          axis.text.x = element_text(angle = 30, hjust = 1),
-          axis.line.x = element_blank(),
-          axis.ticks.x = element_blank())
-  
-  
-  if (!params$region_report) {
-    p <- p +
-      geom_point(aes(y = region,
-                     colour = pod_type,
-                     fill = after_scale(alpha(colour, 0.4))),
-                 show.legend = FALSE,
-                 size = 2,
-                 shape = "circle filled",
-                 stroke = 1.5) 
-  }
-  
-  p + geom_text(aes(y = 0, label = percent(stp, accuracy = 1)),
-                size = 3.5,
-                vjust = 1.35)
-})
+  mutate_at("n", ~.x / patients) %>%
+  select(-patients) %>%
+  pivot_wider(names_from = "type", values_from = "n") %>%
+  filter(pod_type != "Bed") %>% 
+  ungroup() %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c(levels(activity$pod_type) %>% subset(., . != "Bed"),
+              "Critical Care Bed Day")) %>%
+  ggplot(aes(pod_summary_group, stp)) +
+  geom_col(aes(colour = pod_type,
+               fill = after_scale(alpha(colour, 0.4)))) +
+  geom_point(aes(y = region,
+                 colour = pod_type,
+                 fill = after_scale(alpha(colour, 0.4))),
+             show.legend = FALSE,
+             size = 2,
+             shape = "circle filled",
+             stroke = 1.5) +
+  geom_text(aes(y = 0, label = percent(stp, accuracy = 1)),
+            size = 3.5,
+            vjust = 1.35) +
+  scale_x_discrete(labels = partial(str_wrap, width = 10)) +
+  scale_y_continuous(labels = percent,
+                     expand = expansion(c(0.06, 0.05))) +
+  expand_limits(y = c(0, 1)) +
+  labs(x = "", y = "", colour = "", fill = "")  +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 30, hjust = 1),
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())
 ```
 
 ## Most cancer patients access planned admissions
@@ -670,77 +654,68 @@ death.
 #### Figure 13 : Proportion of decedent population accessing healthcare activity types by cause in two years prior to death - `r stp_name` STP indicated by bars, `r region_name` region indicated by dots
 
 ```{r activity pcnt cod}
-local({
-  p <- list(
-    stp = activity %>%
-      inner_join(select(mpi, su_pat_id, group), by = "su_pat_id"),
-    region = activity_region %>%
-      inner_join(select(mpi_region, su_pat_id, group), by = "su_pat_id")
+list(
+  stp = activity %>%
+    inner_join(select(mpi, su_pat_id, group), by = "su_pat_id"),
+  region = activity_region %>%
+    inner_join(select(mpi_region, su_pat_id, group), by = "su_pat_id")
+) %>%
+  map_dfr(.id = "type", function(.x) {
+    .x %>%
+      mutate_at("pod_type",
+                ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                        "Critical Care Bed Day",
+                        as.character(.x))) %>%
+      group_by(pod_type, group) %>%
+      distinct(su_pat_id) %>%
+      count() %>%
+      ungroup() %>%
+      mutate_at("pod_type",
+                fct_relevel,
+                c(levels(activity$pod_type), "Critical Care Bed Day"))
+  }) %>%
+  inner_join(
+    bind_rows(
+      mpi %>%
+        group_by(group) %>%
+        summarise(patients = n_distinct(su_pat_id), .groups = "drop") %>%
+        mutate(type = "stp"),
+      
+      mpi_region %>%
+        group_by(group) %>%
+        summarise(patients = n_distinct(su_pat_id), .groups = "drop") %>%
+        mutate(type = "region"),
+    ),
+    by = c("type", "group")
   ) %>%
-    map_dfr(.id = "type", function(.x) {
-      .x %>%
-        mutate_at("pod_type",
-                  ~ifelse(pod_summary_group == "Critical Care Bed Day",
-                          "Critical Care Bed Day",
-                          as.character(.x))) %>%
-        group_by(pod_type, group) %>%
-        distinct(su_pat_id) %>%
-        count() %>%
-        ungroup() %>%
-        mutate_at("pod_type",
-                  fct_relevel,
-                  c(levels(activity$pod_type), "Critical Care Bed Day"))
-    }) %>%
-    inner_join(
-      bind_rows(
-        mpi %>%
-          group_by(group) %>%
-          summarise(patients = n_distinct(su_pat_id), .groups = "drop") %>%
-          mutate(type = "stp"),
-        
-        mpi_region %>%
-          group_by(group) %>%
-          summarise(patients = n_distinct(su_pat_id), .groups = "drop") %>%
-          mutate(type = "region"),
-      ),
-      by = c("type", "group")
-    ) %>%
-    mutate_at("n", ~.x / patients) %>%
-    select(-patients) %>%
-    pivot_wider(names_from = "type", values_from = "n") %>%
-    filter(group != "(Missing)",
-           pod_type != "Bed") %>%
-    mutate_at("group",
-              fct_recode,
-              "OTI" = "Other Terminal Illness") %>%
-    ggplot(aes(pod_type, stp)) +
-    geom_col(aes(colour = group,
+  mutate_at("n", ~.x / patients) %>%
+  select(-patients) %>%
+  pivot_wider(names_from = "type", values_from = "n") %>%
+  filter(group != "(Missing)",
+         pod_type != "Bed") %>%
+  mutate_at("group",
+            fct_recode,
+            "OTI" = "Other Terminal Illness") %>%
+  ggplot(aes(pod_type, stp)) +
+  geom_col(aes(colour = group,
+               fill = after_scale(alpha(colour, 0.4))),
+           position = position_dodge(width = 0.8),
+           width = 0.8) +
+  geom_point(aes(y = region,
+                 colour = group,
                  fill = after_scale(alpha(colour, 0.4))),
-             position = position_dodge(width = 0.8),
-             width = 0.8) +
-    scale_y_continuous(labels = percent,
-                       expand = expansion(c(0, 0.05))) +
-    expand_limits(y = c(0, 1)) +
-    labs(x = "", y = "", colour = "", fill = "") +
-    theme(legend.position = "bottom",
-          axis.line.x = element_blank(),
-          axis.ticks.x = element_blank())
-  
-  
-  if (!params$region_report) {
-    p <- p  +
-      geom_point(aes(y = region,
-                     colour = group,
-                     fill = after_scale(alpha(colour, 0.4))),
-                 show.legend = FALSE,
-                 shape = "circle filled",
-                 size = 2,
-                 stroke = 1.5,
-                 position = position_dodge(width = .8))
-  }
-  
-  p
-})
+             show.legend = FALSE,
+             shape = "circle filled",
+             size = 2,
+             stroke = 1.5,
+             position = position_dodge(width = .8))+
+  scale_y_continuous(labels = percent,
+                     expand = expansion(c(0, 0.05))) +
+  expand_limits(y = c(0, 1)) +
+  labs(x = "", y = "", colour = "", fill = "") +
+  theme(legend.position = "bottom",
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())
 ```
 
 ## Service use differs radically by cause of death
@@ -820,30 +795,23 @@ healthcare is used. We consider this by proximity to death, by cause and by age.
 
 ```{r utilisation curve}
 utilisation_curve_plot <- function(data, loess_span = 0.15) {
-  p <- data %>%
+  data %>%
     ggplot(aes(proximity_to_death_days, stp)) +
     geom_smooth(span = loess_span,
                 formula = y ~ x,
                 method = "loess",
                 fill = NA,
-                colour = su_theme_cols()[["orange"]])
-  
-  if (!params$region_report) {
-    p <- p + 
-      geom_smooth(aes(y = region),
-                span = loess_span,
-                formula = y ~ x,
-                method = "loess",
-                fill = NA,
-                colour = after_scale(alpha(su_theme_cols()[["charcoal"]], 0.4)))
-  }
-  
-  p +
+                colour = su_theme_cols()[["orange"]]) +
+    geom_smooth(aes(y = region),
+              span = loess_span,
+              formula = y ~ x,
+              method = "loess",
+              fill = NA,
+              colour = after_scale(alpha(su_theme_cols()[["charcoal"]], 0.4))) +
     geom_point(size = 0.2,
                shape = "circle filled",
                colour = su_theme_cols()[["orange"]],
                fill = after_scale(alpha(su_theme_cols()[["orange"]], 0.4))) +
-    
     geom_vline(xintercept = 3*365/12,
                linetype = "dashed",
                colour = su_theme_cols()[["dark_charcoal"]]) +
@@ -1851,20 +1819,14 @@ average_daily_spend_plots <- local({
                     formula = y ~ x,
                     span = 0.2,
                     colour = su_theme_cols("orange"),
-                    fill = NA)
-      
-      if (!params$region_report) {
-        p <- p +
-          geom_smooth(aes(y = region),
-                      method = "loess",
-                      formula = y ~ x,
-                      span = 0.2,
-                      colour = after_scale(alpha(su_theme_cols("charcoal"), 0.4)),
-                      linetype = "solid",
-                      fill = NA)
-      }
-      
-      p <- p +
+                    fill = NA) +
+        geom_smooth(aes(y = region),
+                    method = "loess",
+                    formula = y ~ x,
+                    span = 0.2,
+                    colour = after_scale(alpha(su_theme_cols("charcoal"), 0.4)),
+                    linetype = "solid",
+                    fill = NA) +
         scale_y_continuous(labels = number_format(prefix = "£"),
                            position = "right") +
         theme(axis.title.y.right = element_text(margin = margin(l = 10))) +
