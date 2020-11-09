@@ -58,6 +58,11 @@ setup_env$theme_report <- theme_get() +
 
 theme_set(setup_env$theme_report)
 
+# recreate all of the data files
+if (!dir.exists("data/sensitive")) {
+  stop("Data files do not exist: run get_data/get_data.R first")
+}
+
 # load additional files
 source("load_data.R")
 source("mekko_chart.R")

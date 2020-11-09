@@ -1,0 +1,7 @@
+source("get_data/get_mpi.R")
+source("get_data/get_activity.R")
+source("get_data/get_activity_costs.R")
+source("get_data/get_activity_ambulance.R")
+source("get_data/get_forecast_deaths.R")
+source("get_data/get_historic_deaths.R")
+source("get_data/recreate_forecast_activity.R")
