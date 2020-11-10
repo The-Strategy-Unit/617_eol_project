@@ -18,22 +18,7 @@ ethnicity_lookup <- read_csv(file.path("data", "reference", "ethnicity.csv"),
 # connection
 tryCatch({
   # create connection to DB server
-  con <- local({
-    # There needs to be two environment variables set in the file .REnviron:
-    # - DB_SERVER needs to point to the database server
-    # - DB_DATABASE needs to be the name of the database on the server
-    server <- Sys.getenv("DB_SERVER")
-    Database <- Sys.getenv("DB_DATABASE")
-
-    if (server == "" | Database == "") {
-      stop("server or database env vars not set")
-    }
-
-    dbConnect(odbc(),
-              Driver = "SQL Server",
-              server = server,
-              Database = Database)
-  })
+  con <- dbConnect(odbc(), Driver = "SQL Server", server = "PRODNHSESQL101", Database = "NHSE_BB_5008")
 
   tbl(con, in_schema("[GEM\\JWiltshire]", "MPI")) %>%
     select(su_pat_id = SUPatID,

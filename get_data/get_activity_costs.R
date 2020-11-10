@@ -8,8 +8,7 @@ library(janitor)
 library(fst)
 
 tryCatch({
-  con <- dbConnect(odbc(), Driver = "SQL Server", server = "PRODNHSESQL101",
-                   Database = "NHSE_BB_5008")
+  con <- dbConnect(odbc(), Driver = "SQL Server", server = "PRODNHSESQL101", Database = "NHSE_BB_5008")
 
   con %>%
     tbl(in_schema("[GEM\\JWiltshire]", "Activity1AllMidsCost")) %>%
