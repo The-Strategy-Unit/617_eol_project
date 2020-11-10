@@ -290,8 +290,8 @@ by age groups on the following basis:
 ```{r 4.2 figures}
 die_home_pcnt <- nrow(filter(mpi, location_type == "Home")) / stp_deaths_18
 ```
-Although 66%9 of people say they would like to die at home, just `r percent(die_home_pcnt)` of people in 
-`r stp_name` do so.
+Although 66% of people say they would like to die at home, just `r percent(die_home_pcnt)` of people
+in `r stp_name` do so.
 
 Figure 4 shows that place of death differs significantly by cause, in that:
 
