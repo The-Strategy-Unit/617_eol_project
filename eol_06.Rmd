@@ -1,0 +1,438 @@
+# How and when is care used by the dying?
+
+The previous section showed which services people accessed. We now consider how much
+healthcare is used. We consider this by proximity to death, by cause and by age.
+
+## How much care and when; service use by proximity to death
+
+```{r utilisation curve}
+utilisation_curve_plot <- function(data, loess_span = 0.15) {
+  data %>%
+    ggplot(aes(proximity_to_death_days, stp)) +
+    geom_smooth(span = loess_span,
+                formula = y ~ x,
+                method = "loess",
+                fill = NA,
+                colour = su_theme_cols()[["orange"]]) +
+    geom_smooth(aes(y = region),
+              span = loess_span,
+              formula = y ~ x,
+              method = "loess",
+              fill = NA,
+              colour = after_scale(alpha(su_theme_cols()[["charcoal"]], 0.4))) +
+    geom_point(size = 0.2,
+               shape = "circle filled",
+               colour = su_theme_cols()[["orange"]],
+               fill = after_scale(alpha(su_theme_cols()[["orange"]], 0.4))) +
+    geom_vline(xintercept = 3*365/12,
+               linetype = "dashed",
+               colour = su_theme_cols()[["dark_charcoal"]]) +
+    scale_x_proximity_to_death_days() +
+    scale_y_continuous(labels = comma_format(scale = 1000, accuracy = 1),
+                       position = "right") +
+    theme(panel.grid.major = element_line(colour = "grey",
+                                          size = 0.25,
+                                          linetype = "dotted"),
+          axis.text.y.left = element_blank(),
+          axis.title.y.right = element_text(margin = margin(0, 0, 0, 10)),
+          axis.ticks.y.left = element_blank(),
+          legend.position = "bottom") +
+    labs(x = "Proximity to Death (Months)",
+         y = "Activity per 1,000 Decedants",
+         colour = "") +
+    annotate("text",
+             x = 3*365/12+10,
+             y = max(c(data$stp, data$region)),
+             label = "3 months prior to death",
+             hjust = 1,
+             size = 3)
+}
+
+utilisation_plots <- list(
+  stp = activity,
+  region = activity_region
+) %>%
+  map_dfr(.id = "type", function(.x) {
+    .x %>%
+      mutate_at("pod_type",
+                ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                        "Critical Care Bed Day",
+                        as.character(.x))) %>%
+      mutate_at("pod_type",
+                fct_relevel,
+                c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
+      count(pod_type, proximity_to_death_days)
+  }) %>%
+  inner_join(tribble(~type, ~p,
+                     "stp", nrow(mpi),
+                     "region", nrow(mpi_region)),
+             by = "type") %>%
+  mutate_at("n", ~n / p) %>%
+  select(-p) %>%
+  pivot_wider(names_from = type, values_from = n) %>%
+  modify_at(vars(region, stp), replace_na, 0) %>%
+  group_nest(pod_type) %>%
+  mutate(plot = pmap(list(data = data,
+                          loess_span = c(0.05, 0.15, 0.15, 0.05, 0.05)),
+                     utilisation_curve_plot))
+```
+
+```{r utilisation curve grouped, message=FALSE,  echo=FALSE, results = "asis"}
+utilisation_curve_plot_grouped <- function(pod_type, data, loess_span = 0.15) {
+  data %>%
+    ggplot(aes(proximity_to_death_days, n, colour = group)) +
+    geom_smooth(span = loess_span,
+                formula = y ~ x,
+                method = "loess",
+                size = 0.5,
+                fill = NA) +
+    geom_vline(xintercept = 3*365/12,
+               linetype = "dashed",
+               colour = su_theme_cols()[["dark_charcoal"]]) +
+    scale_x_proximity_to_death_days() +
+    scale_y_continuous(labels = comma_format(scale = 1000, accuracy = 1),
+                       position = "right") +
+    theme(panel.grid.major = element_line(colour = "grey",
+                                          size = 0.25,
+                                          linetype = "dotted"),
+          axis.text.y.left = element_blank(),
+          axis.title.y.right = element_text(margin = margin(0, 0, 0, 10)),
+          axis.ticks.y.left = element_blank(),
+          legend.position = "bottom") +
+    labs(x = "Proximity to Death (Months)",
+         y = "Activity per 1,000 Decedants",
+         colour = "") +
+    annotate("text",
+             x = 3*365/12+10,
+             y = max(data$n),
+             label = "3 months prior to death",
+             hjust = 1,
+             size = 3)
+}
+
+utilisation_plots_grouped <- activity %>%
+  mutate_at("pod_type",
+            ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                    "Critical Care Bed Day",
+                    as.character(.x))) %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
+  inner_join(select(mpi, su_pat_id, group), by = "su_pat_id") %>%
+  filter(group != "(Missing)") %>%
+  count(pod_type, group, proximity_to_death_days) %>%
+
+  inner_join(count(mpi, group, name = "p"), by = "group") %>%
+  mutate_at("n", ~n/p) %>%
+  
+  group_nest(pod_type) %>%
+  mutate(plot = pmap(list(data = data,
+                          loess_span = c(0.05, 0.15, 0.15, 0.05, 0.05)),
+                     utilisation_curve_plot_grouped))
+```
+
+In this sub-section we consider how use of care changes over time, as people approach death. For
+each type of activity, we show how service use increases, decreases and at what point a peak is
+reached. Time here means ‘time before death’, regardless of any actual calendar date. Activity
+taking place on the day of death is a time of 0 days, taking place the day before death is 1 day etc.
+In the two year period prior to death we show rates of service use for those dying in the `r stp_name`
+(yellow dots); the utilisation curve for the `r stp_name` (yellow line); and the utilisation curve
+for the `r region_name` as a whole (dashed grey line). 
+
+### Urgent care use rises rapidly and peaks on day of death
+
+Urgent service events start low and increase slowly for much of the period until a few months prior
+to death when there is a rapid rate of increase, rising to a sharp peak at the point of death. The rate
+and pattern of service use in the `r stp_name` STP is the same as the `r region_name`.
+
+#### Figure 20 : Urgent service events per 1,000 decedents by proximity to death in days - `r stp_name` (yellow dots and line) relative to `r region_name` region (grey line)
+
+```{r utilisation_plots - urgent service events}
+utilisation_plots$plot[[which(utilisation_plots$pod_type == "Urgent Service Event")]]
+```
+
+### Use of planned contacts increase steadily, peaking in weeks before death
+
+Planned contacts rise steadily throughout the period until a sharp peak in the weeks prior to death,
+at which point they decline. Although the pattern of service use is similar there is a consistently
+higher rate in the `r stp_name` when compared to the `r region_name`.
+
+#### Figure 21 : Planned contacts per 1,000 decedents by proximity to death in days - `r stp_name`. STP (yellow dots and line) relative to `r region_name` region (grey line)
+
+```{r utilisation_plots - planned contacts}
+utilisation_plots$plot[[which(utilisation_plots$pod_type == "Planned Contact")]]
+```
+
+### Use of planned admissions increases steadily, peaking in months before death
+
+Planned admissions also rise steadily throughout the period with a rounded peak a matter of
+months prior to death, at which point they decline. There is a higher rate of utilisation in the 
+`r stp_name` further away from death. In the last year of life rates start to
+converge and eventually drop lower those seen in the `r region_name`.
+
+#### Figure 22 : Planned admissions per 1,000 decedents by proximity to death in days - `r stp_name` STP (yellow dots and line) relative to `r region_name` region (grey line)
+
+```{r utilisation_plots - planned admissions}
+utilisation_plots$plot[[which(utilisation_plots$pod_type == "Planned Admission")]]
+```
+
+## Use of hospital beds rises rapidly and peaks on day of death
+
+Use of bed days, created when an admission to a bed takes place, closely follows the pattern seen
+in urgent service events. This is because, as seen in analysis of patterns of service use (in subsection 5.4), bed occupancy for the decedent population usually follows an emergency admission.
+Therefore, these patterns of service use are intrinsically linked. The rate and pattern of service use
+in the `r stp_name` is the same as the `r region_name`.
+
+#### Figure 23 : Bed days per 1,000 decedents by proximity to death in days - `r stp_name` STP (yellow dots and line) relative to `r region_name` region (grey line)
+
+```{r utilisation_plots - bed days}
+utilisation_plots$plot[[which(utilisation_plots$pod_type == "Bed")]]
+```
+
+## Critical care days are concentrated in the last month of life
+
+Again, this closely follows the pattern seen in urgent service events. The rate and pattern of service
+use in the `r stp_name` is the same as the `r region_name`.
+
+#### Figure 24 : Critical care days per 1,000 decedents by proximity to death in days - `r stp_name` STP (yellow dots and line) relative to `r region_name` region (grey line)
+
+```{r utilisation_plots - critical care bed days}
+utilisation_plots$plot[[which(utilisation_plots$pod_type == "Critical Care Bed Day")]]
+```
+
+### Use of urgent service events show similar patterns by cause
+
+Utilisation curves by cause show patterns which are very similar for urgent service events (Figure
+25). Where curves do diverge, this occurs in the last 3 months of life.
+
+#### Figure 25 : Urgent service events per 1,000 by cause and proximity to death in days - `r region_name` STP
+
+```{r utilisation_plots_grouped - urgent service events}
+utilisation_plots_grouped$plot[[which(utilisation_plots_grouped$pod_type == "Urgent Service Event")]]
+```
+
+### Use of planned contacts and admissions is much higher for those dying from cancer
+
+Utilisation curves by cause of death in Figure 26 show that those dying from cancer dominate use
+of planned contacts. Whilst only a fifth of deaths are due to cancer we have seen that people in this
+group experience a relatively high volume of planned contacts (sub-section 5.4.2).
+
+Cancer patients will experience a high volume of planned care due to cancer treatment regimens.
+These regimens require a regular sequence of multiple hospital visits, leading to the high volumes
+of planned care for cancer patients. Many planned contacts are outpatient attendances, a setting
+used for delivering radiotherapy regimens.
+
+#### Figure 26 : Planned contacts per 1,000 by cause and proximity to death in days - `r stp_name` STP
+
+```{r utilisation_plots_grouped - planned contact}
+utilisation_plots_grouped$plot[[which(utilisation_plots_grouped$pod_type == "Planned Contact")]]
+```
+
+Utilisation curves by cause of death in Figure 27 show that those dying from cancer also dominate
+the use of planned admissions. We have seen that people in this group also experience a relatively
+high volume of planned admissions (again, in sub-section 5.4.2).
+
+As mentioned in above, cancer patients will experience a high volume of planned care due to
+cancer treatment regimens. These regimens require a regular sequence of multiple hospital visits,
+leading to the high volumes of planned care for cancer patients. Many planned admissions are
+daycases, a setting used for delivering chemotherapy regimens.
+
+#### Figure 27 : Planned admissions per 1,000 by cause and proximity to death in days - `r stp_name` STP
+
+```{r utilisation_plots_grouped - planned admissions}
+utilisation_plots_grouped$plot[[which(utilisation_plots_grouped$pod_type == "Planned Admission")]]
+```
+
+### Use of bed days – and critical care bed days - show similar patterns by cause
+
+Utilisation curves by cause show patterns which are very similar for bed days (Figure 28). Where
+curves do diverge, this occurs in the last 6 months of life.
+
+#### Figure 28 : Bed days per 1,000 by cause and proximity to death in days - `r stp_name` STP
+
+```{r utilisation_plots_grouped - bed}
+utilisation_plots_grouped$plot[[which(utilisation_plots_grouped$pod_type == "Bed")]]
+```
+
+Utilisation curves by cause also show patterns which are very similar for critical care bed days
+(Figure 29). Where curves do diverge, this occurs in the last 3 months of life.
+
+#### Figure 29 : Critical care days per 1,000 by cause and proximity to death in days - `r stp_name` STP
+
+```{r utilisation_plots_grouped - critical care bed days}
+utilisation_plots_grouped$plot[[which(utilisation_plots_grouped$pod_type == "Critical Care Bed Day")]]
+```
+
+## Does age at death influence service use?
+
+In this sub-section we consider the use of care by age at death. We do this for each service
+within an activity type.
+
+We consider this for two periods:
+
+- the final year of life (0-12 months before death); and,
+- the penultimate year of life (12 – 24 months before death).
+
+```{r utilisation rates}
+utilisation_rates <- list(stp = activity,
+     region = activity_region) %>%
+  map_dfr(.id = "type", function(.x) {
+    .x %>%
+      inner_join(select(mpi_region, su_pat_id, age),
+                 by = "su_pat_id") %>%
+    mutate(activity_year = as.numeric(proximity_to_death_days >= 365)) %>%
+    mutate_at("age", ~case_when(.x > 90 ~ 90,
+                                .x < 50 ~ 50,
+                                TRUE ~ .x)) %>%
+    mutate_if(is.factor, as.character) %>%
+    count(pod_type, pod_summary_group, activity_year, age,
+          name = "activity")
+  }) %>%
+  arrange(type, pod_type, pod_summary_group, activity_year, age) %>%
+  complete(nesting(pod_type, pod_summary_group),
+           activity_year = 0:1,
+           age = seq(50, 90),
+           fill = list(activity = 0)) %>%
+  inner_join(
+    bind_rows(
+      mpi %>%
+        mutate_at("age",
+                  ~case_when(.x > 90 ~ 90,
+                             .x < 50 ~ 50,
+                             TRUE ~ .x)) %>%
+        count(age, name = "deaths") %>%
+        mutate(type = "stp"),
+      mpi_region %>%
+        mutate_at("age",
+                  ~case_when(.x > 90 ~ 90,
+                             .x < 50 ~ 50,
+                             TRUE ~ .x)) %>%
+        count(age, name = "deaths") %>%
+        mutate(type = "region")
+    ),
+    by = c("type", "age")
+  ) %>%
+  mutate(utilisation = activity / deaths) %>%
+  select(-activity, -deaths) %>%
+  pivot_wider(names_from = "type", values_from = "utilisation") %>%
+  mutate_at("pod_summary_group", ~fct_reorder(.x, region, .fun = sum)) %>%
+  pivot_longer(c(region, stp), names_to = "type", values_to = "value") %>%
+  group_nest(pod_type, type) %>%
+  mutate(plot = map(data, function(data) {
+    data %>%
+      mutate_at("pod_summary_group", fct_drop) %>%
+      group_by(pod_summary_group) %>%
+      # make sure we have a sensible number of rows per pod_summary_group, we should have 82 rows
+      # 2*(90-50+1)
+      filter(sum(is.na(value)) < 82*.75) %>%
+      ungroup() %>%
+      mutate_at("activity_year",
+                ifelse,
+                "Penultimate year of life (12-24 months before death)",
+                "Final year of life (0-12 months before death)") %>%
+      ggplot(aes(age, value, colour = activity_year)) +
+      geom_smooth(fill = NA, method = "loess", formula = y ~ x, na.rm = TRUE,
+                  lwd = 0.75) +
+      geom_point(aes(fill = after_scale(alpha(colour, 0.4))),
+                 shape = "circle filled",
+                 na.rm = TRUE) +
+      expand_limits(y = 0) +
+      facet_wrap(vars(fct_rev(pod_summary_group)), drop = FALSE) +
+      theme(legend.position = "bottom") +
+      labs(colour = "",
+           x = "Age of decedent",
+           y = "Average use")
+  }))
+```
+
+### Use of urgent service events is not influenced by age at death
+
+Age specific use of urgent service events in Figure 30 shows that:
+
+- Largest areas of use are emergency admissions and A&E attendances. Use of these services
+does not differ greatly by age at death. Use is however much higher in the final year of life than
+in the penultimate year of life. This signifies that what drives utilisation of these services is not
+age, but proximity to death;
+- Calls to 111 are used less often than the other urgent services. For those dying aged 70 and
+over, as age increases so does use of 111. Use is again higher in the final year of life; and,
+- There is less use of 111 compared to the `r region_name` (Figure 31). Age patterns are similar.
+
+#### Figure 30 : Urgent service event use by age at death in final and penultimate year of life - `r stp_name` STP
+
+```{r utilisation rates - Urgent Service Events (stp)}
+filter(utilisation_rates, pod_type == "Urgent Service Event", type == "stp")$plot[[1]]
+```
+
+#### Figure 31 : Urgent service event use by age at death in final and penultimate year of life - `r region_name` region
+
+```{r utilisation rates - Urgent Service Events (region)}
+filter(utilisation_rates, pod_type == "Urgent Service Event", type == "region")$plot[[1]]
+```
+
+### Use of planned contacts decreases for older decedents
+
+Age specific use of planned contacts in Figure 32 shows that:
+
+- Largest use is for outpatient attendances. As age at death increases use of outpatient
+attendances decrease;
+- Use of outpatient attendances is higher in final year of life than in the penultimate year.
+However, the difference between years diminishes as age increases;
+- There is less use of mental health compared to the `r region_name` (Figure 33). Age patterns are
+similar.
+
+#### Figure 32 : Planned contact use by age at death in final and penultimate year of life - `r stp_name` STP
+
+```{r utilisation rates - Planned Contacts (stp)}
+filter(utilisation_rates, pod_type == "Planned Contact", type == "stp")$plot[[1]]
+```
+
+#### Figure 33 : Planned contact use by age at death in final and penultimate year of life – `r region_name` region
+
+```{r utilisation rates - Planned Contacts (region)}
+filter(utilisation_rates, pod_type == "Planned Contact", type == "region")$plot[[1]]
+```
+
+### Use of planned admissions also decreases for older decedents
+
+Age specific use of planned admissions in Figure 34 shows that:
+
+- Largest areas of use are day case admissions and regular attendances. Generally, as age at
+death increases use of these services decreases;
+- There is more use of regular attendances compared to the `r region_name` (Figure 35). Age patterns
+are similar.
+
+#### Figure 34 : Planned admission use by age at death in final and penultimate year of life - `r stp_name` STP
+
+```{r utilisation rates - Planned Admissions (stp)}
+filter(utilisation_rates, pod_type == "Planned Admission", type == "stp")$plot[[1]]
+```
+
+#### Figure 35 : Planned admission use by age at death in final and penultimate year of life - `r region_name` region
+
+```{r utilisation rates - Planned Admissions (region)}
+filter(utilisation_rates, pod_type == "Planned Admission", type == "region")$plot[[1]]
+```
+
+### Older decedents stay in hospital longer
+
+Age specific use of bed days in Figure 36 shows that:
+
+- Use of bed days is dominated by emergency admission bed stays. Use of emergency bed days
+increases as age at death increases. We have seen in earlier sub-section (6.2.1) that age does
+not influence use of emergency admissions. However, we see here that age does influence
+length of stay. And that when admitted, the older the decedent the longer the length of stay;
+- In the final year of life, the oldest decedents spend approximately an additional seven days in
+hospital than the youngest decedents; and,
+- Volume and age patterns of use are similar to the `r region_name` (Figure 37).
+
+#### Figure 36 : Bed day use by age at death in final and penultimate year of life - `r stp_name`
+
+```{r utilisation rates - Bed Days (stp)}
+filter(utilisation_rates, pod_type == "Bed", type == "stp")$plot[[1]]
+```
+
+#### Figure 37 : Bed day use by age at death in final and penultimate year of life - `r region_name`
+
+```{r utilisation rates - Bed Days (region)}
+filter(utilisation_rates, pod_type == "Bed", type == "region")$plot[[1]]
+```

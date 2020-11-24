@@ -1,0 +1,226 @@
+# Where do people die?
+
+The previous section described historic and forecast numbers of deaths. Yet *where* people die is
+important to the quality and experience of their death. This section therefore examines place of
+death. It begins by considering how place of death varies by cause, before moving on to consider
+differences by deprivation and by gender. It also considers the length of stay in hospital for those
+who die in hospital. Concluding by exploring how place of death is a factor in the level of
+unrelieved pain for palliative patients, calculating the number of palliative patients dying with their
+pain not fully relieved.
+
+## How place and cause of death are recorded and assigned
+
+When a person dies a doctor involved in their care completes a medical death certificate which is
+used to formally register the death. This contains detailed information about the individual, their
+place of death and underlying cause of death.
+
+For the purposes of this report place of death is assigned to one of the five categories defined by
+the National End of Life Care Intelligence Network. They are:
+- Home;
+- Care home;
+- Hospice;
+- Hospital; and,
+- Elsewhere.
+
+The underlying cause of death is assigned to one of the five cause groups below. These groups are
+based on research by Dr June Lunney and Dr Joanne Lynn
+
+- Cancer;
+- Frailty;
+- Organ failure;
+- Sudden death; and,
+- Other terminal illness.
+
+It can however be difficult to assign deceased patients to the frailty group based on cause of death
+alone. To define frailty we therefore utilise work done by Whole Systems Partnership for the
+National End of Life Care Intelligence Network (NEoLCIN). This work additionally assigns patients
+by age groups on the following basis:
+
+- aged 65-74 then 10% of deaths are frailty related;
+- aged 75-84 then 30% of deaths are frailty related; and,
+- aged 85+ then 80% of deaths are frailty related.  
+
+## Fewer die at home than would like to
+
+```{r 4.2 figures}
+die_home_pcnt <- nrow(filter(mpi, location_type == "Home")) / stp_deaths_18
+```
+Although 66% of people say they would like to die at home, just `r percent(die_home_pcnt)` of people
+in `r stp_name` do so.
+
+Figure 4 shows that place of death differs significantly by cause, in that:
+
+- Frailty is the single largest underlying cause of death, accounting for close to half of all deaths.
+Frailty has the largest proportion of deaths in a care home setting;
+- Cancer is the cause of death for around a fifth of the population. 22% of cancer patients die in
+a hospice setting. This is considerably higher than other causes;
+- Organ failure and sudden death have a large proportion of deaths in a hospital setting
+although there are still a substantial number of deaths occurring at home for both these
+groups; and,
+- Other terminal illness (OTI) represent the smallest cause of death group within the population,
+but this category has a large proportion of deaths in a hospital setting.
+
+If hospice care for organ failure patients could be organised along similar lines as for cancer care
+an additional 252 people could die in a hospice rather than a hospital.
+
+When compared to the `r region_name` (Figure 5) profiles by cause are generally similar. However, in
+`r stp_name` there are a lower proportion of deaths in hospital for all causes.
+
+#### Figure 4 : Proportion of decedent population by cause and place of death - `r stp_name`
+
+```{r place of death by cause of death mekko (stp)}
+mpi %>%
+  filter(location_type != "Unknown",
+         group != "(Missing)") %>%
+  mutate_at(vars(group),
+            compose(fct_rev, fct_recode),
+            "Sudden\nDeath" = "Sudden Death",
+            "OTI" = "Other Terminal Illness") %>%
+  mekko_chart(group, location_type) +
+  place_of_death_fill() 
+```
+
+#### Figure 5 : Proportion of decedent population by cause and place of death - `r region_name` region
+
+```{r place of death by cause of death mekko (region)}
+mpi_region %>%
+  filter(location_type != "Unknown",
+         group != "(Missing)") %>%
+  mutate_at(vars(group),
+            compose(fct_rev, fct_recode),
+            "Sudden\nDeath" = "Sudden Death",
+            "OTI" = "Other Terminal Illness") %>%
+  mekko_chart(group, location_type) +
+  place_of_death_fill() 
+```
+
+## People from deprived areas are more likely to die in hospital
+
+Figure 6 shows that for decedents living in more deprived areas there were a higher proportion of
+deaths in hospital. This is offset by smaller proportion of deaths taking place in care homes for
+these decedents. Proportions differ but this is the same profile seen for the `r region_name` in Figure 7.
+
+#### Figure 6 : Proportion of decedent population by deprivation quintile and place of death - `r stp_name`
+
+```{r place of death by deprivation mekko (stp)}
+mpi %>%
+  filter(location_type != "Unknown",
+         !is.na(imd_quintile)) %>%
+  mutate(across(imd_quintile, as.factor)) %>%
+  mekko_chart(imd_quintile, location_type,
+              x_labels = c("Most Deprived", "Least Deprived"),
+              x_breaks = c(0.075, 0.925)) +
+  place_of_death_fill()
+```
+
+#### Figure 7 : Proportion of decedent population by deprivation quintile and place of death - `r region_name` region
+
+```{r place of death by deprivation mekko (region)}
+mpi_region %>%
+  filter(location_type != "Unknown",
+         !is.na(imd_quintile)) %>%
+  mutate(across(imd_quintile, as.factor)) %>%
+  mekko_chart(imd_quintile, location_type,
+              x_labels = c("Most Deprived", "Least Deprived"),
+              x_breaks = c(0.075, 0.925)) +
+  place_of_death_fill()
+```
+
+## Fewer male deaths take place in care homes
+
+Comparing between genders in Figure 8 there were a higher proportion of males dying either in
+hospital or at home. The proportion of males dying in a care home was much lower when
+compared to females. Proportions differ but again this is the same profile seen for the `r region_name` in
+Figure 9.
+
+#### Figure 8 : Proportion of decedent population by gender and place of death - `r stp_name`
+
+```{r place of death by gender (stp)}
+mpi %>%
+  filter(location_type != "Unknown") %>%
+  mekko_chart(sex, location_type) +
+  place_of_death_fill()
+```
+
+#### Figure 9 : Proportion of decedent population by gender and place of death - `r region_name` region
+
+```{r place of death by gender (region)}
+mpi_region %>%
+  filter(location_type != "Unknown") %>%
+  mekko_chart(sex, location_type) +
+  place_of_death_fill()
+```
+
+## For deaths in hospital length of stay is often short
+
+```{r 4.5 figures}
+die_hosp_pcnt_stp <- activity %>%
+  inner_join(mpi, by = "su_pat_id") %>%
+  filter(pod_summary_group == "Emergency Admission", discharge_date == dod) %>%
+  nrow() / nrow(mpi)
+die_hosp_pcnt_region <- activity_region %>%
+  inner_join(mpi_region, by = "su_pat_id") %>%
+  filter(pod_summary_group == "Emergency Admission", discharge_date == dod) %>%
+  nrow() / nrow(mpi_region)
+```
+
+Of all decedents in `r stp_name` `r percent(die_hosp_pcnt_stp, accuracy = 1)` die in hospital after being admitted as an
+emergency. For the `r region_name` the same figure is `r percent(die_hosp_pcnt_region, accuracy = 1)`.
+Figure 10 shows, for entire decedent populations, the proportions by terminal episode length of stay.
+Proportions for `r stp_name` are shown as bars. Proportions for the `r region_name` are shown as dots.
+The length of stay for a terminal episode is often short. In `r stp_name`, as in the `r region_name`,
+there are a higher proportion of decedents with the shortest stays (terminal episodes of 6 days or less).
+Proportions are similar compared to the `r region_name`.
+
+#### Figure 10 : Proportion of decedent population by emergency terminal episode length of stay - `r stp_name` indicated by bars, `r region_name` region indicated by dots
+
+```{r tlos count plot}
+tlos <- list(
+  stp = activity,
+  region = activity_region
+) %>%
+  map(semi_join, mpi_region, by = c("su_pat_id", "discharge_date" = "dod")) %>%
+  map(filter, pod_summary_group == "Emergency Admission") %>%
+  map(group_by, pod_summary_group) %>%
+  map_dfr(count, proximity_to_death_days, .id = "type") %>%
+  pivot_wider(names_from = type, values_from = n) %>%
+  mutate(across(stp, replace_na, 0))
+
+tlos %>%
+  filter(proximity_to_death_days <= 42) %>%
+  mutate(across(stp, `/`, nrow(mpi)),
+         across(region, `/`, nrow(mpi_region))) %>%
+  ggplot(aes(proximity_to_death_days, stp)) +
+  geom_col(colour = su_theme_cols("orange"),
+           fill = after_scale(alpha(su_theme_cols("orange"), 0.4)),
+           width = 1) +
+  geom_point(aes(y = region),
+             colour = su_theme_cols("charcoal"),
+             fill = after_scale(alpha(su_theme_cols("charcoal"), 0.4)),
+             shape = "circle filled") +
+  scale_x_continuous(breaks = seq(0, 70, by = 7)) +
+  scale_y_continuous(expand = expansion(c(0, 0.05)),
+                     labels = percent_format(accuracy = 1)) +
+  labs(x = "Bed days for Terminal Spell",
+       y = "% of Decedents")
+```
+
+## Place of death influences the likelihood of experiencing pain
+
+Previous research has found a relationship between place of death and experience of pain11. People
+who die in a hospice report the lowest level of pain at end of life compared to other settings.
+Applying research from the Office of Health Economics12 to those receiving, or in need of, palliative
+care in Coventry and Warwickshire (Table 1 and Table 2) suggests that in total a third of palliative
+patients (2,048 people - using central estimate) may have died with their pain uncontrolled.
+From these estimates; rates of unrelieved pain are highest for those palliative patients who die at
+home; they are lowest for those who die in a hospice setting. This represents an opportunity to
+explore the local picture of palliative care service provision and patient end of life experience to
+ensure interventions to maximise pain control for people wherever they die.
+
+#### Table 1 : By setting, the number of people at end of life whose pain is not relieved
+
+*[insert table 1*
+
+#### Table 2 : By setting, the number of people at end of life whose pain is only partially relieved
+
+*[insert table 2]*

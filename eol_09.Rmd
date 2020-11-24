@@ -1,0 +1,68 @@
+# Discussion
+
+The aim of this report is to equip decision makers, in all parts of the STP, with insight into people's
+use of healthcare services as they approach the end of their lives. These insights can be used to
+spur action and improve outcomes.
+
+The report’s main messages are challenging. The analysis is detailed and takes multiple angles; it
+presents subtlety, difference and nuance. Yet the overall conclusion is clear: too few people in 
+`r stp_name` experience a ‘good death’.
+
+There is no single explanation for this. The analysis suggests that services are often reactive and
+uncoordinated, with patterns of use that seem undesirable. Most people say they want to die at
+home, but this intention is frequently lost in the interaction with – and between - the services
+supporting them. Expenditure also does not seem to support this desire to die at home: around
+two thirds of investment in hospital services is spent on urgent care.
+
+Inequality is a clear part of the story. Experiences at the end of life differ radically according to
+factors such as age, gender, class and cause of death. There are also geographic differences, with a
+consistently higher rate of planned care use in `r stp_name` compared to the `r region_name`, for example.
+
+The current situation has evolved during a decades-long trend of falling deaths. This trend is now
+set to change and the number of deaths is forecast to increase. Demographic change means that
+this growth is largely concentrated among those aged 85 and above. As well as adding to the
+overall scale of need, the average case is also therefore likely to become more complex.
+This change in the nature and scale of demand casts a different light on the current situation. Faced
+with this more challenging future, decision makers may want to consider more ambitious options
+in response.
+
+This report presents a detailed account of ‘what is’. Moving on from this and deciding ‘what ought
+to be’ is a more complex undertaking. It involves professional judgement, evidence and clinical
+standards. But it also involves personal preference, values and cultural differences. Combining such
+diverse perspectives requires care, humanity, and skill.
+
+Seen in this context, the analysis presented here is just one input (albeit an essential one) into a
+broader set of conversations. These conversations are the place to generate detailed plans for
+improvement.
+
+We therefore stop short of making specific recommendations. But, as a bridge into these
+conversations, we note that:
+
+- Local citizens have the main stake in better end of life care. People living in the STP area will
+have views on the analysis presented here; they will be a source of first-hand evidence from
+experience; they will have a sense of what outcomes are desirable and of what better care
+would look like. As friends, neighbours and family members, they are also current providers of
+care: a source of solutions as well as of ‘demand’.
+
+- Professionals and organisations involved in providing care – clinical and non-clinical, health
+and social care, statutory and voluntary sector – also have a clear stake. They will see the
+practice that leads to the situation described in this analysis; they will know where there are
+gaps between professional standards and current provision; they will have the clearest sense of
+the opportunities to reduce non-beneficial treatments. Professionals will also be a source of
+solutions for improving communication and coordination between different services.
+
+- NHS and Local Authority commissioners hold responsibility for patterns of investment and
+service provision. They have a stake in ensuring that outcomes for their population are
+improving and that inequalities are reducing. Acting on behalf of citizens, they are stewards of
+a collective resource, balancing out competing claims and perspectives. Commissioners must
+therefore ask whether citizens are well-served by the picture presented in this report. Given the
+projections presented here, they should also consider the needs of future populations.
+
+In approaching these conversations, it is perhaps helpful to reflect that many of the underlying
+trends - demographic change for example - are long-term and amenable to strategic planning. This
+is an opportunity to take advantage of foresight.
+
+Any successful way forward will draw on a combination of perspectives and insights from the
+different groups noted above. Their reactions and responses to the analysis presented here will
+determine the direction, nature and ambition of efforts to improve the deaths of people in 
+`r stp_name`.

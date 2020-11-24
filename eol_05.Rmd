@@ -1,0 +1,315 @@
+# Which services are accessed before death?
+
+In the two years before they die most people access some form of healthcare. In this section we
+describe these patterns of use and how they vary by cause of death.
+The datasets used in this section have been grouped into four different healthcare activity types:
+
+|  ACTIVITY TYPE        | SERVICE GROUP                  |
+|-----------------------|--------------------------------|
+| Urgent service event  | Emergency Admissions           |
+|                       | A&E Attendances                |
+|                       | Calls to 111                   |
+| Planned contact       | Planned Outpatient Attendances |
+|                       | Mental Health Contact          |
+|                       | IAPT Appointments              |
+| Planned admission     | Daycases                       |
+|                       | Elective Admissions            |
+|                       | Regular Day/Night Admissions   |
+| Bed days              | Critical Care                  |
+|                       | All Other Bed Types            |
+
+## Nearly all decedents access urgent care
+
+Figure 11 shows that 9 in 10 people dying in `r stp_name` access urgent care
+services in the two years prior to death. A similar but slightly smaller proportion also access
+planned care. Access is lower for planned admissions (4 in 10) and much lower for critical care (1 in
+10).
+
+Access levels for `r stp_name` are shown as bars. Access levels for the `r region_name` are
+shown as dots. Proportions are similar compared to the `r region_name`.
+
+#### Figure 11 : Proportion of decedent population accessing healthcare activity types in two years prior to death - `r stp_name` STP indicated by bars (with percentage at bottom), `r region_name` region indicated by dots
+
+```{r activity pcnt}
+list(
+  stp = activity,
+  region = activity_region
+) %>%
+  map_dfr(.id = "type", function(.x) {
+    .x %>%
+      mutate_at("pod_type",
+                ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                        "Critical Care Bed Day",
+                        as.character(.x))) %>%
+      group_by(pod_type) %>%
+      distinct(su_pat_id) %>%
+      count() %>%
+      ungroup() %>%
+      mutate_at("pod_type",
+                fct_relevel,
+                c(levels(activity$pod_type), "Critical Care Bed Day"))
+  }) %>%
+  inner_join(
+    bind_rows(
+      mpi %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "stp"),
+      
+      mpi_region %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "region"),
+    ),
+    by = c("type")
+  ) %>%
+  mutate_at("n", ~.x / patients) %>%
+  select(-patients) %>%
+  pivot_wider(names_from = "type", values_from = "n") %>%
+  filter(pod_type != "Bed") %>%
+  ggplot(aes(pod_type, stp)) +
+  geom_col(aes(colour = pod_type,
+               fill = after_scale(alpha(colour, 0.4)))) +
+  geom_point(aes(y = region,
+                 colour = pod_type,
+                 fill = after_scale(alpha(colour, 0.4))),
+             show.legend = FALSE,
+             size = 2,
+             shape = "circle filled",
+             stroke = 1.5) +
+  geom_text(aes(y = 0, label = percent(stp, accuracy = 1)),
+            size = 3.5,
+            vjust = 1.35) +
+  scale_y_continuous(labels = percent,
+                     expand = expansion(c(0.06, 0.05))) +
+  expand_limits(y = c(0, 1)) +
+  labs(x = "", y = "", colour = "", fill = "")  +
+  theme(legend.position = "none",
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())
+```
+
+## Most decedents access emergency admissions, A&E and outpatient clinics; few access mental health services 
+
+The proportion of people accessing different types of care in the last two years of life is shown in
+Figure 12. It highlights radical differences by service type:
+
+*[insert summary bullet points]*
+
+#### Figure 12 : Proportion of decedent population accessing healthcare service types in two years prior to death - `r stp_name` STP indicated by bars (with percentage at bottom), `r region_name` region indicated by dots
+
+```{r activity pcnt pod summary group}
+list(
+  stp = activity,
+  region = activity_region
+) %>%
+  map_dfr(.id = "type", function(.x) {
+    .x %>%
+      group_by(pod_type, pod_summary_group, cc_pod_summary_group) %>%
+      distinct(su_pat_id) %>%
+      count() %>%
+      ungroup() %>%
+      mutate_at("pod_type",
+                ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                        "Critical Care Bed Day",
+                        as.character(.x))) %>%
+      mutate_at("pod_summary_group",
+                ~ifelse(pod_type == "Critical Care Bed Day",
+                        paste0("Critical Care (",
+                               word(cc_pod_summary_group, 1),
+                               ")"),
+                        as.character(pod_summary_group))) %>%
+      mutate_at("pod_summary_group",
+                fct_relevel,
+                levels(activity$pod_summary_group) %>%
+                  subset(., . != "Critical Care Bed Day"),
+                "Critical Care (Emergency)",
+                "Critical Care (Elective)")
+  }) %>%
+  inner_join(
+    bind_rows(
+      mpi %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "stp"),
+      
+      mpi_region %>%
+        summarise(patients = n_distinct(su_pat_id)) %>%
+        mutate(type = "region"),
+    ),
+    by = c("type")
+  ) %>%
+  mutate_at("n", ~.x / patients) %>%
+  select(-patients) %>%
+  pivot_wider(names_from = "type", values_from = "n") %>%
+  filter(pod_type != "Bed") %>% 
+  ungroup() %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c(levels(activity$pod_type) %>% subset(., . != "Bed"),
+              "Critical Care Bed Day")) %>%
+  ggplot(aes(pod_summary_group, stp)) +
+  geom_col(aes(colour = pod_type,
+               fill = after_scale(alpha(colour, 0.4)))) +
+  geom_point(aes(y = region,
+                 colour = pod_type,
+                 fill = after_scale(alpha(colour, 0.4))),
+             show.legend = FALSE,
+             size = 2,
+             shape = "circle filled",
+             stroke = 1.5) +
+  geom_text(aes(y = 0, label = percent(stp, accuracy = 1)),
+            size = 3.5,
+            vjust = 1.35) +
+  scale_x_discrete(labels = partial(str_wrap, width = 10)) +
+  scale_y_continuous(labels = percent,
+                     expand = expansion(c(0.06, 0.05))) +
+  expand_limits(y = c(0, 1)) +
+  labs(x = "", y = "", colour = "", fill = "")  +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 30, hjust = 1),
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())
+```
+
+## Most cancer patients access planned admissions
+
+Figure 13 looks at access to different service types by cause. This shows that:
+
+- People dying from cancer access all types of service (except critical care) more than those
+dying of other causes. Their access to planned admissions is significantly higher;
+- Critical care access is much lower for people dying from frailty than from other causes; and,
+- Access to urgent service events and planned contacts are broadly similar between causes of
+death.
+
+#### Figure 13 : Proportion of decedent population accessing healthcare activity types by cause in two years prior to death - `r stp_name` STP indicated by bars, `r region_name` region indicated by dots
+
+```{r activity pcnt cod}
+list(
+  stp = activity %>%
+    inner_join(select(mpi, su_pat_id, group), by = "su_pat_id"),
+  region = activity_region %>%
+    inner_join(select(mpi_region, su_pat_id, group), by = "su_pat_id")
+) %>%
+  map_dfr(.id = "type", function(.x) {
+    .x %>%
+      mutate_at("pod_type",
+                ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                        "Critical Care Bed Day",
+                        as.character(.x))) %>%
+      group_by(pod_type, group) %>%
+      distinct(su_pat_id) %>%
+      count() %>%
+      ungroup() %>%
+      mutate_at("pod_type",
+                fct_relevel,
+                c(levels(activity$pod_type), "Critical Care Bed Day"))
+  }) %>%
+  inner_join(
+    bind_rows(
+      mpi %>%
+        group_by(group) %>%
+        summarise(patients = n_distinct(su_pat_id), .groups = "drop") %>%
+        mutate(type = "stp"),
+      
+      mpi_region %>%
+        group_by(group) %>%
+        summarise(patients = n_distinct(su_pat_id), .groups = "drop") %>%
+        mutate(type = "region"),
+    ),
+    by = c("type", "group")
+  ) %>%
+  mutate_at("n", ~.x / patients) %>%
+  select(-patients) %>%
+  pivot_wider(names_from = "type", values_from = "n") %>%
+  filter(group != "(Missing)",
+         pod_type != "Bed") %>%
+  mutate_at("group",
+            fct_recode,
+            "OTI" = "Other Terminal Illness") %>%
+  ggplot(aes(pod_type, stp)) +
+  geom_col(aes(colour = group,
+               fill = after_scale(alpha(colour, 0.4))),
+           position = position_dodge(width = 0.8),
+           width = 0.8) +
+  geom_point(aes(y = region,
+                 colour = group,
+                 fill = after_scale(alpha(colour, 0.4))),
+             show.legend = FALSE,
+             shape = "circle filled",
+             size = 2,
+             stroke = 1.5,
+             position = position_dodge(width = .8))+
+  scale_y_continuous(labels = percent,
+                     expand = expansion(c(0, 0.05))) +
+  expand_limits(y = c(0, 1)) +
+  labs(x = "", y = "", colour = "", fill = "") +
+  theme(legend.position = "bottom",
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank())
+```
+
+## Service use differs radically by cause of death
+
+Behind headline levels of access examining patients’ interactions with services can reveal
+significantly different patterns. These patterns can then suggest specific areas for improvement. To
+illustrate this, we now investigate the service interactions of a small sample of fifteen random
+decedents. We do so for each cause of death, focusing on their last year of life.
+
+Figure 14 shows the format used for this analysis. It does so here using a ‘fictional’ example of a
+decedent’s service use in the last year of life. The chart shows different service events, starting at
+day 365 and ending at death. This format is applied below to look at samples of decedents for
+different causes of death. 
+
+#### Figure 14 : Fictional example explaining patterns of service use charts
+
+*[insert figure 14]*
+
+### Most of those dying from frailty access urgent care
+
+Analysis of the sample of those dying from frailty (Figure 15) suggests that a large proportion of
+people experience an emergency admission, plus an associated bed stay, at some point in their last
+year. The likelihood of this increases the closer people are to death.
+
+#### Figure 15 : Patterns of service use for people dying from frailty
+
+*[insert figure 15]*
+
+### Planned care features highly for those dying of cancer
+
+Analysis of the sample of those dying from cancer (Figure 16) suggests frequent planned contacts
+and planned admissions. This group is also more likely to have a planned stay in hospital and
+experience more planned bed days than other cause of death groups. Urgent events and
+associated urgent bed stays are more likely to occur in the last six months of life.
+
+#### Figure 16 : Patterns of service use for people dying from cancer
+
+*[insert figure 16]*
+
+### People dying from organ failure experience multiple urgent stays
+
+Figure 17 illustrates service use for people dying of organ failure. Here there are multiple urgent
+events with an associated bed stay in the last year of life. The closer this population are to death,
+the longer these stays tend to become.
+
+#### Figure 17 : Patterns of service use for people dying from organ failure
+
+*[insert figure 17]*
+
+### People dying a sudden death tend to experience urgent care
+
+Figure 18 shows the sample of people experiencing sudden death. Here there are planned contacts
+throughout the last year of life. A large proportion experience an urgent event with associated
+urgent bed stay in their final month - often then going on to die in hospital after a short period.
+
+#### Figure 18 : Patterns of service use for people dying a sudden death
+
+*[insert figure 18]*
+
+### Those dying from other terminal illness experience long lengths of stay
+
+Analysis for people dying of ‘other terminal illness’ (Figure 19) presents a mixed picture. A large
+proportion experience an urgent service event with long bed stays. When charts show urgent bed
+days intersected by another urgent event this represents patients being transferred between
+different hospitals.
+
+#### Figure 19 : Patterns of service use for people dying from other terminal illness
+
+*[insert figure 19]*

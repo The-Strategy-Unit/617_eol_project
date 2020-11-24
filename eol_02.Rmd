@@ -1,0 +1,14 @@
+# Summary of Key Findings
+
+This report provides a description of end of life care in the `r stp_name`
+Sustainability and Transformation Partnership (STP). It is part of a suite of reports produced by the
+Strategy Unit for all STPs in the `r region_name` region.
+
+Drawing on an analysis of individual level linked datasets, the report outlines the current and likely
+future situation. The aim is to equip decision makers – in all parts of the STP – with insight that can
+be used to improve outcomes.
+
+The value of this analysis is therefore in its detail. Nonetheless, several main points emerge that
+help provide a broad sense of the findings. These are that:
+
+*[insert text]*

@@ -1,0 +1,46 @@
+# Introduction
+
+Health and care services get just one opportunity to support people at the end of their life. When
+this support is compassionate and appropriate, unnecessary suffering can be avoided and grieving
+can be eased. When this is not the case, harm and distress can result. The difference in these
+experiences can be profound.
+
+Providing the best possible end of life care, within the limited resources available, is not a simple
+task. It requires a dispassionate assessment of the current situation; it demands detailed insight
+into the local population; and it needs the perspectives of professionals and the people they serve.
+Good care is founded on the intelligent use of this information.
+
+This report gives decision makers an understanding of death and dying in `r stp_name`
+Sustainability and Transformation Partnership (STP) area. It looks at how services
+are currently used in the last two years of people’s lives; it shows how the future might evolve.
+The report was produced by the Strategy Unit and jointly funded by NHS England/Improvement
+(Midlands) and NHS Midlands and Lancashire Commissioning Support Unit. Individual reports have
+been produced for every STP area in the Midlands – and for the region as a whole. The aim is to
+provide insights that can be used to improve care.
+
+The analysis presented here is based on linking different datasets. These datasets cover hospital
+care (including critical care), mental health contacts, psychological therapies and 111 calls. Data are
+drawn from the national register of all people who died in `r stp_name`
+STP in 2018/19. Each deceased person is linked to their service use in the two-year period prior to
+their death. In all, this data linkage involved processing 4.2 million records across thirteen different
+datasets.
+
+This analysis advances the conversation, but it is not exhaustive. For reasons of availability it
+excludes data on community services, social care, GP practices, and ambulance services. Data used
+in the analysis also precedes the Covid-19 pandemic. At the time of writing, this had claimed over
+40,000 lives in the UK - predominantly of older people. This is a terrible toll. It will have some effect
+on the size of population groups considered in this analysis and the Strategy Unit is doing further
+work to understand this. But the broader context – of around 600,000 deaths annually in the UK –
+and the long-term nature of the issues considered means that the conclusions of the analysis
+stand.
+
+The report is structured to set out the story of the population who die and their journey through
+services. Analysis therefore starts by describing all deaths, before progressing in increasing detail 
+towards the final weeks and days of life; it ends by considering what resources future decedent
+populations will require.
+
+Broad conclusions are drawn, but no recommendations are made. Analysts can show ‘what is’, but
+they have no special standing in saying what ought to be. This requires the expert inputs of those
+providing and commissioning care, blended with the insights of the population supported. The aim
+of what follows is therefore to inform conversations about improving the deaths of people in 
+`r stp_name`.

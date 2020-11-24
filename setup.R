@@ -54,6 +54,7 @@ setup_env$theme_report <- theme_get() +
         axis.line = element_line(colour = su_theme_cols("charcoal")),
         axis.title.y.right = element_text(margin = margin(0, 0, 0, 10)),
         strip.background = element_blank(),
+        legend.background = element_blank(),
         legend.key = element_blank())
 
 theme_set(setup_env$theme_report)

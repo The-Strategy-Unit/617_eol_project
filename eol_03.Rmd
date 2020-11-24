@@ -1,0 +1,136 @@
+# How many deaths have there been? How many will there be?
+
+Trends in the number of expected deaths and age at death are driven by broader demographic
+changes, including the gains in life expectancy seen throughout the 20th century. While dramatic in
+a broader historical context, these changes have unfolded slowly over decades. It is possible to
+predict and plan for deaths in the local population. This section therefore provides a basic scaling
+of historic and forecast numbers of deaths by gender and age group. 
+
+##	Having declined for decades, deaths are set to increase
+
+The population of England has grown almost every year since the end of the Second World War.
+Figure 1 shows that until the late 1970s the number of deaths per annum also grew although at a
+slower rate than the population. Since the early 1980s the number of deaths per year has fallen and
+the number of deaths in 2009 were the lowest that had been seen since 1952. This continued until
+2010 when the trend reversed sharply.
+
+#### Figure 1: Deaths in England, long term trends and forecasts
+
+*[Insert figure]*
+
+## Deaths will increase for both males and females
+
+Trends and forecasts in `r stp_name` reflect those in England. Figure 2 shows the annual increase in deaths over the last decade. In 2018/19 `r comma(stp_deaths_18)` adults died in `r stp_name`. Between 2020 and 2030 the number of deaths is expected to grow `r percent(stp_deaths_pcnt)` to `r comma(stp_deaths_30)` per annum. As the size of the decedent population grows so too will demand on services.
+
+There has also been a shift towards increasing numbers of deaths in males, narrowing the gap between genders. In future years deaths for males are predicted to be consistently higher than deaths for females.
+
+#### Figure 2: Historical and forecast deaths by gender - `r stp_name`
+
+```{r historic and forecast deaths}
+local({
+  df <- list(
+    historical = historical_deaths %>%
+      select(-stp) %>%
+      mutate(point_val = deaths),
+    forecast = forecast_deaths %>%
+      group_by(year, sex) %>%
+      summarise_at("est_deaths", sum) %>%
+      rename(deaths = est_deaths) %>%
+      filter(year > 2019)
+  ) %>%
+    bind_rows(.id = "type") %>%
+    mutate_at("type", fct_rev)
+  
+  df %>%
+    ggplot(aes(year, deaths, colour = sex)) +
+    geom_line(aes(linetype = type)) +
+    geom_point(aes(y = point_val), na.rm = TRUE, show.legend = FALSE) +
+    geom_vline(xintercept = 2019,
+               colour = su_theme_cols("grey"),
+               linetype = "dotted") +
+    scale_x_continuous(breaks = seq(2010, 2040, 5)) +
+    annotate("text",
+             x = min(df$year),
+             y = max(df$deaths),
+             label = "Historical",
+             hjust = 0) +
+    annotate("text",
+             x = 2020,
+             y = max(df$deaths),
+             label = "Forecast",
+             hjust = 0) +
+    scale_y_continuous(labels = comma_format(accuracy = 1)) +
+    scale_linetype_manual(values = c("forecast" = "dashed",
+                                     "historical" = "solid"),
+                          guide = "none") +
+    labs(colour = "gender", x = "", y = "") +
+    theme(legend.position = c(1, 0),
+          legend.justification = c(1, 0),
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          legend.title = element_blank())
+})
+```
+
+## The oldest decedents account for most of the increase
+
+Figure 3 shows forecast deaths by age group. The greatest number of deaths is in those aged 85+.
+This is also the age group with the most significant expected increase. The needs of these older
+decedents will therefore have a greater impact on future demand.
+
+#### Figure 3 : Forecast deaths by age group - `r stp_name`
+
+```{r forecast deaths}
+forecast_deaths %>%
+  mutate_at("age_group",
+            cut,
+            breaks = c(0,18,65,75,85,Inf),
+            labels = c("0-17", "18-64","65-74","75-85","85+"),
+            right = FALSE) %>%
+  arrange(age_group, year) %>%
+  group_by(age_group, year) %>%
+  filter(year >= 2020) %>%
+  summarise_at("est_deaths", sum) %>%
+  mutate(first_year = ifelse(year == min(year),
+                             comma(est_deaths, accuracy = 1),
+                             NA),
+         last_year  = ifelse(year == max(year),
+                             paste0(comma(est_deaths, accuracy = 1),
+                                    " (",
+                                    percent(est_deaths / first(est_deaths) - 1,
+                                           accuracy = 1),
+                                   ")"),
+                             NA)) %>%
+  ungroup() %>%
+  ggplot(aes(year, est_deaths, colour = age_group)) +
+  geom_line(linetype = "dashed") +
+  geom_text_repel(aes(year-1, est_deaths, label = first_year),
+                  na.rm = TRUE,
+                  direction = "y",
+                  hjust = 1,
+                  size = 3,
+                  segment.colour = NA,
+                  point.padding = NA,
+                  show.legend = FALSE) +
+  geom_text_repel(aes(year+1, est_deaths, label = last_year),
+                  na.rm = TRUE,
+                  direction = "y",
+                  hjust = 0,
+                  size = 3,
+                  segment.colour = NA,
+                  point.padding = NA,
+                  show.legend = FALSE) +
+  labs(colour = "",
+       x = "",
+       y = "") +
+  scale_x_continuous(breaks = seq(2020, 2040, 5),
+                     expand = expansion(c(0.10, 0.15))) +
+  scale_colour_manual(values = su_theme_cols("slate",
+                                             "orange",
+                                             "charcoal",
+                                             "blue",
+                                             "red") %>% unname()) +
+  scale_y_continuous(labels = comma) +
+  theme(legend.position = "bottom",
+        legend.key = element_blank())
+``` 

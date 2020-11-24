@@ -1,0 +1,468 @@
+# Is there evidence of non-beneficial treatment in the final few weeks of life?
+
+For those who are dying time is an increasingly precious and scarce resource. What happens in the
+final few weeks of life is of paramount importance. In this section we consider non-beneficial
+treatments in the final few weeks of life. A systematic review of non-beneficial treatments,
+describes these as “a treatment that was administered with little or no hope of it having an effect,
+largely because of the underlying state of the patient’s health and the known or expected poor
+prognosis regardless of treatment”. In this section we consider non-beneficial treatments in the
+following two areas:
+
+- chemotherapy in the period four weeks prior to death
+- use of critical care by the decedent population
+
+## Is there evidence of non-beneficial use of chemotherapy?
+
+Chemotherapy overuse close to the time of death has been suggested as a potential indicator of
+poor quality of care. Additionally, a recent study found that palliative chemotherapy can in some
+cases both shorten and reduce quality of life.
+
+In the following sub-sections we consider chemotherapy decedents (those decedents who received
+chemotherapy treatment in the two years prior to death). We consider how many received
+chemotherapy close to death, where ‘close to death’ is defined as the period four weeks prior to
+death. Moving on to consider patterns of chemotherapy service use and start date of treatment
+before investigating differences by demographic and clinical subgroups.
+
+### One in six of those receiving chemotherapy did so in the last month of life
+
+```{r 7.1.1 figures}
+chemo_last_month <- mpi %>%
+  inner_join(filter(activity, chemotherapy_indicator == 1), by = "su_pat_id") %>%
+  group_by(su_pat_id) %>%
+  summarise(last_month = any(proximity_to_death_days <= 28), .groups = "drop") %>%
+  summarise(n = n(), across(last_month, sum), p = last_month / n)
+```
+
+Of `r comma(chemo_last_month$n)` chemotherapy decedents in the `r stp_name` `r comma(chemo_last_month$last_month)`
+(`r percent(chemo_last_month$p, accuracy = 1)`) received chemotherapy in the last four weeks of life.
+The remaining `r comma(chemo_last_month$n - chemo_last_month$last_month)`
+(`r percent(1 - chemo_last_month$p, accuracy = 1)`) did not receive chemotherapy
+their last four weeks. Characteristics of these two groups are compared in the following subsections.
+
+### Pattern of service use differs for those who have chemotherapy close to death
+
+Patterns differ significantly between the two groups. Figure 38 shows that for much of the two
+years those receiving chemotherapy in the last four weeks of life use comparatively less
+chemotherapy than those who do not. Their use of chemotherapy starts to increase more rapidly
+around the same time that use by the other group declines. It then peaks close to death. This is the
+same pattern as seen in the `r region_name` (Figure 39).
+
+#### Figure 38 : Chemotherapy use per 1,000 chemotherapy decedents by proximity to death in days - `r stp_name` STP
+
+```{r chemo activity split last month plot (stp)}
+chemo_activity_split_plot <- function(activity) {
+  activity %>%
+    filter(chemotherapy_indicator == 1) %>%
+    group_by(su_pat_id) %>%
+    mutate(last_month = any(proximity_to_death_days <= 28)) %>%
+    group_by(last_month) %>%
+    mutate(nd = n_distinct(su_pat_id)) %>%
+    count(proximity_to_death_days, nd) %>%
+    ungroup() %>%
+    mutate_at("nd", ~n / nd) %>%
+    complete(last_month, proximity_to_death_days, fill = list(nd = 0, n = 0)) %>%
+    filter(last_month | proximity_to_death_days > 28)  %>%
+    mutate_at("last_month",
+              ifelse,
+              "later - received in last 4 weeks",
+              "earlier - did not receive in last 4 weeks") %>%
+    ggplot(aes(proximity_to_death_days, nd, colour = last_month)) +
+    geom_smooth(fill = NA,
+                method = "loess",
+                formula = y ~ x) +
+    geom_vline(xintercept = 28, linetype = "dashed") +
+    scale_x_proximity_to_death_days() +
+    scale_y_continuous(labels = comma_format(scale = 1000),
+                       position = "right") +
+    theme(legend.position = "bottom",
+          axis.title.y.right = element_text(margin = margin(0, 0, 0, 10)),
+          panel.grid.major = element_line(linetype = "dotted",
+                                          colour = "lightgrey")) +
+    labs(x = "Proximity to death (Months)",
+         y = "Daily chemo activity\nper 1,000 decedents who had chemo",
+         colour = "") +
+    annotate("text",
+             x = 28,
+             y = 0,
+             label = "4 weeks prior to death",
+             hjust = 1.05,
+             vjust = -0.5,
+             size = 3)
+}
+
+chemo_activity_split_plot(activity)
+```
+
+#### Figure 39 : Chemotherapy use per 1,000 chemotherapy decedents by proximity to death in days - `r region_name` region
+
+```{r chemo activity split last month plot (region)}
+chemo_activity_split_plot(activity_region)
+```
+
+### People having chemotherapy close to death start treatment later
+
+```{r chemo when do people have first chemo split last month}
+first_chemo_split_plot <- function(activity) {
+  activity %>%
+    filter(chemotherapy_indicator == 1) %>%
+    group_by(su_pat_id) %>%
+    summarise(last_month = any(proximity_to_death_days <= 28),
+              proximity_to_death_days = max(proximity_to_death_days),
+              .groups = "drop_last") %>%
+    count(proximity_to_death_days, last_month) %>%
+    complete(proximity_to_death_days, last_month, fill = list(n = 0)) %>%
+    filter(last_month | proximity_to_death_days > 28) %>%
+    mutate_at("last_month",
+              ifelse,
+              "later - received in last 4 weeks",
+              "earlier - did not receive in last 4 weeks") %>%
+    group_by(last_month) %>%
+    arrange(desc(proximity_to_death_days)) %>%
+    mutate_at("n", cumsum) %>%
+    mutate(p = n / max(n)) %>%
+    # there is a slight dip in the first couple of days of data - this "cleans"
+    # the chart up a little
+    filter(proximity_to_death_days < 365*1.95) %>%
+    ggplot(aes(proximity_to_death_days, p, colour = last_month)) +
+    geom_step(lwd = 1) +
+    geom_vline(xintercept = 28, linetype = "dashed") +
+    scale_y_continuous(labels = percent,
+                       position = "right") +
+    scale_x_proximity_to_death_days() +
+    labs(x = "Proximity to death (Months)",
+         y = "Cumulative % of when people had\ntheir first chemo",
+         colour = "") +
+    theme(legend.position = "bottom",
+          panel.grid.major = element_line(linetype = "dashed",
+                                          colour = "lightgrey"),
+          axis.title.y.right = element_text(margin = margin(l = 10))) +
+    annotate("text",
+             x = 28,
+             y = 0,
+             label = "4 weeks prior to death",
+             hjust = 1.05,
+             vjust = -0.5,
+             size = 3)
+}
+```
+
+Those receiving chemotherapy in the last four weeks of life start chemotherapy much later. Figure
+40 shows the cumulative proportion of chemotherapy decedents by start of chemotherapy date. *[insert text]*. 
+
+#### Figure 40 : Cumulative proportion of chemotherapy decedents by start date - `r stp_name` STP
+
+```{r chemo when do people have first chemo split last month (stp)}
+first_chemo_split_plot(activity)
+```
+
+#### Figure 41 : Cumulative proportion of chemotherapy decedents by start date - `r region_name` region
+
+```{r chemo when do people have first chemo split last month (region)}
+first_chemo_split_plot(activity_region)
+```
+
+### People having late chemotherapy tend to be younger
+
+Figure 42 shows composition by age group of those in `r stp_name`
+receiving chemotherapy in the last four weeks of life. *[insert text]*.
+
+```{r chemo in last month of life binomial ci plot by age band}
+chemo_last_month_binomial_ci_plot_age <- function(activity) {
+  activity %>%
+    filter(chemotherapy_indicator == 1) %>%
+    inner_join(select(mpi_region, su_pat_id, age_band), by = "su_pat_id") %>%
+    mutate(last_month = ifelse(proximity_to_death_days <= 28, su_pat_id, NA)) %>%
+    group_by(age_band) %>%
+    summarise(d = n_distinct(su_pat_id),
+              n = n_distinct(last_month, na.rm = TRUE),
+              .groups = "drop_last") %>%
+    mutate(ci = map2(n, d, compose(as_tibble, BinomCI))) %>%
+    unnest(ci) %>%
+    mutate(mean_est = sum(n) / sum(d),
+           colour = case_when(
+             upr.ci < mean_est ~ "significantly lower",
+             lwr.ci > mean_est ~ "significantly higher",
+             TRUE ~ "no significant difference",
+           ) %>%
+             factor(levels = c("significantly lower",
+                               "no significant difference",
+                               "significantly higher"))) %>%
+    ggplot(aes(fct_rev(age_band), est, colour = colour)) +
+    geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci)) +
+    geom_point(aes(fill = after_scale(alpha(colour, 0.4)))) +
+    geom_hline(aes(yintercept = mean_est),
+               linetype = "dashed") +
+    coord_flip() +
+    scale_colour_discrete(drop = FALSE,
+                          guide = guide_legend(reverse = TRUE)) +
+    scale_y_continuous(labels = percent_format(accuracy = 1)) +
+    labs(x = "",
+         y = paste("% of patients who have chemo in last month before death",
+                   "Dashed line = average %",
+                   sep = "\n")) +
+    theme(axis.line.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          panel.grid.major.x = element_line(colour = "lightgrey",
+                                            linetype = "dotted"),
+          legend.position = c(0, 1),
+          legend.justification = c(0, 1),
+          legend.background = element_blank(),
+          legend.title = element_blank())
+}
+```
+
+#### Figure 42 : Proportion by age group receiving chemotherapy in the last four weeks of life - `r stp_name` STP
+
+```{r chemo in last month of life binomial ci plot by age band (stp)}
+chemo_last_month_binomial_ci_plot_age(activity)
+```
+
+#### Figure 43 : Proportion by age group receiving chemotherapy in the last four weeks of life - `r region_name` region
+
+```{r chemo in last month of life binomial ci plot by age band (region)}
+chemo_last_month_binomial_ci_plot_age(activity_region)
+```
+
+### People having late chemotherapy have certain types of cancer
+
+Figure 44 shows composition by cancer type of those in the `r stp_name`
+receiving chemotherapy in the last four weeks of life. *[insert text]*
+
+```{r chemo in last month of life binomial ci plot by cwt site}
+cwt_groups <- file.path("data","reference","cwt_groups.csv") %>%
+  read_csv(col_types = "cc")
+
+chemo_last_month_binomial_ci_plot_cwt <- function(activity) {
+  activity %>%
+    filter(chemotherapy_indicator == 1) %>%
+    inner_join(select(mpi_region, su_pat_id, primary_cod), by = "su_pat_id") %>%
+    mutate_at("primary_cod", ~ifelse(.x == "C770", .x, str_sub(.x, 1, 3))) %>%
+    inner_join(cwt_groups, by = c("primary_cod" = "icd10")) %>%
+    mutate(last_month = ifelse(proximity_to_death_days <= 28, su_pat_id, NA)) %>%
+    group_by(cancer_site) %>%
+    summarise(d = n_distinct(su_pat_id),
+              n = n_distinct(last_month, na.rm = TRUE),
+              .groups = "drop_last") %>%
+    mutate(ci = map2(n, d, compose(as_tibble, BinomCI))) %>%
+    unnest(ci) %>%
+    mutate(mean_est = sum(n) / sum(d),
+           colour = case_when(
+             upr.ci < mean_est ~ "significantly lower",
+             lwr.ci > mean_est ~ "significantly higher",
+             TRUE ~ "no significant difference",
+           ) %>%
+             factor(levels = c("significantly lower",
+                               "no significant difference",
+                               "significantly higher"))) %>%
+    mutate_at("cancer_site", fct_reorder, quo(-est)) %>%
+    ggplot(aes(fct_rev(cancer_site), est, colour = colour)) +
+    geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci)) +
+    geom_point(aes(fill = after_scale(alpha(colour, 0.4)))) +
+    geom_hline(aes(yintercept = mean_est),
+               linetype = "dashed") +
+    coord_flip() +
+    scale_colour_discrete(drop = FALSE,
+                          guide = guide_legend(reverse = TRUE)) +
+    scale_y_continuous(labels = percent_format(accuracy = 1)) +
+    labs(x = "",
+         y = paste("% of patients who have chemo in last month before death",
+                   "Dashed line = average %",
+                   sep = "\n")) +
+    theme(axis.line.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          panel.grid.major.x = element_line(colour = "lightgrey",
+                                            linetype = "dotted"),
+          legend.position = c(1, 0),
+          legend.justification = c(1, 0),
+          legend.background = element_blank(),
+          legend.title = element_blank())
+}
+```
+
+#### Figure 44 : Proportion by cancer type receiving chemotherapy in the last four weeks of life - `r stp_name` STP
+
+```{r chemo in last month of life binomial ci plot by cwt site (stp)}
+chemo_last_month_binomial_ci_plot_cwt(activity)
+```
+
+#### Figure 45 : Proportion by cancer type receiving chemotherapy in the last four weeks of life - `r region_name` region
+
+```{r chemo in last month of life binomial ci plot by cwt site (region)}
+chemo_last_month_binomial_ci_plot_cwt(activity_region)
+```
+
+## How is critical care used at end of life?
+
+Critical care units are crucially important, they are highly specialist wards that provide treatment
+and monitoring for people who become very unwell or are recovering from major surgery. 1 in
+every 8 decedents (sub-section 5.1) spend some time in critical care in the two years before they
+die. For some decedents, particularly when close to death, critical care may be non-beneficial. It is
+also a costly resource. This is important because in addition to a lack of benefit to patients use of
+critical care also has substantial resource implications for services.
+
+We now consider critical care in detail. We investigate how days in critical care are used by
+decedents and for how many decedents it is their place of death.
+
+### Critical care bed days are usually part of emergency care
+
+Critical care is usually a component of a longer hospital stay. Some decedents who spend time in
+this setting do so after elective surgery whilst others do so following emergency admission. For
+those decedents using critical care Figure 46 shows the amount of critical care days by source. It
+shows that:
+
+- More days are used by decedents with organ failure (1 in 3 of all critical care bed days) than
+other causes; and,
+- Most critical care bed days used by the decedent population are part of an emergency
+admission. Critical care days after elective admission are few but cancer is an exception, close
+to a third of critical care days for cancer decedents are part of an elective admission.
+- When compared to the `r region_name` (Figure 47) there are more critical care days used by organ
+failure decedents. Profiles by type of admission are similar across causes of death.
+
+#### Figure 46 : Proportion of critical care bed days by cause and source of admission - `r stp_name` stp
+
+```{r critical care bed days - admission source (stp)}
+activity %>%
+  inner_join(select(mpi, su_pat_id, group),
+             by = "su_pat_id") %>%
+  filter(group != "(Missing)",
+         pod_summary_group == "Critical Care Bed Day") %>%
+  distinct(bb5008_pseudo_apcs_ident_pseudo, group, cc_pod_summary_group) %>%
+  mutate_at(vars(group),
+            compose(fct_rev, fct_recode),
+            "Sudden\nDeath" = "Sudden Death",
+            "OTI" = "Other Terminal Illness") %>%
+  mutate_at("cc_pod_summary_group", str_replace, " ", "\n") %>%
+    mekko_chart(group, cc_pod_summary_group)
+```
+
+#### Figure 47 : Propotion of critical care bed days by cause and source of admission - `r region_name` region
+
+```{r critical care bed days - admission source (region)}
+activity_region %>%
+  inner_join(select(mpi_region, su_pat_id, group),
+             by = "su_pat_id") %>%
+  filter(group != "(Missing)",
+         pod_summary_group == "Critical Care Bed Day") %>%
+  distinct(bb5008_pseudo_apcs_ident_pseudo, group, cc_pod_summary_group) %>%
+  mutate_at(vars(group),
+            compose(fct_rev, fct_recode),
+            "Sudden\nDeath" = "Sudden Death",
+            "OTI" = "Other Terminal Illness") %>%
+  mutate_at("cc_pod_summary_group", str_replace, " ", "\n") %>%
+    mekko_chart(group, cc_pod_summary_group)
+```
+
+### Death in critical care varies greatly by cause of death
+
+Critical care stays end when a patient leaves critical care, either because they have recovered
+enough to be moved to another ward or because they have died in critical care. Figure 48 shows
+the amount of days spent in critical care by the eventual outcomes of:
+
+- Did not die in critical care – moved to non-critical care ward; or,
+- Died in critical care.
+
+It shows that for sudden death more than half of critical care days are for a stay which ends with
+death in critical care. The proportions are similarly high for other terminal illness and organ failure.
+Cancer has the smallest proportion of days in critical care ending in death. When compared to the
+`r region_name` (Figure 49) profiles of critical care days by cause are similar.
+
+#### Figure 48 : Proportion of critical care bed days by cause and outcome - `r stp_name` STP
+
+```{r critical care bed days - outcome (stp)}
+mpi %>%
+  filter(group != "(Missing)") %>%
+  mutate_at(vars(group),
+            compose(fct_rev, fct_recode),
+            "Sudden\nDeath" = "Sudden Death",
+            "OTI" = "Other Terminal Illness") %>%
+  drop_na(died_in_critical_care) %>%
+  mutate_at("died_in_critical_care", ~ifelse(.x == 1,
+                                             "Died in\ncritical care",
+                                             "Did not die in\ncritical care")) %>%
+  mekko_chart(group, died_in_critical_care)
+```
+
+#### Figure 49 : Proportion of critical care bed days by cause and outcome - `r region_name` region
+
+```{r critical care bed days - outcome (region)}
+mpi_region %>%
+  filter(group != "(Missing)") %>%
+  mutate_at(vars(group),
+            compose(fct_rev, fct_recode),
+            "Sudden\nDeath" = "Sudden Death",
+            "OTI" = "Other Terminal Illness") %>%
+  drop_na(died_in_critical_care) %>%
+  mutate_at("died_in_critical_care", ~ifelse(.x == 1,
+                                             "Died in\ncritical care",
+                                             "Did not die in\ncritical care")) %>%
+  mekko_chart(group, died_in_critical_care)
+```
+
+### Fewer frailty and cancer deaths happen in critical care
+
+We now consider stays, rather than days, in critical care. We investigate the proportion of critical
+care stays ending in death as a proportion of all decedent critical care stays. Figure 50 shows the
+proportions by cause. `r stp_name` are shown as larger yellow dots
+(with confidence interval – the range in which we can be reasonably confident that the true
+proportion lies); the `r region_name` is shown as smaller grey dots. It can be seen that:
+
+- Proportionally fewer critical care stays end in death for cancer and frailty patients. This reflects
+the nature of cancer and frailty patients who, with advanced incurable disease or pre-existing
+limitations of treatment, are less likely to benefit from critical care;
+- Proportionally more critical care stays end in death for the causes of other terminal illness,
+sudden death and organ failure; and,
+- The `r region_name` have fewer critical care stays ending in death for other terminal illness, cancer
+and frailty. However, these are within confidence intervals and are therefore not considered
+significantly different.
+
+#### Figure 50 : Proportion of critical care spells ending in death, confidence intervals indicated by whiskers – `r stp_name` (yellow dots), `r region_name` (grey dots)
+
+```{r critical care spells ending in death}
+pcnt_dot_comparison_plot <- function(mpi, mpi_region, category, value, reorder = TRUE) {
+  data <- list(
+    stp = mpi,
+    region = mpi_region
+  ) %>%
+    map(filter, {{category}} != "(Missing)", !is.na({{category}})) %>%
+    map(group_by, {{category}}) %>%
+    map_dfr(summarise,
+            numerator = sum({{value}}, na.rm = TRUE),
+            denominator = n(),
+            .groups = "drop",
+            .id = "type") %>%
+    mutate(across(type, fct_relevel, "stp", "region"),
+           x = map2(numerator, denominator, compose(as_tibble, BinomCI))) %>%
+    unnest_wider(x) %>%
+    rename({{value}} := est) %>%
+    mutate_at(vars(lwr.ci, upr.ci), ~ifelse(type == "region", NA, .x))
+
+  
+  if (reorder) {
+    data <- mutate(data, across({{category}}, fct_reorder, {{value}}))
+  }
+  
+  ggplot(data, aes({{category}}, {{value}}, fill = type)) +
+    geom_errorbar(aes(ymin = lwr.ci, ymax = upr.ci),
+                  na.rm = TRUE,
+                  width = 0.2) +
+    geom_point(aes(size = type), shape = "circle filled") +
+    coord_flip() +
+    scale_size_manual(values = c(5, 2)) +
+    scale_fill_manual(values = su_theme_cols()[c("orange", "slate")] %>%
+                        unname()) +
+    scale_y_continuous(labels = percent_format(accuracy = 1),
+                       expand = expansion(mult = c(0, 0.05))) +
+    expand_limits(y = 0) +
+    theme(axis.line = element_blank(),
+          axis.ticks.y = element_blank(),
+          panel.grid.major.x = element_line(colour = "grey",
+                                            linetype = "dotted"),
+          legend.position = c(1, 0),
+          legend.justification = c(1, 0),
+          legend.direction = "vertical") +
+    labs(x = "", y = "", fill = "", size = "")
+}
+
+pcnt_dot_comparison_plot(mpi, mpi_region, group, died_in_critical_care) +
+  ylab("% who died in critical care")
+```

@@ -1,0 +1,387 @@
+# How much is spent and what level of resource will be required in future?
+
+In earlier section (section 6) we have examined use of services from the perspective of activity. Now
+we consider use in terms of spend for `r stp_name` STP decedents in the
+two years before they die. We then move on to consider the level of resources required by future
+decedent populations from perspective of activity, spend and beds.
+
+##  Urgent care accounts for two-thirds of expenditure
+
+```{r 8.1 figures}
+stp_cost <- activity_costs %>%
+  filter(pod_type %in% c("Urgent Service Event",
+                         "Planned Contact",
+                         "Planned Admission",
+                         "Critical Care")) %>%
+  pull(cost) %>%
+  sum()
+avg_cost <- sum(activity_costs$cost) / nrow(mpi)
+```
+
+The calculated total hospital spend in the last two years of life in the `r stp_name`
+is `r number(stp_cost, scale = 1e-6, accuracy = 1, prefix = "£")` million.
+Figure 51 shows spend by activity type. Urgent services dominate  spend, consuming two-thirds of
+end of life resource.
+
+#### Figure 51 : Total spend by activity type in two years prior to death – `r stp_name` STP
+
+```{r total spend by activity type (stp)}
+activity_costs %>%
+  filter(!pod_type %in% c("Bed", "Device", "Drug", "Other")) %>%
+  group_by(pod_type) %>%
+  summarise_at("cost", sum) %>%
+  ggplot(aes(pod_type, cost)) +
+  geom_col(aes(colour = pod_type,
+               fill = after_scale(alpha(colour, 0.4))), show.legend = FALSE) +
+  geom_text(aes(label = money_format(cost)),
+                vjust = -0.35) +
+  scale_y_continuous(labels = money_format,
+                     expand = expansion(c(0, 0.05))) +
+  labs(x = "", y = "")
+```
+
+## STP expenditure differs widely in the `r region_name`
+
+The average spend in the last two years of life in the `r stp_name` is
+`r comma(avg_cost, prefix = "£")` per decedent. To put this into context, government spend on
+hospital care per year per head is £1,225.
+
+Figure 52 shows for each STP average spend and confidence interval – the range in which we can
+be reasonably confident that the true average lies. *[insert text]*.
+
+#### Figure 52 : Average spend per decedent in two years prior to death – by STP with `r region_name` regional average and STP confidence intervals indicated by whiskers 
+
+```{r average spend by stp}
+mpi_region %>%
+  left_join(activity_costs_region, by = "su_pat_id") %>%
+  group_by(stp, su_pat_id) %>%
+  summarise_at("cost", sum) %>%
+  modify_at("cost", replace_na, 0) %>%
+  summarise(ci = list(cost) %>% map(DescTools::MeanCI), .groups = "drop") %>%
+  unnest_wider(ci) %>%
+  inner_join(stps, by = c("stp" = "stp18cd")) %>%
+  mutate_at("stp18nm", fct_reorder, quo(mean)) %>%
+  mutate(colour = ifelse(stp == params$stp, "orange", "charcoal")) %>%
+  mutate(region = sum(activity_costs_region$cost) / nrow(mpi_region)) %>%
+  mutate(region_text = ifelse(mean == min(mean),
+                              paste0(region_name, "\n",
+                                     comma(region, prefix = "£", accuracy = 1)),
+                              NA)) %>%
+  ggplot(aes(mean, stp18nm)) +
+  geom_col(aes(colour = colour, fill = after_scale(alpha(colour, 0.4))),
+           show.legend = FALSE) +
+  geom_errorbar(aes(xmin = lwr.ci, xmax = upr.ci), width = 0.5) +
+  geom_text(aes(x = 0, label = comma(mean, prefix = "£", accuracy = 1)),
+            hjust = -0.15) +
+  geom_vline(aes(xintercept = region)) +
+  geom_text(aes(x = region, label = region_text),
+            na.rm = TRUE,
+            size = 3,
+            hjust = 0.6,
+            vjust = -0.2,
+            angle = 270) +
+  scale_colour_manual(values = su_theme_cols()) +
+  scale_x_continuous(labels = comma_format(prefix = "£", accuracy = 1)) +
+  labs(x = "Average spend per Decedent", y = "") +
+  theme(axis.line = element_blank(),
+        axis.ticks.y = element_blank())
+```
+
+## Spend increases as death nears, but reduces in the final days
+
+The spend curve by proximity to death shown in Figure 53 is similar to the utilisation curve of
+urgent service events seen in sub-section 6.1.1. There is however one key difference noticeable
+when we zoom in on the final month of life in Figure 54. This shows that for the `r region_name`, unlike
+service use where activity peaks on day of death, spend peaks a few days before death. Activity still
+takes place but the investigations, treatments and procedures which drive costs start to reduce.
+Across the two years the rate and pattern of spend is generally the same as the `r region_name`. *[insert text]*.
+
+#### Figure 53 : Average daily spend per decedent over two years - the `r stp_name` (yellow dots and line) and the `r region_name` region (grey line)
+
+```{r average daily spend}
+average_daily_spend_plots <- local({
+  df <- list(
+    stp = activity_costs,
+    region = activity_costs_region
+  ) %>%
+    map(group_by, proximity_to_death_days) %>%
+    map_dfr(summarise_at, "cost", sum, .id = "type") %>%
+    pivot_wider(names_from = type, values_from = cost) %>%
+    mutate_at("stp", `/`, nrow(mpi)) %>%
+    mutate_at("region", `/`, nrow(mpi_region))
+  
+  c(Inf, 31) %>%
+    map(function(.x) {
+      p <- df %>%
+        filter(proximity_to_death_days < .x) %>%
+        ggplot(aes(proximity_to_death_days, stp)) +
+        geom_point(colour = su_theme_cols("orange"),
+                   size = 1,
+                   fill = alpha(su_theme_cols("orange"), 0.4),
+                   shape = "circle filled") +
+        geom_smooth(method = "loess",
+                    formula = y ~ x,
+                    span = 0.2,
+                    colour = su_theme_cols("orange"),
+                    fill = NA) +
+        geom_smooth(aes(y = region),
+                    method = "loess",
+                    formula = y ~ x,
+                    span = 0.2,
+                    colour = after_scale(alpha(su_theme_cols("charcoal"), 0.4)),
+                    linetype = "solid",
+                    fill = NA) +
+        scale_y_continuous(labels = number_format(prefix = "£"),
+                           position = "right") +
+        theme(axis.title.y.right = element_text(margin = margin(l = 10))) +
+        ylab("Average cost per decedent")
+      
+      if(is.finite(.x)) {
+        p <- p +
+          scale_x_continuous(trans = "reverse",
+                             breaks = seq(0, 31, by = 7)) +
+          coord_cartesian(xlim = c(.x, 0)) +
+          xlab("Proximity to Death (Days)")
+      } else {
+        p <- p +
+          scale_x_proximity_to_death_days() +
+          xlab("Proximity to Death (Months)")
+      }
+      
+      p
+    })
+})
+average_daily_spend_plots[[1]]
+```
+
+#### Figure 54 : Average daily spend per decedent in final month - `r stp_name` STP (yellow dots and line) and the `r region_name` region (grey line)
+
+```{r average daily spend (last month)}
+average_daily_spend_plots[[2]]
+```
+
+## How will service use and expenditure evolve in future?
+
+The earlier section (section 6) showed how much service use there was for those who died. Now we
+consider how much will be used in future. We examine what levels of future use will be if current
+patterns of service and resource use continue. We view these at five-year intervals and by age group
+for activity, spend and beds.
+
+Future levels of service use in `r stp_name` were predicted by applying
+the current utilisation rates to future expected decedent populations. If utilisation rates were to
+change then so too would the predicted levels. 
+
+```{r forecast spend}
+average_costs_per_person <- activity_costs %>%
+  filter(pod_type != "Bed") %>%
+  inner_join(mpi, by = "su_pat_id") %>%
+  mutate_at("age", pmin, 90) %>%
+  mutate(activity_year = as.numeric(proximity_to_death_days >= 365)) %>%
+  group_by(activity_year, pod_type, age, sex) %>%
+  summarise(cost = sum(cost), .groups = "drop") %>%
+  complete(nesting(pod_type),
+           activity_year = 0:1,
+           age = seq(18, 90),
+           sex,
+           fill = list(cost = 0)) %>%
+  inner_join(count(mpi, age, sex, name = "decedents"), by = c("age", "sex"))
+
+average_costs_per_person_sum <- forecast_deaths %>%
+  inner_join(average_costs_per_person, by = c("sex", "age_group" = "age")) %>%
+  mutate_at("year", ~.x - activity_year) %>%
+  filter(!year %% 5) %>%
+  filter(age_group >= 18) %>%
+  mutate_at("age_group",
+            cut,
+            c(0, 18, 65, 75, 85, Inf),
+            labels = levels(mpi$age_band),
+            right = FALSE) %>%
+  group_by(year, age_group, pod_type) %>%
+  summarise(across(c("est_deaths", "cost", "decedents"), sum), .groups = "drop_last")
+
+forecast_spend_plots <- bind_rows(
+  average_costs_per_person_sum,
+  average_costs_per_person_sum %>%
+    group_by(est_deaths, decedents, .add = TRUE) %>%
+    summarise_at("cost", sum) %>%
+    mutate(pod_type = "All Activity")
+) %>%
+  ungroup() %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c("All Activity",
+              levels(activity_costs$pod_type) %>% subset(., . != "Bed"))) %>%
+  mutate(cost = ifelse(decedents, cost / decedents * est_deaths, 0)) %>%
+  group_nest(pod_type) %>%
+  mutate(plot = map(data, function(data) {
+    lbls <- data %>%
+      group_by(year) %>%
+      summarise_at("cost", sum) %>%
+      arrange(year) %>%
+      mutate(act_sum_lbl = comma(cost, prefix = "£", accuracy = .1, scale = 1e-6, suffix = "m"),
+             pcnt_change_lbl = percent(ifelse(year == 2020,
+                                              NA,
+                                              cost / first(cost) - 1),
+                                       accuracy = .1))
+  
+    data %>%
+      ggplot(aes(year, cost)) +
+      geom_col(aes(fill = fct_rev(age_group)),
+               alpha = 0.4,
+               colour = "white",
+               position = "stack") +
+      geom_text(data = lbls, aes(label = act_sum_lbl), vjust = -.3, size = 3.5, na.rm = TRUE) +
+      geom_text(data = lbls, aes(label = pcnt_change_lbl), vjust = 1.3, size = 3.5, na.rm = TRUE) +
+      scale_fill_discrete(guide = guide_legend(reverse = TRUE),
+                          reverse = TRUE) +
+      scale_y_continuous(labels = money_format,
+                         expand = expansion(c(0, 0.15))) +
+      labs(fill = "", y = "Spend (£million)") +
+      theme(legend.position = "bottom")
+  }))
+
+forecast_data <- forecast_activity %>%
+  mutate_at("pod_type",
+            ~ifelse(pod_summary_group == "Critical Care Bed Day",
+                    "Critical Care Bed Day",
+                    as.character(.x))) %>%
+  mutate_at("pod_type",
+            fct_relevel,
+            c(levels(activity$pod_type), "Critical Care Bed Day")) %>%
+  filter(year %% 5 == 0) %>%
+  group_by(age_band, year, pod_type) %>%
+  summarise_at(vars(est_deaths, activity), sum) %>%
+  ungroup()
+
+forecast_activity_plots <- forecast_data %>%
+  group_nest(pod_type) %>%
+  mutate(plot = map(data, function(data) {
+    lbls <- data %>%
+      group_by(year) %>%
+      summarise_at("activity", sum) %>%
+      arrange(year) %>%
+      mutate(act_sum_lbl = comma(activity, accuracy = 1),
+             pcnt_change_lbl = percent(ifelse(year == 2020,
+                                              NA,
+                                              activity / first(activity) - 1),
+                                       accuracy = .1))
+    
+    data %>%
+      ggplot(aes(year, activity)) +
+      geom_col(aes(fill = fct_rev(age_band)),
+               alpha = 0.4,
+               colour = "white",
+               position = "stack") +
+      geom_text(data = lbls, aes(label = act_sum_lbl), vjust = -.3, na.rm = TRUE) +
+      geom_text(data = lbls, aes(label = pcnt_change_lbl), vjust = 1.3, size = 3.5, na.rm = TRUE) +
+      scale_y_continuous(labels = scales::comma_format(scale = .001),
+                         expand = expansion(c(0, 0.15))) +
+      scale_fill_discrete(guide = guide_legend(reverse = TRUE),
+                          reverse = TRUE) +
+      labs(fill = "",
+           y = "Activity (1,000's)") +
+      theme(legend.position = "bottom")
+  }))
+```
+
+#### Urgent services activity and expenditure is set to increase
+
+By 2030 urgent service events will have increased by *[insert %]* for activity (Figure 55) and *[insert %]* for spend
+(Figure 56). Older decedents (those aged 85+) are the largest share of urgent services and growth
+is driven by increasing number of decedents in this age group.
+
+#### Figure 55 : Urgent service events future use at five-year intervals by decedent age group (percentages relative to 2020)
+
+```{r forecast activity - urgent service event}
+filter(forecast_activity_plots, pod_type == "Urgent Service Event")$plot[[1]]
+```
+
+#### Figure 56 : Urgent service events future spend at five-year intervals by decedent age group (percentages relative to 2020)
+
+```{r forecast spend - urgent service event}
+filter(forecast_spend_plots, pod_type == "Urgent Service Event")$plot[[1]]
+```
+
+### Future use and spend grow steadily for planned contacts
+
+Jointly the two oldest age groups (those 75-84 and those aged 85+) are responsible for over half of
+planned contacts. For both activity (Figure 57) and spend (Figure 58). Growth is driven by
+increasing number of decedents in the oldest age group.
+
+#### Figure 57 : Planned contact future use at five-year intervals by decedent age group (percentages relative to 2020)
+
+```{r forecast activity - planned contacts}
+filter(forecast_activity_plots, pod_type == "Planned Contact")$plot[[1]]
+```
+
+#### Figure 58 : Planned contact future spend at five-year intervals by decedent age group (percentages relative to 2020)
+
+```{r forecast spend - planned contacts}
+filter(forecast_spend_plots, pod_type == "Planned Contact")$plot[[1]]
+```
+
+### Future use and spend remain steady for planned admissions
+
+Future levels of planned admissions remain steady for activity (Figure 59) and grow slowly for
+spend (Figure 60). The increase in spend is proportionally more than the increase in activity.
+Although younger age groups feature more heavily in planned admissions the growth in spend is
+driven by decedents in the oldest age group.
+
+#### Figure 59 : Planned admission future use at five-year intervals by decedent age group (percentages relative to 2020)
+
+```{r forecast activity - planned admission}
+filter(forecast_activity_plots, pod_type == "Planned Admission")$plot[[1]]
+```
+
+#### Figure 60 : Planned admission future spend at five-year intervals by decedent age group (percentages relative to 2020)
+
+```{r forecast spend - planned admission}
+filter(forecast_spend_plots, pod_type == "Planned Admission")$plot[[1]]
+```
+
+### Increased demand for bed days will put pressure on capacity
+
+Future bed days have similar growth to urgent service events. By 2030 they will have increased by
+*[insert %]* (Figure 61). Older decedents (those aged 85+) are responsible for the largest share of bed days
+and growth is also driven by the increasing number of decedents in this age group. By 2030 to
+meet growth in bed days `r stp_name` will require an additional *[insert #]* beds (Table 3).
+
+Costs for future bed days are not calculated separately. They are included in cost of admission.
+
+#### Figure 61 : Bed day future level of use at five-year intervals by decedent age group (percentages relative to 2020)
+
+```{r forecast activity - bed}
+filter(forecast_activity_plots, pod_type == "Bed")$plot[[1]]
+```
+
+#### Table 3 : Additional beds required to meet future growth in bed days
+
+```{r forecast bed table}
+forecast_data %>%
+  filter(pod_type == "Bed") %>%
+  group_by(year) %>%
+  summarise(across(activity, sum), .groups = "drop") %>%
+  mutate(across(activity, ~round((.x - first(.x)) / (365*.9)))) %>%
+  filter(year > 2020) %>%
+  pivot_wider(names_from = year, values_from = activity) %>%
+  mutate(year = "Extra Beds") %>%
+  relocate(year, .before = everything())
+```
+
+### Future use and spend reduces for critical care
+
+Future level of critical care bed days reduce for both days (Figure 62) and spend (Figure 63). The
+youngest group in the decedent population (aged 18-64) have the largest share of critical care
+days. The reduction is driven by the decreasing number of decedents in this age group.
+
+#### Figure 62 : Critical care bed day future use at five-year intervals by decedent age group (percentages relative to 2020)
+
+```{r forecast activity - critical care bed day}
+filter(forecast_activity_plots, pod_type == "Critical Care Bed Day")$plot[[1]]
+```
+
+#### Critical care bed day future spend at five-year intervals by decedent age group (percentages relative to 2020)
+
+```{r forecast spend - critical care bed day}
+filter(forecast_spend_plots, pod_type == "Critical Care")$plot[[1]]
+```
