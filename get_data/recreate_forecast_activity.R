@@ -1,9 +1,8 @@
 library(tidyverse)
 library(fst)
 
-forecast_deaths <- file.path("data", "sensitive", "forecast_deaths.fst") %>%
-  read_fst() %>%
-  as_tibble()
+forecast_deaths <- file.path("data", "reference", "forecast_deaths.csv") %>%
+  read_csv(col_types = "dcdcd")
 
 mpi_region <- read_fst(file.path("data", "sensitive", "mpi.fst")) %>%
   as_tibble() %>%
