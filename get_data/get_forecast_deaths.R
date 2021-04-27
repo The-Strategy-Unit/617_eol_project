@@ -39,7 +39,7 @@ if (!file.exists(file.path("data",
                      "%2fdeathsz4",
                      "%2f2018based/2018snppdeaths.zip")
     tf_snpp <- tempfile(fileext = str_match(snpp2018,
-                                            r"(\.[a-zA-Z0-9]+$)")[[1]])
+                                            "\\.[a-zA-Z0-9]+$")[[1]])
     download.file(snpp2018, tf_snpp, mode = "wb")
     unzip(tf_snpp,
           c("2018 SNPP Deaths females.csv",
@@ -71,7 +71,7 @@ if (!file.exists(sapefile)) {
                      "%2flowersuperoutputareamidyearpopulationestimates",
                      "%2fmid2018sape21dt1a",
                      "/sape21dt1amid2018on2019lalsoasyoaestimatesformatted.zip")
-    tf_sape <- tempfile(fileext = str_match(sape2018, r"(\.[a-zA-Z0-9]+$)")[[1]])
+    tf_sape <- tempfile(fileext = str_match(sape2018, "(\\.[a-zA-Z0-9]+$")[[1]])
     download.file(sape2018, tf_sape, mode = "wb")
     unzip(tf_sape,
           exdir = file.path("data", "reference"))
@@ -81,13 +81,13 @@ if (!file.exists(sapefile)) {
 }
 
 est_deaths <- file.path("data", "reference") %>%
-  dir(pattern = r"(^2018 SNPP Deaths .*\.csv$)",
+  dir(pattern = "^2018 SNPP Deaths .*\\.csv$",
       full.names = TRUE) %>%
   map_dfr(read_csv,
           col_types = paste(c(rep("c", 5),
                               rep("n", 25)),
                             collapse = "")) %>%
-  pivot_longer(cols = matches(r"(\d{4})"),
+  pivot_longer(cols = matches("\\d{4}"),
                names_to = "year",
                values_to = "est_deaths") %>%
   mutate_at("year", as.numeric) %>%
@@ -95,7 +95,7 @@ est_deaths <- file.path("data", "reference") %>%
   filter(age_group != "All ages") %>%
   mutate_at("age_group",
             compose(as.numeric, str_replace),
-            r"(^(\d+).*$)", r"(\1)") %>%
+            "^(\\d+).*$", "\\1") %>%
   select(-component) %>%
   filter(area_code %>% str_detect("E0[6-9]"))
 
@@ -144,7 +144,7 @@ forecast_deaths <- est_deaths %>%
   group_by(year, sex, age_group, stp19cd) %>%
   summarise_at("est_deaths", sum) %>%
   rename(stp = stp19cd) %>%
-  filter(stp %>% str_detect(r"(E540000(1\d|20))")) %>%
+  filter(stp %>% str_detect("E540000(1\\d|20)")) %>%
   bind_rows(.,
             summarise_at(., "est_deaths", sum) %>%
               mutate(stp = "Region")) %>%

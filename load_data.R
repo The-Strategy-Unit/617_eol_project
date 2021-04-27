@@ -75,7 +75,7 @@ setup_env$load_data <- function(stp, region_report = FALSE) {
 
   env$historical_deaths <- file.path("data",
                                      "sensitive",
-                                     "historical_deaths.fst") %>%
+                                     "historic_deaths.fst") %>%
     read_fst() %>%
     as_tibble() %>%
     filter(stp == ifelse({{region_report}}, "Region", {{stp}}))

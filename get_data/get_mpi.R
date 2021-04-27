@@ -20,7 +20,7 @@ tryCatch({
   # create connection to DB server
   con <- dbConnect(odbc(), Driver = "SQL Server", server = "PRODNHSESQL101", Database = "NHSE_BB_5008")
 
-  tbl(con, in_schema("[GEM\\JWiltshire]", "MPI")) %>%
+  tbl(con, sql("SELECT * FROM [GEM\\JWiltshire].MPI")) %>%
     select(su_pat_id = SUPatID,
            age = DER_AGE_AT_DEATH,
            sex = DEC_SEX,

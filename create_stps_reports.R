@@ -14,7 +14,7 @@ if (!dir.exists("output")) {
 cat("Starting R Sessions: ")
 tic()
 
-cl <- makePSOCKcluster(10, rscript_args = "--no-init-file")
+cl <- makePSOCKcluster(24, rscript_args = "--no-init-file")
 plan(cluster, workers = cl)
 
 toc()
@@ -30,40 +30,38 @@ render_report <- function(stp18cd, stp18nm, region_report) {
 
     filename <- str_replace_all(filename, " ", "_")
 
-    file.copy("eol_report.Rmd", paste0(filename, ".Rmd"))
-
-    tryCatch({
-      render(input = paste0(filename, ".Rmd"),
-             output_format = "StrategyUnitTheme::su_document",
-             output_file = paste0(filename, ".docx"),
-             output_dir = "output",
-             envir = new.env(),
-             params = list(stp = stp18cd, region_report = region_report))
-    }, finally = {
-      unlink(paste0(filename, ".Rmd"))
+    withr::local_file(paste0(filename, ".Rmd"), {
+      file.copy("eol_report.Rmd", paste0(filename, ".Rmd"))
+        render(input = paste0(filename, ".Rmd"),
+               output_format = "StrategyUnitTheme::su_document",
+               output_file = paste0(filename, ".docx"),
+               output_dir = "output",
+               envir = new.env(),
+               params = list(stp = stp18cd, region_report = region_report))
     })
   })
   stp18cd
 }
 
-stps <- file.path("data", "reference", "stps.csv") %>%
-  read_csv(col_types = "cc") %>%
-  semi_join(file.path("data", "reference", "stp18cd_to_nhser18cd.csv") %>%
-              read_csv(col_types = "cc") %>%
-    semi_join(file.path("data", "reference", "nhser18.csv") %>%
-                read_csv(col_types = "cc") %>%
-                filter(nhser18nm == "Midlands"),
-              by = "nhser18cd"),
-    by = "stp18cd") %>%
-  mutate(region_report = FALSE) %>%
-  bind_rows(.,
-            head(., 1) %>%
-              mutate(stp18nm = "Midlands", region_report = TRUE))
+stps <- bind_rows(
+  file.path("data", "reference", "stps.csv") %>%
+    read_csv(col_types = "cc") %>%
+    mutate(region_report = FALSE),
+
+  file.path("data", "reference", "stp18cd_to_nhser18cd.csv") %>%
+    read_csv(col_types = "cc") %>%
+    inner_join(file.path("data", "reference", "nhser18.csv") %>%
+                 read_csv(col_types = "cc"),
+               by = "nhser18cd") %>%
+    group_by(nhser18cd) %>%
+    summarise(across(everything(), first)) %>%
+    transmute(stp18cd, stp18nm = nhser18nm, region_report = TRUE)
+)
 
 # Run individually ----
 {
   tic()
-  res <- future_pmap(stps, safely(render_report)) %>%
+  res <- future_pmap(stps, safely(render_report), .options = furrr_options(seed = 1437)) %>%
     map_chr("result")
   toc()
 

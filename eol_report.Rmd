@@ -4,7 +4,8 @@ author: "The Strategy Unit"
 output:
   StrategyUnitTheme::su_document: default
 params:
-  stp: E54000048
+  stp: E54000053
+  region_report: false
   include_forecasts: false
   include_costs: false
 ---
@@ -29,7 +30,9 @@ if (!knitr::is_latex_output()) {
 # all setup should happen in setup.R that could be shared logic between files
 invisible(local({
   source("setup.R")
-  load_data(params$stp)
+  stp <- params$stp
+  region_report <- params$region_report
+  load_data(stp, region_report)
 }))
 ```
 
