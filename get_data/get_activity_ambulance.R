@@ -8,8 +8,7 @@ library(fst)
 tryCatch({
   con <- dbConnect(odbc(), Driver = "SQL Server", server = "PRODNHSESQL101", Database = "NHSE_BB_5008")
 
-  tbl(con,
-      in_schema("[GEM\\JWiltshire]", "ActivityAE")) %>%
+  tbl(con, sql("SELECT * FROM [GEM\\JWiltshire].ActivityAE")) %>%
     filter(ProximityToDeathDays > 0) %>%
     count(arrival_mode = AEA_Arrival_Mode,
           ProximityToDeathDays,

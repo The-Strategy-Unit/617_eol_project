@@ -11,8 +11,7 @@ mpi <- read_fst(file.path("data", "sensitive", "mpi.fst")) %>%
 tryCatch({
   con <- dbConnect(odbc(), Driver = "SQL Server", server = "PRODNHSESQL101", Database = "NHSE_BB_5008")
 
-  activity <- tbl(con,
-                  in_schema("[GEM\\JWiltshire]", "Activity0AllMIDS")) %>%
+  activity <- tbl(con, sql("SELECT * FROM [GEM\\JWiltshire].Activity0All")) %>%
     select(-BB5008_Pseudo_ID,
            -ProximityToDeathDaysCategory,
            -Act,

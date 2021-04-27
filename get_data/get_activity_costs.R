@@ -11,7 +11,7 @@ tryCatch({
   con <- dbConnect(odbc(), Driver = "SQL Server", server = "PRODNHSESQL101", Database = "NHSE_BB_5008")
 
   con %>%
-    tbl(in_schema("[GEM\\JWiltshire]", "Activity1AllMidsCost")) %>%
+    tbl(sql("SELECT * FROM [GEM\\JWiltshire].Activity1AllMidsCost")) %>%
     select(-BB5008_Pseudo_ID) %>%
     collect() %>%
     clean_names() %>%

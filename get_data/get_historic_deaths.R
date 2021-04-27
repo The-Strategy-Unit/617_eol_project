@@ -9,7 +9,7 @@ tryCatch({
   con <- dbConnect(odbc(), Driver = "SQL Server", server = "PRODNHSESQL101", Database = "NHSE_BB_5008")
 
   con %>%
-    tbl(in_schema("[GEM\\JWiltshire]", "HistoricalDeathsOutput")) %>%
+    tbl(sql("SELECT * FROM [GEM\\JWiltshire].HistoricalDeathsOutput")) %>%
     filter(STPCode != "#N/A") %>%
     collect() %>%
     pivot_longer(cols = matches("D\\d{4}"),
