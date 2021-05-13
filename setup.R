@@ -4,6 +4,7 @@ setup_env <- new.env()
 
 # library calls ----
 library(extrafont)
+library(magrittr)
 library(tidyverse)
 library(scales)
 library(DescTools)
