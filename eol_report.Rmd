@@ -4,10 +4,10 @@ author: "The Strategy Unit"
 output:
   StrategyUnitTheme::su_document: default
 params:
-  stp: E54000053
+  stp: E54000033
   region_report: false
-  include_forecasts: false
-  include_costs: false
+  include_forecasts: true
+  include_costs: true
 ---
 
 ```{r setup, include=FALSE}

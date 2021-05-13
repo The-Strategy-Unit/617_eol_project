@@ -33,7 +33,7 @@ activity_costs %>%
   ggplot(aes(pod_type, cost)) +
   geom_col(aes(colour = pod_type,
                fill = after_scale(alpha(colour, 0.4))), show.legend = FALSE) +
-  geom_text(aes(label = money_format(cost)),
+  geom_text(aes(label = comma(cost, prefix = "£", accuracy = 1, scale = 1e-6, suffix = "m")),
                 vjust = -0.35) +
   scale_y_continuous(labels = money_format,
                      expand = expansion(c(0, 0.05))) +
@@ -378,10 +378,4 @@ days. The reduction is driven by the decreasing number of decedents in this age 
 
 ```{r forecast activity - critical care bed day}
 filter(forecast_activity_plots, pod_type == "Critical Care Bed Day")$plot[[1]]
-```
-
-#### Critical care bed day future spend at five-year intervals by decedent age group (percentages relative to 2020)
-
-```{r forecast spend - critical care bed day}
-filter(forecast_spend_plots, pod_type == "Critical Care")$plot[[1]]
 ```
