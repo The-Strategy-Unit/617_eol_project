@@ -59,15 +59,15 @@ mpi_region %>%
   modify_at("cost", replace_na, 0) %>%
   summarise(ci = list(cost) %>% map(DescTools::MeanCI), .groups = "drop") %>%
   unnest_wider(ci) %>%
-  inner_join(stps, by = c("stp" = "stp18cd")) %>%
-  mutate_at("stp18nm", fct_reorder, quo(mean)) %>%
+  inner_join(stps, by = c("stp" = "stp20cd")) %>%
+  mutate_at("stp20nm", fct_reorder, quo(mean)) %>%
   mutate(colour = ifelse(stp == params$stp, "orange", "charcoal")) %>%
   mutate(region = sum(activity_costs_region$cost) / nrow(mpi_region)) %>%
   mutate(region_text = ifelse(mean == min(mean),
                               paste0(region_name, "\n",
                                      comma(region, prefix = "£", accuracy = 1)),
                               NA)) %>%
-  ggplot(aes(mean, stp18nm)) +
+  ggplot(aes(mean, stp20nm)) +
   geom_col(aes(colour = colour, fill = after_scale(alpha(colour, 0.4))),
            show.legend = FALSE) +
   geom_errorbar(aes(xmin = lwr.ci, xmax = upr.ci), width = 0.5) +

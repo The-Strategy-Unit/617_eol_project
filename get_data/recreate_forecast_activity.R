@@ -2,18 +2,16 @@ library(tidyverse)
 library(fst)
 
 forecast_deaths <- file.path("data", "reference", "forecast_deaths.csv") %>%
-  read_csv(col_types = "dcdcdc")
+  read_csv(col_types = "ncnccn")
 
-mpi_region <- read_fst(file.path("data", "sensitive", "mpi.fst")) %>%
-  as_tibble() %>%
-  filter(stp %in% unique(forecast_deaths$stp)) %>%
-  mutate_at("su_pat_id", as.numeric)
+mpi <- read_fst(file.path("data", "sensitive", "mpi.fst")) %>%
+  as_tibble()
 
 activity <- file.path("data", "sensitive", "activity.fst") %>%
   read_fst() %>%
   as_tibble()
 
-death_counts <- mpi_region %>%
+death_counts <- mpi %>%
   mutate_at("group", as.character) %>%
   mutate_at("sex", as.character) %>%
   mutate_at("age", ~case_when(.x > 90 ~ 90,
@@ -22,7 +20,7 @@ death_counts <- mpi_region %>%
   count(stp, sex, age, name = "deaths")
 
 activity_counts <- activity %>%
-  inner_join(select(mpi_region, su_pat_id, sex, age, stp),
+  inner_join(select(mpi, su_pat_id, sex, age, stp),
              by = "su_pat_id") %>%
   mutate(activity_year = as.numeric(proximity_to_death_days >= 365)) %>%
   mutate_at("age", ~case_when(.x > 90 ~ 90,
@@ -32,25 +30,14 @@ activity_counts <- activity %>%
   count(stp, pod_type, pod_summary_group, activity_year, age, sex,
         name = "activity")
 
-activity_column_combinations <- list(type = activity_counts %>%
-                                       distinct(pod_type, pod_summary_group) %>%
-                                       pmap(paste, sep = "|"),
-                                     stp = unique(activity_counts$stp),
-                                     activity_year = c(0, 1),
-                                     age = 50:90,
-                                     sex = c("female", "male")) %>%
-  cross_df() %>%
-  separate(type, c("pod_type", "pod_summary_group"), sep = "\\|")
+utilisation_rates <- activity_counts %>%
+  inner_join(death_counts, by = c("stp", "sex", "age")) %>%
+  complete(nesting(pod_type, pod_summary_group), stp, activity_year, age, sex,
+           fill = list(activity = 0)) %>%
+  mutate(utilisation = activity / deaths)
 
-utilisation_rates <- left_join(activity_column_combinations,
-                               inner_join(activity_counts,
-                                          death_counts,
-                                          by = c("stp", "sex", "age")) %>%
-                                 mutate(utilisation = activity/deaths),
-                               by = colnames(activity_column_combinations)) %>%
-  replace_na(list(utilisation = 0,
-                  activity = 0,
-                  deaths = 0))
+stp_to_nhser <- file.path("data", "reference", "stp20cd_to_nhser20cd.csv") %>%
+  read_csv(col_types = "c_c_")
 
 forecast_activity <- inner_join(
   forecast_deaths %>%
@@ -73,8 +60,10 @@ forecast_activity <- inner_join(
                         right = FALSE)) %>%
   mutate_at("year", ~.x - activity_year) %>%
   mutate(activity = est_deaths * utilisation) %>%
-  group_by(age_band, year, pod_type, pod_summary_group, stp) %>%
-  summarise_at(vars(est_deaths, activity), sum) %>%
+  inner_join(stp_to_nhser, by = c("stp" = "stp20cd")) %>%
+  rename(region = nhser20cd) %>%
+  group_by(age_band, year, pod_type, pod_summary_group, region, stp) %>%
+  summarise_at(vars(est_deaths, activity), sum, na.rm = TRUE) %>%
   filter(year > 2019, year < 2041)
 
 forecast_activity <- bind_rows(

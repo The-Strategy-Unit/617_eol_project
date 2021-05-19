@@ -7,24 +7,20 @@ setup_env$load_data <- function(stp, region_report = FALSE) {
 
   # figure out what region the selected stp is a part of, as well as the other
   # stps in that region
-  region <- inner_join(
-    file.path("data", "reference", "nhser18.csv") %>%
-      read_csv(col_types = "cc"),
-    file.path("data", "reference", "stp18cd_to_nhser18cd.csv") %>%
-      read_csv(col_types = "cc"),
-    by = "nhser18cd"
-  ) %>%
-    group_by(nhser18cd) %>%
-    filter(any(stp18cd == stp))
+  stp_to_nhser <- file.path("data", "reference", "stp20cd_to_nhser20cd.csv") %>%
+    read_csv(col_types = "cccc") %>%
+    group_by(nhser20cd) %>%
+    filter(any(stp20cd == stp)) %>%
+    ungroup()
 
-  if (nrow(region) == 0) {
+  if (nrow(stp_to_nhser) == 0) {
     stop("stp code does not exist")
   }
 
-  env$region_name <- region[1,]$nhser18nm
-  env$region_code <- region[1,]$nhser18cd
+  env$region_name <- stp_to_nhser[1,]$nhser20nm
+  env$region_code <- stp_to_nhser[1,]$nhser20cd
   # all codes from the region
-  env$region <- region$stp18cd
+  env$region <- stp_to_nhser$stp20cd
 
   env$pop_raw_region <- file.path("data", "reference", "population.csv") %>%
     read_csv(col_types = cols(
@@ -42,10 +38,10 @@ setup_env$load_data <- function(stp, region_report = FALSE) {
 
   env$pop_raw <- filter(env$pop_raw_region, is_stp)
 
-  env$stps <- file.path("data", "reference", "stps.csv") %>%
-    read_csv(col_types = "cc")
+  env$stps <- stp_to_nhser %>%
+    select(starts_with("stp"))
 
-  env$stp_name <- filter(stps, stp18cd == stp)$stp18nm
+  env$stp_name <- filter(stps, stp20cd == stp)$stp20nm
 
   # Load MPI
 
@@ -71,7 +67,9 @@ setup_env$load_data <- function(stp, region_report = FALSE) {
                                      "sensitive",
                                      "forecast_activity.fst") %>%
     read_fst() %>%
-    as_tibble()
+    as_tibble() %>%
+    filter(region == env$region_code) %>%
+    select(-region)
 
   env$forecast_activity <- if (region_report) {
     env$forecast_activity %>%
@@ -108,12 +106,12 @@ setup_env$load_data <- function(stp, region_report = FALSE) {
   env$forecast_deaths <- file.path("data",
                                    "reference",
                                    "forecast_deaths.csv") %>%
-    read_csv(col_types = "ncncnc")
+    read_csv(col_types = "ncnccn")
 
   env$forecast_deaths <- if (region_report) {
     env$forecast_deaths %>%
-      filter(region == .env$region) %>%
-      group_by(year, sex, age_group, stp = env$region_code) %>%
+      filter(region == env$region_code) %>%
+      group_by(year, sex, age_group, stp = region) %>%
       summarise(across(est_deaths, sum))
   } else {
     env$forecast_deaths %>%
@@ -129,24 +127,6 @@ setup_env$load_data <- function(stp, region_report = FALSE) {
     env$region_name <- "NA"
   }
 
-  # ambulance activity isn't used
-  # env$activity_ambulance <- file.path("data",
-  #                                     "sensitive",
-  #                                     "activity_ambulance.fst") %>%
-  #   read_fst() %>%
-  #   as_tibble() %>%
-  #   filter((region_report & stp18cd %in% region) |
-  #            stp18cd == stp) %>%
-  #   select(-stp18cd) %>%
-  #   group_by_at(vars(-n)) %>%
-  #   summarise_at("n", sum) %>%
-  #   ungroup() %>%
-  #   mutate_at("arrival_mode", ~ifelse(.x == "1", "ambulance", NA) %>%
-  #               replace_na("other")) %>%
-  #   rename(group = cause_group_ll) %>%
-  #   mutate_at("group", fct_explicit_na) %>%
-  #   mutate_at("group", fct_relevel, levels(mpi$group))
-
   env$activity_costs_region <- file.path("data", "sensitive", "activity_costs.fst") %>%
     read_fst() %>%
     as_tibble() %>%
@@ -155,14 +135,6 @@ setup_env$load_data <- function(stp, region_report = FALSE) {
   if (nrow(env$activity_costs_region) > 0) {
     env$activity_costs_region <- env$activity_costs_region %>%
       mutate_at("ss_flag", fct_recode, "Spec. Services" = "SS") %>%
-      mutate(across(pod_type, factor, levels = unique(c(
-        levels(pod_type),
-        "CriticalCare",
-        "BED",
-        "PlannedContact",
-        "PlannedEvent",
-        "Unplanned"
-      )))) %>%
       mutate_at("pod_type",
                 fct_recode,
                 "Critical Care" = "CriticalCare",
@@ -228,7 +200,6 @@ setup_env$load_data <- function(stp, region_report = FALSE) {
                                                filter((cost / sum(cost)) <= 0.01) %>%
                                                pull(ss_flag) %>%
                                                as.character())) %>%
-      mutate(across(pod_type, factor, levels = c(levels(pod_type), "CC", "Unknown", "(Missing)"))) %>%
       mutate_at("pod_type",
                 fct_recode,
                 "Critical Care" = "CC",
