@@ -379,3 +379,9 @@ days. The reduction is driven by the decreasing number of decedents in this age 
 ```{r forecast activity - critical care bed day}
 filter(forecast_activity_plots, pod_type == "Critical Care Bed Day")$plot[[1]]
 ```
+
+#### Critical care bed day future spend at five-year intervals by decedent age group (percentages relative to 2020)
+
+```{r forecast spend - critical care bed day}
+filter(forecast_spend_plots, pod_type == "Critical Care")$plot[[1]]
+```
