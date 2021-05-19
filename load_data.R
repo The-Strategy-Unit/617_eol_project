@@ -239,7 +239,5 @@ setup_env$load_data <- function(stp, region_report = FALSE) {
   env$activity_costs <- env$activity_costs_region %>%
     semi_join(env$mpi, by = "su_pat_id")
 
-  env$money_format <- comma_format(prefix = "£", scale = 1e-6, suffix = "m", accuracy =  1)
-
   env
 }
