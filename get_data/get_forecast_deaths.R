@@ -107,7 +107,8 @@ pop_est <- excel_sheets(sapefile) %>%
           skip = 4,
           .id = "sex") %>%
   drop_na(LSOA) %>%
-  select(sex, lsoa11cd = `Area Codes`, pop = `All Ages`)
+  select(sex, lsoa11cd = `Area Codes`, pop = `All Ages`) %>%
+  filter(str_starts(lsoa11cd, "E"))
 
 # grab data from ONS geoportal
 load_data_from_geoportal <- function(x, col_a, col_b) {
@@ -122,34 +123,36 @@ load_data_from_geoportal <- function(x, col_a, col_b) {
     distinct({{col_a}}, {{col_b}})
 }
 
-# https://geoportal.statistics.gov.uk/datasets/lsoa-2011-to-clinical-commissioning-groups-to-sustainability-and-transformation-partnerships-april-2019-lookup-in-england
-lsoa_to_ccg <- load_data_from_geoportal("520e9cd294c84dfaaf97cc91494237ac",
-                                        lsoa11cd, stp19cd)
+lsoa_to_lad17 <- read_csv("https://opendata.arcgis.com/datasets/f0095af162f749ad8231e6226e1b7e30_0.csv",
+                          col_types = "c______c__") %>%
+  clean_names()
 
-# https://geoportal.statistics.gov.uk/datasets/output-area-to-lower-layer-super-output-area-to-middle-layer-super-output-area-to-local-authority-district-december-2011-lookup-in-england-and-wales
-oa_to_la <- load_data_from_geoportal("fe6c55f0924b4734adf1cf7104a0173e",
-                                     lsoa11cd, lad17cd)
+lsoa_to_stp_lookup <- read_csv("https://opendata.arcgis.com/datasets/1631beea57ff4e9fb90d75f9c764ce26_0.csv",
+                               col_types = "_c____c_____") %>%
+  clean_names() %>%
+  inner_join(lsoa_to_lad17, by = "lsoa11cd")
 
 # create lookup
-lad17_to_stp_pop <- lsoa_to_ccg %>%
-  inner_join(oa_to_la, by = "lsoa11cd") %>%
+lad20_to_stp_pop <- lsoa_to_stp_lookup %>%
   inner_join(pop_est, by = "lsoa11cd") %>%
-  group_by(sex, lad17cd, stp19cd) %>%
-  summarise_at("pop", sum) %>%
-  mutate(pop_pcnt = pop / sum(pop))
+  group_by(sex, lad18cd, stp20cd) %>%
+  summarise(across(pop, sum), .groups = "drop_last") %>%
+  mutate(pop_pcnt = pop / sum(pop)) %>%
+  ungroup()
+
+stp_to_nhser <- read_csv("data/reference/stp20cd_to_nhser20cd.csv", col_types = "c_c_")
 
 forecast_deaths <- est_deaths %>%
-  inner_join(lad17_to_stp_pop, by = c("area_code" = "lad17cd", "sex")) %>%
-  mutate_at("est_deaths", ~.x * pop_pcnt) %>%
-  group_by(year, sex, age_group, stp19cd) %>%
-  summarise_at("est_deaths", sum) %>%
-  rename(stp = stp19cd) %>%
-  filter(stp %>% str_detect("E540000(1\\d|20)")) %>%
+  inner_join(lad20_to_stp_pop, by = c("area_code" = "lad18cd", "sex")) %>%
+  inner_join(stp_to_nhser, by = "stp20cd") %>%
+  mutate(across(est_deaths, ~.x * pop_pcnt)) %>%
+  group_by(year, sex, age_group, region = nhser20cd, stp = stp20cd) %>%
+  summarise(across(est_deaths, sum), .groups = "drop_last") %>%
   bind_rows(.,
-            summarise_at(., "est_deaths", sum) %>%
+            summarise(., across(est_deaths, sum), .groups = "drop") %>%
               mutate(stp = "Region")) %>%
   ungroup() %>%
-  mutate_at("sex", str_replace, "s$", "") %>%
+  mutate(across(sex, str_replace, "s$", "")) %>%
   arrange(year, sex, age_group, stp)
 
 write_csv(forecast_deaths,
