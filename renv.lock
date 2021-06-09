@@ -37,6 +37,13 @@
       "Repository": "CRAN",
       "Hash": "e84ceec03cceaea17050f58f0ed99923"
     },
+    "KernSmooth": {
+      "Package": "KernSmooth",
+      "Version": "2.23-20",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "8dcfa99b14c296bc9f1fd64d52fd3ce7"
+    },
     "MASS": {
       "Package": "MASS",
       "Version": "7.3-53.1",
@@ -50,6 +57,18 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "ff280503079ad8623d3c4b1519b24ea2"
+    },
+    "NHSRtools": {
+      "Package": "NHSRtools",
+      "Version": "0.0.0.9001",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "nhs-r-community",
+      "RemoteRepo": "NHSRtools",
+      "RemoteRef": "main",
+      "RemoteSha": "070b7d031396fba06532edb60d48e97ae2fd60c3",
+      "Hash": "db34bc2a751d6e69b84ca99e8da47a43"
     },
     "R6": {
       "Package": "R6",
@@ -174,6 +193,13 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "15ef288688a6919417ade6251deea2b3"
+    },
+    "classInt": {
+      "Package": "classInt",
+      "Version": "0.4-3",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "17bdfa3c51df4a6c82484d13b11fb380"
     },
     "cli": {
       "Package": "cli",
@@ -798,6 +824,13 @@
       "Repository": "CRAN",
       "Hash": "8cfe5c1d3a8c8304496ba3034e080405"
     },
+    "sf": {
+      "Package": "sf",
+      "Version": "0.9-8",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "d82215b501772c9faadb4dcd71395c7d"
+    },
     "shadowtext": {
       "Package": "shadowtext",
       "Version": "0.0.8",
@@ -874,6 +907,13 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "25b572f764f3c19fef9aac33b5724f3d"
+    },
+    "units": {
+      "Package": "units",
+      "Version": "0.7-2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "e0f85712d5371ab2841f63cdb33fe0f0"
     },
     "utf8": {
       "Package": "utf8",

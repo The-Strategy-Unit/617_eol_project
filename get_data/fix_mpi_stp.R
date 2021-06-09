@@ -13,9 +13,15 @@ ccg_stp_20 <- read_csv("https://opendata.arcgis.com/datasets/9562c37c8d094ad9bb8
                        col_types = "_cc_c__") %>%
   clean_names()
 
-ccg_successors <- NHSRtools::ods_get_successors() %>%
-  select(old_ccg = old_code, ccg20cdh = new_code) %>%
-  semi_join(ccg_stp_20, by = "ccg20cdh")
+if (!file.exists("data/reference/ccg_successors.csv")) {
+  NHSRtools::ods_get_successors() %>%
+    filter(effective_date < lubridate::ymd(20210401)) %>%
+    select(old_ccg = old_code, ccg20cdh = new_code) %>%
+    semi_join(ccg_stp_20, by = "ccg20cdh") %>%
+    write_csv("data/reference/ccg_successors.csv")
+}
+
+ccg_successors <- read_csv("data/reference/ccg_successors.csv", col_types = "cc")
 
 ccg18_20 <- distinct(mpi, ccg) %>%
   left_join(ccg_successors, by = c("ccg" = "old_ccg")) %>%
