@@ -22,7 +22,7 @@ tryCatch({
            -DER_AGE_AT_DEATH) %>%
     collect() %>%
     clean_names() %>%
-    filter(proximity_to_death_days > 0) %>%
+    filter(proximity_to_death_days >= 0) %>%
     mutate_if(is.character, as.factor) %>%
     mutate_at("su_pat_id", as.numeric) %>%
     mutate_at("pod_type",
