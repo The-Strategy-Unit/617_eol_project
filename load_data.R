@@ -79,7 +79,7 @@ setup_env$load_data <- function(stp, region_report = FALSE) {
                pod_type,
                pod_summary_group,
                stp = env$region_code) %>%
-      summarise(across(c(est_deaths, activity), sum))
+      summarise(across(c(est_deaths, activity), sum), .groups = "drop")
   } else {
     filter(env$forecast_activity, stp == {{stp}})
   }
@@ -93,11 +93,11 @@ setup_env$load_data <- function(stp, region_report = FALSE) {
 
   env$historical_deaths <- if (region_report) {
     env$historical_deaths %>%
-      filter(stp_code %in% region) %>%
+      filter(stp %in% region) %>%
       group_by(stp = env$region_code,
                sex,
                year) %>%
-      sumamrise(across(deaths, sum), .groups = "drop")
+      summarise(across(deaths, sum), .groups = "drop")
   } else {
     filter(env$historical_deaths, stp == {{stp}})
   }
@@ -112,7 +112,7 @@ setup_env$load_data <- function(stp, region_report = FALSE) {
     env$forecast_deaths %>%
       filter(region == env$region_code) %>%
       group_by(year, sex, age_group, stp = region) %>%
-      summarise(across(est_deaths, sum))
+      summarise(across(est_deaths, sum), .groups = "drop")
   } else {
     env$forecast_deaths %>%
       filter(stp == {{stp}}) %>%
